@@ -1,0 +1,401 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-color",
+        "value": "oklch(60% 0.1 250)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "default fallback value of the --pedal-color custom property on the base .pedal-stompbox rule; never rendered in practice since JS always sets an explicit per-pedal-type color from the pedal/amp registry before display"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgb(105, 150, 196)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "computed-style rendering of the same --pedal-color fallback above (the footswitch LED's color-mix against the unset default), not a real design decision"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#2c2e33",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "chrome/metal material ramp per the Metal-Stays-Metal Rule (knob dark-plastic base) — gradient stop, not a palette decision"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#4c4f55",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "chrome/metal material ramp per the Metal-Stays-Metal Rule (screw gradient stop)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#8a8e95",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "chrome/metal material ramp per the Metal-Stays-Metal Rule (screw/jack gradient stop)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#b9b9b9",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "chrome/metal material ramp per the Metal-Stays-Metal Rule (range-slider thumb gradient stop)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#c7c7c7",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "chrome/metal material ramp per the Metal-Stays-Metal Rule (mini-toggle knob gradient stop)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#d6d9dc",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "chrome/metal material ramp per the Metal-Stays-Metal Rule (footswitch ribbed-metal gradient stop)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#dfe1e4",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "chrome/metal material ramp per the Metal-Stays-Metal Rule (screw/jack highlight stop)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#f2f2f2",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "chrome/metal material ramp per the Metal-Stays-Metal Rule (range-slider thumb highlight)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#f4f4f4",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "chrome/metal material ramp per the Metal-Stays-Metal Rule (mini-toggle knob highlight)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#fff",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "knob pointer-line highlight, part of the chrome/metal material ramp"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(70% 0.17 145)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented ok token (level-meter gradient stop)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(50% 0.15 145)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented ok token (mini-toggle checked-state gradient stop)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(80% 0.17 95)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented ok token (level-meter mid-scale warning stop)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(70% 0.15 145 / 0.15)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented ok token (scope-canvas glow, low opacity)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(65% 0.2 25)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented danger token (mute-btn active gradient stop)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(45% 0.19 25)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented danger token (mute-btn active gradient stop)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(35% 0.15 25)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented danger token (mute-btn active border)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(62% 0.2 25)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented danger token (level-meter clip-warning stop)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(22% 0.04 25)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented danger token (footswitch LED off-state)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(80% 0.13 85)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented brass token (Add Pedal button gradient stop)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(62% 0.13 80)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented brass token (Add Pedal button gradient stop)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(18% 0.04 85)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented brass token (Add Pedal button text)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(45% 0.1 80)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented brass token (Add Pedal button border)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(75% 0.13 85)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented brass token (amp-menu 'Signature' category heading, js/ui.js)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(70% 0.08 80)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented brass token (amp-menu 'Amps' category heading, js/ui.js)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(16% 0.03 150)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented enable-accent token (button text)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(30% 0.03 150)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented enable-accent token (scope-canvas border)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(30% 0.04 150)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented enable-accent token (enable-led inactive dot)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(40% 0.1 150)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented enable-accent token (button border)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(45% 0.1 150)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented enable-accent token (enabled-state border)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(15% 0.03 330)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented demo-accent token (button text)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(38% 0.1 330)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented demo-accent token (button border)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(60% 0.14 330)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented demo-accent token (demo-menu-item hover border)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(40% 0.08 195)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented test-accent token (button border)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(64% 0.10 195)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "tonal ramp member of documented test-accent token (button darkest gradient stop)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(28% 0.02 260)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "neutral UI-chrome tint (inactive tab-led dot), tonal variant of the documented panel/text-dim neutrals"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(38% 0.015 260)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "neutral UI-chrome tint (rack-panel metal-edge border on menus/popover), tonal variant of the documented border neutral"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255, 255, 255, 0.12)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "white gloss/bevel highlight overlay for enclosure paint-sheen rendering; opacity varies per surface, material rendering not a palette decision"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255, 255, 255, 0.18)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "white gloss/bevel highlight overlay, material rendering not a palette decision"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255, 255, 255, 0.25)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "white gloss/bevel highlight overlay, material rendering not a palette decision"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255, 255, 255, 0.4)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "white gloss/bevel highlight overlay, material rendering not a palette decision"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255, 255, 255, 0.5)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "white gloss/bevel highlight overlay, material rendering not a palette decision"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255, 255, 255, 0.6)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "white gloss/bevel highlight overlay, material rendering not a palette decision"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255, 255, 255, 0.75)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "white gloss/bevel highlight overlay, material rendering not a palette decision"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255,255,255,0.15)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "white gloss/bevel highlight overlay, material rendering not a palette decision"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255,255,255,0.28)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "white gloss/bevel highlight overlay, material rendering not a palette decision"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255,255,255,0.35)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "white gloss/bevel highlight overlay, material rendering not a palette decision"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255,255,255,0.5)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "white gloss/bevel highlight overlay, material rendering not a palette decision"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255,255,255,0.6)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "white gloss/bevel highlight overlay, material rendering not a palette decision"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgb(18, 7, 17)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "computed-style duplicate of documented demo-accent text token (oklch(15% 0.03 330)), different representation"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgb(25, 42, 60)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "computed-style duplicate of the rack-panel metal-edge border (oklch(38% 0.015 260)), different representation"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgb(26, 16, 0)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "computed-style duplicate of documented brass-tonal Add Pedal button text (oklch(18% 0.04 85)), different representation"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgb(31, 52, 35)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "computed-style duplicate of enable-accent LED inactive dot (oklch(30% 0.04 150)), different representation"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgb(35, 41, 51)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "computed-style duplicate of the inactive tab-led dot (oklch(28% 0.02 260)), different representation"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgb(4, 17, 7)",
+        "createdAt": "2026-09-14T11:00:00.000Z",
+        "reason": "computed-style duplicate of documented enable-accent text token (oklch(16% 0.03 150)), different representation"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(62% 0.14 150)",
+        "createdAt": "2026-09-14T11:05:00.000Z",
+        "reason": "second (dark) gradient stop of documented enable-accent token, the other stop of its two-stop button gradient"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(64% 0.14 330)",
+        "createdAt": "2026-09-14T11:05:00.000Z",
+        "reason": "second (dark) gradient stop of documented demo-accent token, the other stop of its two-stop button gradient"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(40%0.1 150)",
+        "createdAt": "2026-09-14T11:05:00.000Z",
+        "reason": "same literal as oklch(40% 0.1 150) (enable-accent border), computed-style check normalizes without the space"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(30%0.03 150)",
+        "createdAt": "2026-09-14T11:05:00.000Z",
+        "reason": "same literal as oklch(30% 0.03 150) (enable-accent scope border), computed-style check normalizes without the space"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(38%0.1 330)",
+        "createdAt": "2026-09-14T11:05:00.000Z",
+        "reason": "same literal as oklch(38% 0.1 330) (demo-accent border), computed-style check normalizes without the space"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(40%0.08 195)",
+        "createdAt": "2026-09-14T11:05:00.000Z",
+        "reason": "same literal as oklch(40% 0.08 195) (test-accent border), computed-style check normalizes without the space"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(45%0.1 80)",
+        "createdAt": "2026-09-14T11:05:00.000Z",
+        "reason": "same literal as oklch(45% 0.1 80) (brass-tonal Add Pedal border), computed-style check normalizes without the space"
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          "index.html"
+        ],
+        "createdAt": "2026-09-14T11:16:22.078Z",
+        "reason": "tested: every one of the 6 repeating-gradient uses (felt board, velcro strip, paint-sheen, knurled-knob ticks, ribbed footswitch chrome, brushed-aluminum amp finish) independently triggers this advisory in isolation; the rule cannot distinguish real material simulation from gratuitous stripe decoration here. Each texture is named and justified in DESIGN.md's material rules; removing them would undo the hardware-realism direction the user explicitly asked for."
+      }
+    ]
+  }
+}

@@ -1,0 +1,854 @@
+/*
+  Guitar FX Pedalboard — stompbox rack build.
+  Direction: literal diecast stompbox hardware (screws, footswitch, jack, silkscreen
+  ID plate) racked onto a felt-lined pedalboard rail, grounded in reference photography
+  of real Boss/Ibanez/MXR/Electro-Harmonix pedals and a Pedaltrain board. Replaces an
+  earlier kraft-cardboard/retail-box redesign that read as stationery, not music gear.
+*/
+
+@font-face {
+  font-family: "Anton";
+  src: url("fonts/Anton-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  --bg: oklch(14% 0.01 260);
+  --mat: oklch(11% 0.01 260);
+  --panel: oklch(22% 0.012 260);
+  --panel-2: oklch(27% 0.012 260);
+  --border: oklch(33% 0.012 260);
+  --text: oklch(94% 0.005 260);
+  --text-dim: oklch(68% 0.01 260);
+
+  --board: oklch(19% 0.012 260);
+  --board-dark: oklch(13% 0.01 260);
+  --felt: oklch(9% 0.008 260);
+
+  --brass: oklch(75% 0.11 85);
+  --chrome-hi: #e6e8eb;
+  --chrome-lo: #6b6f76;
+  --ok: oklch(72% 0.17 145);
+  --danger: oklch(60% 0.19 25);
+
+  --space-xs: 4px; --space-sm: 8px; --space-md: 14px; --space-lg: 22px; --space-xl: 34px;
+  --radius: 10px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --font-display: "Anton", "Arial Narrow", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  font-family: "Segoe UI", -apple-system, Roboto, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; min-height: 100%; }
+::selection { background: var(--brass); color: oklch(15% 0.03 85); }
+
+body {
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+  background:
+    radial-gradient(ellipse 120% 60% at 50% -10%, oklch(22% 0.015 260) 0%, transparent 60%),
+    var(--mat);
+}
+
+h1, h2, h3 { font-family: inherit; }
+
+/* ---------- topbar ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  padding: 12px 20px;
+  background: linear-gradient(180deg, oklch(28% 0.012 260) 0%, oklch(19% 0.012 260) 55%, oklch(16% 0.012 260) 100%);
+  border-bottom: 1px solid oklch(9% 0.01 260);
+  box-shadow: 0 2px 0 oklch(35% 0.012 260 / 0.4) inset, 0 6px 16px -8px rgba(0, 0, 0, 0.6);
+  flex-wrap: wrap;
+}
+
+.topbar-left h1 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  margin: 0;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: oklch(98% 0.01 90);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+.topbar-left h1 span { color: var(--brass); }
+.subtitle {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-family: var(--font-mono);
+}
+
+.topbar-center { display: flex; gap: 10px; align-items: center; }
+
+.enable-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: linear-gradient(180deg, oklch(80% 0.15 145) 0%, oklch(62% 0.14 150) 100%);
+  color: oklch(16% 0.03 150);
+  border: 1px solid oklch(40% 0.1 150);
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 10px 16px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 13px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset, 0 3px 8px -2px rgba(0, 0, 0, 0.5);
+  transition: transform 0.1s var(--ease-out), box-shadow 0.1s var(--ease-out);
+}
+.enable-btn .enable-led {
+  position: relative;
+  width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+  background: oklch(30% 0.04 150);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+.enable-btn .enable-led::after {
+  content: ""; position: absolute; inset: -7px; border-radius: 50%;
+  background: radial-gradient(circle, oklch(72% 0.17 145 / 0.55) 0%, oklch(72% 0.17 145 / 0.15) 45%, transparent 75%);
+  opacity: 0; transition: opacity 0.15s var(--ease-out);
+}
+.enable-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.enable-btn:active:not(:disabled) { transform: translateY(0); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset; }
+.enable-btn.enabled {
+  background: var(--panel-2); color: var(--ok); border: 1px solid oklch(45% 0.1 150); cursor: default;
+  box-shadow: none;
+}
+.enable-btn.enabled .enable-led { background: var(--ok); box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.3); }
+.enable-btn.enabled .enable-led::after { opacity: 1; }
+.enable-btn:disabled { opacity: 0.65; cursor: wait; }
+.enable-btn:focus-visible { outline: 2px solid var(--ok); outline-offset: 2px; }
+
+.device-select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 9px 10px;
+  font-size: 12px;
+  max-width: 240px;
+}
+.device-select:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
+
+.latency-readout {
+  font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  letter-spacing: 0.3px;
+}
+.latency-readout .latency-value { color: var(--ok); font-weight: 700; }
+
+.topbar-right { display: flex; align-items: center; gap: 14px; }
+.meter-block { display: flex; flex-direction: column; gap: 3px; width: 90px; }
+.meter-block label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+.level-meter {
+  height: 8px; border-radius: 4px; overflow: hidden;
+  background: oklch(8% 0.005 260);
+  border: 1px solid oklch(6% 0.005 260);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+.level-meter-bar {
+  height: 100%; width: 100%; transform: scaleX(0); transform-origin: left;
+  background: linear-gradient(90deg, oklch(70% 0.17 145) 0%, oklch(70% 0.17 145) 55%, oklch(80% 0.17 95) 80%, oklch(62% 0.2 25) 100%);
+  transition: transform 60ms linear;
+}
+.scope {
+  background: oklch(7% 0.01 145);
+  border: 1px solid oklch(30% 0.03 150);
+  border-radius: 4px;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.8);
+}
+
+/* ---------- tabs (amp channel strip) ---------- */
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 20px;
+  background: oklch(13% 0.01 260);
+  border-bottom: 1px solid oklch(7% 0.008 260);
+}
+.tab-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: transparent;
+  color: var(--text-dim);
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 11px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+}
+.tab-btn .tab-led {
+  position: relative;
+  width: 6px; height: 6px; border-radius: 50%; background: oklch(28% 0.02 260);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+.tab-btn .tab-led::after {
+  content: ""; position: absolute; inset: -6px; border-radius: 50%;
+  background: radial-gradient(circle, oklch(75% 0.11 85 / 0.5) 0%, oklch(75% 0.11 85 / 0.12) 45%, transparent 75%);
+  opacity: 0; transition: opacity 0.15s var(--ease-out);
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--brass); border-bottom-color: var(--brass); }
+.tab-btn.active .tab-led { background: var(--brass); box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.3); }
+.tab-btn.active .tab-led::after { opacity: 1; }
+.tab-btn:focus-visible { outline: 2px solid var(--brass); outline-offset: -2px; }
+
+main { flex: 1; padding: var(--space-lg); }
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ---------- board toolbar (utility rack strip) ---------- */
+
+.board-toolbar {
+  display: flex;
+  gap: var(--space-lg);
+  align-items: flex-end;
+  flex-wrap: wrap;
+  background: linear-gradient(180deg, oklch(23% 0.012 260), oklch(19% 0.012 260));
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-md) var(--space-md);
+  margin-bottom: var(--space-lg);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 18px -12px rgba(0, 0, 0, 0.7);
+}
+.board-toolbar .control { display: flex; flex-direction: column; gap: 5px; min-width: 100px; }
+.board-toolbar label {
+  font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700;
+}
+.board-toolbar .mini-label { margin-top: 2px; }
+
+.mute-btn {
+  background: var(--panel-2); color: var(--text-dim); border: 1px solid var(--border);
+  border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; margin-left: 4px;
+}
+.mute-btn:hover:not(:disabled) { color: var(--text); }
+.mute-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.mute-btn:focus-visible { outline: 2px solid var(--brass); }
+.hint-tag {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 12px; height: 12px; border-radius: 50%; padding: 0; font-family: inherit;
+  background: var(--panel-2); border: 1px solid var(--border); color: var(--text-dim);
+  font-size: 8px; font-weight: 800; cursor: pointer; margin-left: 3px; vertical-align: middle;
+}
+.hint-tag:hover { color: var(--brass); border-color: var(--brass); }
+.hint-tag:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
+
+.mute-btn.active {
+  background: linear-gradient(180deg, oklch(65% 0.2 25), oklch(45% 0.19 25));
+  color: white; border-color: oklch(35% 0.15 25);
+}
+
+.toolbar-actions { margin-left: auto; display: flex; gap: 8px; }
+
+.add-pedal-btn {
+  font-family: var(--font-display);
+  background: linear-gradient(180deg, oklch(80% 0.13 85), oklch(62% 0.13 80));
+  color: oklch(18% 0.04 85);
+  border: 1px solid oklch(45% 0.1 80);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 10px 15px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 13px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 3px 8px -3px rgba(0, 0, 0, 0.5);
+  transition: transform 0.1s var(--ease-out);
+}
+.add-pedal-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.add-pedal-btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.add-pedal-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.add-pedal-btn.test-btn {
+  background: linear-gradient(180deg, oklch(80% 0.10 195), oklch(64% 0.10 195));
+  color: oklch(15% 0.02 195);
+  border-color: oklch(40% 0.08 195);
+}
+
+.add-pedal-btn.demo-btn {
+  background: linear-gradient(180deg, oklch(80% 0.14 330), oklch(64% 0.14 330));
+  color: oklch(15% 0.03 330);
+  border-color: oklch(38% 0.1 330);
+}
+
+.demo-menu {
+  position: absolute; z-index: 50; width: 300px; max-height: 70vh; overflow-y: auto;
+  background: linear-gradient(180deg, oklch(24% 0.012 260), oklch(18% 0.012 260));
+  border: 2px solid oklch(38% 0.015 260); border-radius: 8px; padding: 8px;
+  box-shadow: 0 10px 18px -8px rgba(0, 0, 0, 0.6);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.demo-menu-item {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 7px; padding: 9px 11px; cursor: pointer; text-align: left;
+}
+.demo-menu-item:hover { border-color: oklch(60% 0.14 330); }
+.demo-menu-item:focus-visible { outline: 2px solid var(--brass); }
+.demo-menu-item .demo-name { font-size: 12.5px; font-weight: 700; display: block; }
+.demo-menu-item .demo-blurb { font-size: 11px; color: var(--text-dim); display: block; margin-top: 2px; }
+
+.mini-toggle { position: relative; display: inline-block; width: 36px; height: 19px; }
+.mini-toggle input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.mini-toggle label {
+  position: absolute; inset: 0; border-radius: 999px; cursor: pointer;
+  background: oklch(20% 0.01 260);
+  border: 1px solid oklch(9% 0.01 260);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+  transition: background 0.15s var(--ease-out);
+}
+.mini-toggle label::after {
+  content: ""; position: absolute; width: 15px; height: 15px; border-radius: 50%;
+  background: linear-gradient(180deg, #f4f4f4, #c7c7c7);
+  top: 1px; left: 1px; transition: left 0.15s var(--ease-out);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.mini-toggle input:checked + label { background: linear-gradient(180deg, oklch(70% 0.17 145), oklch(50% 0.15 145)); }
+.mini-toggle input:checked + label::after { left: 18px; }
+.mini-toggle input:focus-visible + label { outline: 2px solid var(--brass); outline-offset: 2px; }
+.mini-toggle input:disabled + label { opacity: 0.4; cursor: not-allowed; }
+
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 40px; background: transparent;
+  cursor: pointer; outline: none;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: oklch(15% 0.01 260);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+input[type="range"]::-moz-range-track {
+  height: 4px; border-radius: 2px;
+  background: oklch(15% 0.01 260);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px; height: 20px; border-radius: 50%;
+  margin-top: -8px;
+  background: linear-gradient(180deg, #f2f2f2, #b9b9b9);
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: linear-gradient(180deg, #f2f2f2, #b9b9b9);
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+
+/* ---------- pedalboard rail ---------- */
+
+.board-surface {
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--board), var(--board-dark));
+  border: 2px solid oklch(8% 0.008 260);
+  box-shadow: 0 18px 34px -18px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 4px;
+}
+
+.pedal-chain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 22px 18px 30px;
+  border-radius: 8px;
+  position: relative;
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.35) 0 1px, transparent 1px 4px),
+    linear-gradient(180deg, var(--felt), oklch(7% 0.006 260));
+  box-shadow: inset 0 3px 12px rgba(0, 0, 0, 0.7), inset 0 -1px 0 rgba(255, 255, 255, 0.02);
+  min-height: 120px;
+}
+/* velcro/felt strip bands running the length of the board, like a real pedalboard's
+   loop-side strips showing between racked pedals */
+.pedal-chain::before {
+  content: "";
+  position: absolute; left: 18px; right: 18px; bottom: 14px; height: 10px;
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 2px);
+  border-radius: 2px;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.6);
+  pointer-events: none;
+}
+
+/* ---------- pedal stompbox card ---------- */
+
+.pedal-stompbox {
+  --pedal-color: oklch(60% 0.1 250);
+  min-width: 152px;
+  width: fit-content;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* an asymmetric silhouette — one clipped corner, radii that don't match — reads as a
+     small hand-built/boutique enclosure rather than a stamped, uniform diecast box. */
+  border-radius: 7px 18px 9px 4px;
+  padding: 10px 12px 14px;
+  position: relative;
+  cursor: default;
+  color: oklch(98% 0.01 90);
+  background:
+    radial-gradient(ellipse 90% 40% at 50% 6%, rgba(255,255,255,0.28) 0%, transparent 60%),
+    repeating-linear-gradient(100deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 3px),
+    linear-gradient(175deg,
+      color-mix(in oklch, var(--pedal-color) 68%, #3a3d43 32%) 0%,
+      color-mix(in oklch, var(--pedal-color) 46%, #17191d 54%) 58%,
+      color-mix(in oklch, var(--pedal-color) 30%, #0a0b0d 70%) 100%);
+  border: 2px solid color-mix(in oklch, var(--pedal-color) 32%, black 68%);
+  box-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.22) inset,
+    0 -5px 10px rgba(0, 0, 0, 0.4) inset,
+    1px 0 0 rgba(255, 255, 255, 0.05) inset,
+    -1px 0 0 rgba(0, 0, 0, 0.3) inset,
+    0 14px 20px -12px rgba(0, 0, 0, 0.75),
+    0 5px 9px -3px rgba(0, 0, 0, 0.55);
+  transition: transform 0.12s var(--ease-out), box-shadow 0.12s var(--ease-out), opacity 0.12s var(--ease-out);
+}
+.pedal-stompbox.dragging {
+  transform: scale(1.05) rotate(-1.2deg);
+  box-shadow: 0 30px 48px -14px rgba(0, 0, 0, 0.8), 0 12px 20px -4px rgba(0, 0, 0, 0.6);
+  transition: box-shadow 0.12s var(--ease-out);
+  cursor: grabbing;
+}
+.pedal-card-placeholder {
+  --pedal-color: var(--brass);
+  border: 2px dashed color-mix(in oklch, var(--pedal-color) 55%, transparent);
+  border-radius: 9px;
+  background: color-mix(in oklch, var(--pedal-color) 10%, transparent);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+.pedal-stompbox.disabled-pedal { filter: saturate(0.35) brightness(0.72); }
+
+/* four corner phillips screws — metal regardless of enclosure paint color */
+.screw {
+  position: absolute; width: 8px; height: 8px; border-radius: 50%;
+  background:
+    linear-gradient(to bottom, transparent 44%, rgba(0,0,0,0.6) 44% 56%, transparent 56%),
+    linear-gradient(to right, transparent 44%, rgba(0,0,0,0.6) 44% 56%, transparent 56%),
+    radial-gradient(circle at 35% 30%, #dfe1e4, #8a8e95 55%, #4c4f55 100%);
+  box-shadow: 0 1px 1px rgba(0,0,0,0.5);
+}
+.screw-tl { top: 8px; left: 8px; }
+.screw-tr { top: 8px; right: 8px; }
+.screw-bl { bottom: 8px; left: 8px; }
+.screw-br { bottom: 8px; right: 8px; }
+
+/* 1/4" jack barrel poking out the side, like a real enclosure's side-mounted jack */
+.jack-nub {
+  position: absolute; right: -4px; top: 64%; width: 13px; height: 13px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #eef0f2, #8a8e95 55%, #35373b 100%);
+  border: 2px solid #1c1d1f;
+  box-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+}
+
+.stompbox-grip-row { display: flex; justify-content: center; height: 16px; width: 100%; margin-bottom: 2px; }
+.pedal-grip {
+  width: 46px; height: 16px; cursor: grab; touch-action: none;
+  display: flex; align-items: center; justify-content: center; gap: 3px;
+  border-radius: 3px;
+}
+.pedal-grip i {
+  display: block; width: 14px; height: 2px; border-radius: 1px;
+  background: rgba(0, 0, 0, 0.32);
+}
+.pedal-grip:hover i { background: color-mix(in oklch, var(--pedal-color) 20%, rgba(0,0,0,0.32) 80%); }
+.pedal-stompbox.dragging .pedal-grip { cursor: grabbing; }
+
+.stompbox-plate {
+  width: 100%;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding-bottom: 7px; margin-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+.stompbox-plate::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.pedal-label {
+  font-family: var(--font-display);
+  font-size: 15px; font-weight: 400; text-transform: uppercase; letter-spacing: 0.4px;
+  color: oklch(98% 0.01 90);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+  line-height: 1.05;
+  padding-right: 14px;
+}
+.pedal-header-actions { display: flex; gap: 5px; flex-shrink: 0; }
+
+.pedal-remove, .pedal-info {
+  background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(0, 0, 0, 0.4); border-radius: 4px;
+  color: rgba(255, 255, 255, 0.6); font-size: 13px; cursor: pointer; line-height: 1;
+  width: 18px; height: 18px; flex-shrink: 0;
+}
+.pedal-remove:hover { color: var(--danger); border-color: var(--danger); }
+.pedal-remove:focus-visible, .pedal-info:focus-visible { outline: 2px solid white; outline-offset: 1px; }
+.pedal-info { font-size: 11px; font-weight: 800; }
+.pedal-info:hover { color: var(--brass); border-color: var(--brass); }
+
+.pedal-info-popover {
+  position: absolute; z-index: 60; width: 240px;
+  background: linear-gradient(180deg, oklch(25% 0.012 260), oklch(19% 0.012 260));
+  border: 2px solid oklch(38% 0.015 260); border-radius: 8px; padding: 12px 14px;
+  box-shadow: 0 10px 18px -8px rgba(0, 0, 0, 0.6);
+  font-size: 12px; line-height: 1.5; color: var(--text);
+}
+.pedal-info-popover .popover-title {
+  display: block; font-family: var(--font-display); font-size: 12px; font-weight: 400; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--brass); margin-bottom: 6px;
+}
+
+.pedal-knobs {
+  flex: 1;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-height: 0;
+  position: relative;
+}
+/* a faint, original etched-linework motif per category (a spring, a peak, a wave...) —
+   sits behind the knobs like a hand-engraved panel, breaking up the flat painted body
+   the way an illustrated boutique pedal face does, without borrowing any specific
+   artwork: every line here is drawn from scratch, tied only to the category's idea. */
+.pedal-knobs::before {
+  content: ""; position: absolute; inset: -4px 2px; z-index: 0;
+  background-repeat: no-repeat; background-position: center; background-size: contain;
+  opacity: 0.14; pointer-events: none;
+}
+.pedal-knobs > * { position: relative; z-index: 1; }
+.pedal-stompbox[data-category="dynamics"] .pedal-knobs::before {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20100%2040%27%3E%3Cpath%20d%3D%27M2%2020%20Q10%204%2018%2020%20T34%2020%20T50%2020%20T66%2020%20T82%2020%20T98%2020%27%20stroke%3D%27white%27%20stroke-width%3D%271.5%27%20fill%3D%27none%27/%3E%3C/svg%3E");
+}
+.pedal-stompbox[data-category="drive"] .pedal-knobs::before {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20100%2040%27%3E%3Cpath%20d%3D%27M2%2034%20L14%208%20L26%2034%20L38%204%20L50%2034%20L62%2010%20L74%2034%20L86%206%20L98%2034%27%20stroke%3D%27white%27%20stroke-width%3D%271.5%27%20fill%3D%27none%27/%3E%3C/svg%3E");
+}
+.pedal-stompbox[data-category="filter"] .pedal-knobs::before {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20100%2040%27%3E%3Cpath%20d%3D%27M10%2038%20A40%2040%200%200%201%2090%2038%20M22%2038%20A28%2028%200%200%201%2078%2038%20M34%2038%20A16%2016%200%200%201%2066%2038%27%20stroke%3D%27white%27%20stroke-width%3D%271.5%27%20fill%3D%27none%27/%3E%3C/svg%3E");
+}
+.pedal-stompbox[data-category="modulation"] .pedal-knobs::before {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20100%2040%27%3E%3Cpath%20d%3D%27M2%2020%20Q14%202%2026%2020%20T50%2020%20T74%2020%20T98%2020%27%20stroke%3D%27white%27%20stroke-width%3D%271.5%27%20fill%3D%27none%27/%3E%3C/svg%3E");
+}
+.pedal-stompbox[data-category="pitch"] .pedal-knobs::before {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20100%2040%27%3E%3Cpath%20d%3D%27M20%2036%20L35%2012%20L50%2036%20M50%2036%20L65%2012%20L80%2036%27%20stroke%3D%27white%27%20stroke-width%3D%271.5%27%20fill%3D%27none%27/%3E%3C/svg%3E");
+}
+.pedal-stompbox[data-category="time"] .pedal-knobs::before {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20100%2040%27%3E%3Ccircle%20cx%3D%2775%27%20cy%3D%2720%27%20r%3D%274%27%20stroke%3D%27white%27%20stroke-width%3D%271.5%27%20fill%3D%27none%27/%3E%3Ccircle%20cx%3D%2775%27%20cy%3D%2720%27%20r%3D%2710%27%20stroke%3D%27white%27%20stroke-width%3D%271.5%27%20fill%3D%27none%27/%3E%3Ccircle%20cx%3D%2775%27%20cy%3D%2720%27%20r%3D%2716%27%20stroke%3D%27white%27%20stroke-width%3D%271.5%27%20fill%3D%27none%27/%3E%3C/svg%3E");
+}
+.pedal-stompbox[data-category="eq"] .pedal-knobs::before {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20100%2040%27%3E%3Cpath%20d%3D%27M14%2034V18M30%2034V6M46%2034V22M62%2034V12M78%2034V26%27%20stroke%3D%27white%27%20stroke-width%3D%273%27%20stroke-linecap%3D%27round%27/%3E%3C/svg%3E");
+}
+
+.knob-row { display: flex; flex-direction: column; align-items: center; gap: 9px; width: 86px; flex-shrink: 0; }
+.knob-row label {
+  font-size: 11px; color: rgba(255, 255, 255, 0.75); text-transform: uppercase; letter-spacing: 0.3px;
+  display: flex; gap: 4px; align-items: baseline; width: 100%; justify-content: center;
+}
+.knob-row .knob-value {
+  color: #fff; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; cursor: pointer;
+  border-bottom: 1px dotted rgba(255, 255, 255, 0.4); padding: 0 1px;
+}
+.knob-row .knob-value:hover { color: var(--brass); border-bottom-color: var(--brass); }
+.knob-row .knob-value:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
+.knob-value-edit {
+  width: 3.6em; background: oklch(10% 0.008 260); color: var(--text);
+  border: 1px solid var(--brass); border-radius: 3px; font-size: 11px; font-weight: 700;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums; padding: 0 2px; text-align: center;
+}
+.knob-value-edit:focus { outline: none; }
+.knob-row input[type="range"] { width: 88%; }
+
+/* knurled black-plastic knob with a printed tick-mark arc underneath, matching real
+   stompbox pots (e.g. Ibanez TS9): a ring of reference ticks sits behind the dial. */
+.knob-dial-wrap {
+  --knob-angle: -135deg;
+  position: relative; width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+}
+/* the first control is the pedal's primary character knob (Drive, Rate, Time...) —
+   sizing it up breaks the uniform equal-knob grid EarthQuaker/Walrus-style boutique
+   pedals avoid, and gives each card a clear focal point instead of a flat control row. */
+.pedal-knobs > .knob-row:first-child .knob-dial-wrap { transform: scale(1.22); }
+.knob-ticks {
+  position: absolute; inset: -7px; border-radius: 50%;
+  background: conic-gradient(from 0deg,
+    rgba(255,255,255,0.55) 0deg 1.2deg, transparent 1.2deg 25.8deg,
+    rgba(255,255,255,0.55) 25.8deg 28.2deg, transparent 28.2deg 52.8deg,
+    rgba(255,255,255,0.55) 52.8deg 55.2deg, transparent 55.2deg 79.8deg,
+    rgba(255,255,255,0.55) 79.8deg 82.2deg, transparent 82.2deg 106.8deg,
+    rgba(255,255,255,0.55) 106.8deg 109.2deg, transparent 109.2deg 133.8deg,
+    rgba(255,255,255,0.55) 133.8deg 136.2deg, transparent 136.2deg 223.8deg,
+    rgba(255,255,255,0.55) 223.8deg 226.2deg, transparent 226.2deg 250.8deg,
+    rgba(255,255,255,0.55) 250.8deg 253.2deg, transparent 253.2deg 277.8deg,
+    rgba(255,255,255,0.55) 277.8deg 280.2deg, transparent 280.2deg 304.8deg,
+    rgba(255,255,255,0.55) 304.8deg 307.2deg, transparent 307.2deg 331.8deg,
+    rgba(255,255,255,0.55) 331.8deg 334.2deg, transparent 334.2deg 360deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 63%, black 66% 76%, transparent 79%);
+  mask-image: radial-gradient(circle, transparent 63%, black 66% 76%, transparent 79%);
+}
+.knob-dial {
+  width: 34px; height: 34px; border-radius: 50%; position: relative;
+  background:
+    repeating-conic-gradient(from 0deg, rgba(255,255,255,0.05) 0deg 3deg, transparent 3deg 9deg),
+    radial-gradient(circle at 35% 30%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 32%),
+    linear-gradient(155deg, #35383e 0%, #17181b 55%, #060607 100%);
+  box-shadow:
+    0 2px 3px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
+.knob-dial::after {
+  content: ""; position: absolute; inset: 8px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 32%, #2c2e33, #08090a 75%);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+.knob-pointer {
+  position: absolute; left: 50%; top: 50%;
+  /* A short radial stripe, centered on the same 13px-radius band the dot used — between
+     the dial's outer edge (17px radius) and .knob-dial::after's inner black circle
+     (9px radius) — rather than a full line running all the way from the knob's center. */
+  width: 1px; height: 7px;
+  margin-left: -0.5px; margin-top: -3.5px;
+  border-radius: 0.5px;
+  transform-origin: 50% 50%;
+  transform: rotate(var(--knob-angle)) translateY(-13px);
+  background: #fff;
+  z-index: 1;
+}
+
+.stompbox-foot-row { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+.pedal-footswitch {
+  display: block;
+  width: 38px; height: 38px; border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, #d6d9dc 0deg 4deg, #9a9ea5 4deg 8deg);
+  border: 3px solid #17181a;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.65), inset 0 1px 2px rgba(255, 255, 255, 0.5);
+  cursor: pointer; position: relative;
+}
+.pedal-footswitch:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
+.pedal-footswitch:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+.pedal-footswitch .led {
+  position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+  width: 8px; height: 8px; border-radius: 50%;
+  background: oklch(22% 0.04 25);
+  border: 1px solid rgba(0,0,0,0.4);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+.pedal-footswitch .led::after {
+  content: ""; position: absolute; inset: -7px; border-radius: 50%;
+  background: radial-gradient(circle,
+    color-mix(in oklch, var(--pedal-color) 85%, white 15%) 0%,
+    color-mix(in oklch, color-mix(in oklch, var(--pedal-color) 85%, white 15%) 30%, transparent) 45%,
+    transparent 75%);
+  opacity: 0; transition: opacity 0.15s var(--ease-out);
+}
+.pedal-stompbox:not(.disabled-pedal) .pedal-footswitch .led {
+  background: color-mix(in oklch, var(--pedal-color) 85%, white 15%);
+  box-shadow: inset 0 0 2px rgba(255, 255, 255, 0.6);
+}
+.pedal-stompbox:not(.disabled-pedal) .pedal-footswitch .led::after { opacity: 0.9; }
+
+/* Signature amps carry a real head-amp construction: a tolex body in --pedal-color, a
+   contrasting control-panel strip in --pedal-accent behind the knobs, and a thin piping/
+   welt trim line in --pedal-trim around the edge — each amp's three tones come from a
+   palette extracted (as plain numbers, not the artwork itself) from that band's actual
+   album cover, so the four signature amps read as distinct hardware, not one shared skin. */
+.pedal-stompbox.amp-card {
+  --pedal-accent: color-mix(in oklch, var(--pedal-color) 30%, #202226 70%);
+  --pedal-trim: color-mix(in oklch, var(--pedal-color) 60%, white 40%);
+  min-width: 196px;
+  background:
+    radial-gradient(ellipse 90% 40% at 50% 6%, rgba(255,255,255,0.15) 0%, transparent 60%),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, color-mix(in oklch, var(--pedal-color) 70%, #4a4d52 30%) 0%, color-mix(in oklch, var(--pedal-color) 46%, #202226 54%) 100%);
+  border-color: color-mix(in oklch, var(--pedal-color) 35%, black 65%);
+  box-shadow: 0 20px 30px -14px rgba(0, 0, 0, 0.75), 0 6px 12px -4px rgba(0, 0, 0, 0.55);
+  outline: 2px solid color-mix(in oklch, var(--pedal-trim) 70%, transparent);
+  outline-offset: -2px;
+}
+.pedal-stompbox.amp-card .pedal-label {
+  color: color-mix(in oklch, var(--pedal-trim) 85%, white 15%);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+}
+.pedal-stompbox.amp-card .pedal-label::after {
+  content: "AMP"; display: block; font-family: var(--font-mono); font-size: 8px; font-weight: 700;
+  letter-spacing: 1.6px; color: color-mix(in oklch, var(--pedal-trim) 70%, transparent 30%); opacity: 0.9;
+  margin-top: 2px;
+}
+.pedal-stompbox.amp-card .pedal-knobs {
+  /* vertical padding sized to actually contain the enlarged primary knob (scale 1.22)
+     plus its tick-ring — at 8px this panel was cropping the top/bottom of that knob's
+     ticks, letting the recessed panel color and the body color show through the same
+     control at once. 17px covers the ~13px of extra overflow the scale-up adds. */
+  padding: 17px 10px; margin: 0 -2px;
+  border-radius: 6px;
+  background: color-mix(in oklch, var(--pedal-accent) 88%, black 12%);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.pedal-stompbox.amp-card .knob-row label { color: color-mix(in oklch, var(--pedal-trim) 80%, white 20%); }
+
+.pedal-select {
+  width: 88%;
+  background: oklch(12% 0.01 260);
+  color: var(--text);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 10.5px;
+}
+.pedal-select:focus-visible { outline: 2px solid var(--brass); }
+
+/* ---------- add-pedal menu ---------- */
+
+.add-pedal-menu {
+  position: absolute;
+  z-index: 50;
+  max-height: 70vh;
+  overflow-y: auto;
+  width: 300px;
+  background: linear-gradient(180deg, oklch(24% 0.012 260), oklch(18% 0.012 260));
+  border: 2px solid oklch(38% 0.015 260);
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 10px 18px -8px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  align-content: flex-start;
+}
+.add-menu-heading {
+  flex-basis: 100%;
+  font-family: var(--font-display);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 400;
+  color: var(--cat-color, var(--text-dim));
+  margin: 9px 4px 3px;
+}
+.add-menu-item {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.add-menu-item::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  background: var(--pedal-color, var(--border));
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4) inset;
+}
+.add-menu-item:hover { border-color: color-mix(in oklch, var(--pedal-color, var(--brass)) 60%, var(--border) 40%); }
+.add-menu-item:focus-visible { outline: 2px solid var(--brass); }
+
+/* ---------- rack-label tag (shared by tuner/looper/presets panels) ---------- */
+
+.tuner-rack-label, .looper-rack-label, .presets-rack-label {
+  display: inline-block;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--text-dim);
+  padding: 3px 9px; border: 1px solid var(--border); border-radius: 3px;
+  background: var(--panel); margin-bottom: 18px;
+}
+
+/* ---------- tuner ---------- */
+
+.tuner-box { max-width: 360px; margin: 0 auto; text-align: center; padding: 34px 0; }
+.tuner-note { font-family: var(--font-display); font-size: 64px; font-weight: 400; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
+.tuner-meter { position: relative; height: 60px; margin: 14px 0 6px; }
+.tuner-center-line { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--ok); transform: translateX(-1px); }
+.tuner-needle {
+  position: absolute; left: 50%; top: 6px; bottom: 6px; width: 3px; background: var(--text);
+  transform: translateX(-50%) rotate(0deg); transform-origin: bottom center; transition: transform 0.08s linear;
+  border-radius: 2px;
+}
+.tuner-cents { font-family: var(--font-mono); font-size: 14px; color: var(--text-dim); }
+.tuner-freq { font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.hint { font-size: 12px; color: var(--text-dim); margin-top: 18px; }
+
+/* ---------- looper ---------- */
+
+.looper-box { max-width: 520px; }
+.looper-transport { display: flex; gap: 8px; flex-wrap: wrap; }
+.looper-btn {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 12.5px; text-decoration: none; display: inline-block;
+  font-weight: 600;
+}
+.looper-btn:focus-visible { outline: 2px solid var(--brass); }
+.looper-btn.record { color: oklch(72% 0.17 25); border-color: color-mix(in oklch, var(--danger) 50%, var(--border) 50%); }
+.looper-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.looper-btn.disabled { opacity: 0.4; pointer-events: none; }
+.looper-btn.toggle.active { background: linear-gradient(180deg, oklch(80% 0.13 85), oklch(62% 0.13 80)); color: oklch(18% 0.04 85); border-color: transparent; }
+.looper-waveform {
+  display: block; width: 100%; height: 90px; margin-top: 14px;
+  background: oklch(8% 0.008 260);
+  border: 1px solid var(--border); border-radius: 6px;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.7);
+}
+.looper-status { margin-top: 12px; font-size: 12px; color: var(--text-dim); font-family: var(--font-mono); }
+
+/* ---------- presets ---------- */
+
+.presets-box { max-width: 480px; }
+.presets-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.presets-row input[type="text"] {
+  flex: 1; background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+  padding: 9px 10px; border-radius: 6px;
+}
+.presets-row input[type="text"]:focus-visible { outline: 2px solid var(--brass); }
+.presets-row button, .file-btn {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  padding: 9px 14px; border-radius: 6px; cursor: pointer; font-size: 12.5px; font-weight: 600;
+}
+.presets-row button:focus-visible, .file-btn:focus-visible { outline: 2px solid var(--brass); }
+.preset-list { list-style: none; padding: 0; margin: 0 0 16px; display: flex; flex-direction: column; gap: 6px; }
+.preset-list li {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: 13px;
+}
+.preset-list .preset-actions button {
+  background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; margin-left: 8px;
+}
+.preset-list .preset-actions button:hover { color: var(--text); }
+
+/* ---------- setup ---------- */
+
+.setup-box { max-width: 720px; line-height: 1.55; font-size: 13.5px; }
+.setup-box h2 {
+  font-family: var(--font-display); font-weight: 400;
+  font-size: 15px; margin-top: 26px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--brass);
+}
+.setup-box code {
+  background: oklch(10% 0.008 260); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-size: 12.5px;
+  font-family: var(--font-mono);
+}
+.setup-box li { margin-bottom: 6px; }
+
+@media (max-width: 720px) {
+  .topbar { flex-direction: column; align-items: stretch; }
+  .topbar-right { justify-content: space-between; }
+  .pedal-stompbox { width: 100%; max-width: 220px; }
+}

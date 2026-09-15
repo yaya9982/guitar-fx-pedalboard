@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-14T00:00:00Z",
+  "title": "Design System: Guitar FX Pedalboard",
+  "extensions": {
+    "colorMeta": {
+      "brass": { "role": "primary", "displayName": "Amp Pilot Brass", "canonical": "oklch(75% 0.11 85)", "tonalRamp": ["oklch(15% 0.03 85)", "oklch(28% 0.05 85)", "oklch(40% 0.07 85)", "oklch(52% 0.09 85)", "oklch(64% 0.10 85)", "oklch(75% 0.11 85)", "oklch(86% 0.08 85)", "oklch(95% 0.03 85)"] },
+      "bg": { "role": "neutral", "displayName": "Workshop Dark", "canonical": "oklch(14% 0.01 260)", "tonalRamp": ["oklch(8% 0.008 260)", "oklch(14% 0.01 260)", "oklch(19% 0.012 260)", "oklch(27% 0.012 260)", "oklch(33% 0.012 260)", "oklch(45% 0.012 260)", "oklch(60% 0.01 260)", "oklch(80% 0.008 260)"] },
+      "board": { "role": "neutral", "displayName": "Board Rail Metal", "canonical": "oklch(19% 0.012 260)", "tonalRamp": ["oklch(9% 0.008 260)", "oklch(13% 0.01 260)", "oklch(19% 0.012 260)", "oklch(25% 0.012 260)", "oklch(33% 0.012 260)", "oklch(45% 0.012 260)", "oklch(60% 0.01 260)", "oklch(80% 0.008 260)"] },
+      "ok": { "role": "secondary", "displayName": "Level-Good Green", "canonical": "oklch(72% 0.17 145)", "tonalRamp": ["oklch(20% 0.06 145)", "oklch(32% 0.10 145)", "oklch(44% 0.13 145)", "oklch(56% 0.15 145)", "oklch(64% 0.16 145)", "oklch(72% 0.17 145)", "oklch(84% 0.13 145)", "oklch(94% 0.06 145)"] },
+      "danger": { "role": "tertiary", "displayName": "Record Red", "canonical": "oklch(60% 0.19 25)", "tonalRamp": ["oklch(18% 0.06 25)", "oklch(28% 0.10 25)", "oklch(38% 0.14 25)", "oklch(48% 0.17 25)", "oklch(60% 0.19 25)", "oklch(72% 0.17 25)", "oklch(84% 0.12 25)", "oklch(94% 0.05 25)"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Anton Display", "purpose": "Pedal wordmarks, topbar H1, headline button labels, Setup headings." },
+      "mono": { "displayName": "Rack Mono", "purpose": "Live readings only: knob values, latency, tuner cents/Hz, rack-label tags." }
+    },
+    "shadows": [
+      { "name": "stompbox-rest", "value": "0 20px 30px -14px rgba(0,0,0,0.75), 0 6px 12px -4px rgba(0,0,0,0.55)", "purpose": "Default pedal-enclosure elevation off the felt board." },
+      { "name": "stompbox-dragging", "value": "0 30px 48px -14px rgba(0,0,0,0.8), 0 12px 20px -4px rgba(0,0,0,0.6)", "purpose": "Actively dragged pedal card, paired with scale(1.05) rotate(-1.2deg)." },
+      { "name": "rack-panel", "value": "0 10px 18px -8px rgba(0,0,0,0.6)", "purpose": "Add-Pedal menu, Demo menu, info popovers — paired with a 2px metal-edge border." },
+      { "name": "board-frame", "value": "0 18px 34px -18px rgba(0,0,0,0.8)", "purpose": "The pedalboard rail frame sitting on the page." },
+      { "name": "led-jewel-glow", "value": "0 0 8px 2px color-mix(in oklch, var(--pedal-color) 90%, transparent)", "purpose": "The one deliberate glow in the system: a genuinely lit LED indicator, never decoration." }
+    ],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Default easing for button/card transform transitions." },
+      { "name": "meter-response", "value": "transform 60ms linear", "purpose": "Input level meter bar (scaleX), avoids animating width/layout properties." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "720px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Pedal Stompbox Card",
+      "kind": "custom",
+      "refersTo": "card-pedal",
+      "description": "The signature component: a diecast pedal enclosure with corner screws, silkscreen ID plate, knurled knobs, chrome footswitch + jewel LED, and a side jack nub.",
+      "html": "<div class=\"ds-stompbox\" style=\"--pedal-color: oklch(66% 0.19 45)\"><span class=\"ds-screw\" style=\"top:8px;left:8px\"></span><span class=\"ds-screw\" style=\"top:8px;right:8px\"></span><span class=\"ds-screw\" style=\"bottom:8px;left:8px\"></span><span class=\"ds-screw\" style=\"bottom:8px;right:8px\"></span><span class=\"ds-jack\"></span><div class=\"ds-plate\"><span class=\"ds-label\">Distortion</span></div><button class=\"ds-footswitch\"><span class=\"ds-led\"></span></button></div>",
+      "css": ".ds-stompbox{--pedal-color:oklch(66% 0.19 45);position:relative;width:160px;border-radius:9px;padding:10px 12px 14px;display:flex;flex-direction:column;align-items:center;color:oklch(97% 0.01 90);background:radial-gradient(ellipse 90% 40% at 50% 6%,rgba(255,255,255,.28) 0%,transparent 60%),linear-gradient(175deg,color-mix(in oklch,var(--pedal-color) 68%,#3a3d43 32%) 0%,color-mix(in oklch,var(--pedal-color) 46%,#17191d 54%) 58%,color-mix(in oklch,var(--pedal-color) 30%,#0a0b0d 70%) 100%);border:1.5px solid color-mix(in oklch,var(--pedal-color) 32%,black 68%);box-shadow:0 20px 30px -14px rgba(0,0,0,.75),0 6px 12px -4px rgba(0,0,0,.55)} .ds-screw{position:absolute;width:8px;height:8px;border-radius:50%;background:linear-gradient(to bottom,transparent 44%,rgba(0,0,0,.6) 44% 56%,transparent 56%),linear-gradient(to right,transparent 44%,rgba(0,0,0,.6) 44% 56%,transparent 56%),radial-gradient(circle at 35% 30%,#dfe1e4,#8a8e95 55%,#4c4f55 100%)} .ds-jack{position:absolute;right:-4px;top:64%;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#eef0f2,#8a8e95 55%,#35373b 100%);border:2px solid #1c1d1f} .ds-plate{width:100%;padding-bottom:7px;margin-bottom:10px;border-bottom:1px solid rgba(0,0,0,.3)} .ds-label{font-family:Anton,\"Arial Narrow\",sans-serif;font-size:15px;text-transform:uppercase;color:oklch(98% 0.01 90);text-shadow:0 1px 1px rgba(0,0,0,.5)} .ds-footswitch{width:38px;height:38px;border-radius:50%;background:repeating-conic-gradient(from 0deg,#d6d9dc 0deg 4deg,#9a9ea5 4deg 8deg);border:3px solid #17181a;box-shadow:0 3px 6px rgba(0,0,0,.65),inset 0 1px 2px rgba(255,255,255,.5);position:relative;margin-top:14px} .ds-led{position:absolute;top:-13px;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:color-mix(in oklch,var(--pedal-color) 85%,white 15%);box-shadow:0 0 8px 2px color-mix(in oklch,var(--pedal-color) 90%,transparent)}"
+    },
+    {
+      "name": "Enable Audio Button",
+      "kind": "button",
+      "refersTo": "button-enable",
+      "description": "Primary call-to-action, styled as a lit pilot-light footswitch button.",
+      "html": "<button class=\"ds-enable-btn\"><span class=\"ds-enable-led\"></span>Click to Enable Audio</button>",
+      "css": ".ds-enable-btn{display:inline-flex;align-items:center;gap:8px;font-family:Anton,\"Arial Narrow\",sans-serif;text-transform:uppercase;letter-spacing:.5px;font-size:13px;padding:10px 16px;border-radius:7px;cursor:pointer;background:linear-gradient(180deg,oklch(80% 0.15 145) 0%,oklch(62% 0.14 150) 100%);color:oklch(16% 0.03 150);border:1px solid oklch(40% 0.1 150);box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 3px 8px -2px rgba(0,0,0,.5)} .ds-enable-btn:hover{transform:translateY(-1px)} .ds-enable-btn:focus-visible{outline:2px solid oklch(72% 0.17 145);outline-offset:2px} .ds-enable-led{width:9px;height:9px;border-radius:50%;background:oklch(30% 0.04 150);box-shadow:inset 0 1px 1px rgba(0,0,0,.5)}"
+    },
+    {
+      "name": "Mini Toggle",
+      "kind": "input",
+      "refersTo": "mini-toggle",
+      "description": "Pill-shaped rocker-style toggle for Noise Gate / Denoise / Acoustic Sim controls — the system's one deliberate pill form.",
+      "html": "<span class=\"ds-mini-toggle\"><input type=\"checkbox\" id=\"ds-demo-toggle\" checked><label for=\"ds-demo-toggle\"></label></span>",
+      "css": ".ds-mini-toggle{position:relative;display:inline-block;width:36px;height:19px} .ds-mini-toggle input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer} .ds-mini-toggle label{position:absolute;inset:0;border-radius:999px;cursor:pointer;background:oklch(20% 0.01 260);border:1px solid oklch(9% 0.01 260);box-shadow:inset 0 1px 3px rgba(0,0,0,.6);transition:background .15s} .ds-mini-toggle label::after{content:'';position:absolute;width:15px;height:15px;border-radius:50%;background:linear-gradient(180deg,#f4f4f4,#c7c7c7);top:1px;left:1px;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.5)} .ds-mini-toggle input:checked+label{background:linear-gradient(180deg,oklch(70% 0.17 145),oklch(50% 0.15 145))} .ds-mini-toggle input:checked+label::after{left:18px} .ds-mini-toggle input:focus-visible+label{outline:2px solid oklch(75% 0.11 85);outline-offset:2px}"
+    },
+    {
+      "name": "Add-Pedal Menu Item",
+      "kind": "chip",
+      "refersTo": "add-menu-item",
+      "description": "Category-colored menu row using a small swatch dot rather than a colored side-border strip.",
+      "html": "<button class=\"ds-add-item\" style=\"--pedal-color: oklch(66% 0.19 45)\">Distortion</button>",
+      "css": ".ds-add-item{--pedal-color:oklch(66% 0.19 45);display:inline-flex;align-items:center;gap:7px;background:oklch(27% 0.012 260);color:oklch(94% 0.005 260);border:1px solid oklch(33% 0.012 260);border-radius:6px;padding:6px 10px;font-size:11.5px;cursor:pointer} .ds-add-item::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--pedal-color);box-shadow:0 0 0 1px rgba(0,0,0,.4) inset} .ds-add-item:hover{border-color:color-mix(in oklch,var(--pedal-color) 60%,oklch(33% 0.012 260) 40%)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Rack, Not the Icon Set",
+    "overview": "The app is a real pedalboard: diecast stompbox enclosures with phillips screws, a silkscreen ID plate, knurled pots, a chrome footswitch with a jewel LED, and a side jack — racked onto a felt-lined pedalboard rail under a dark rack-strip topbar. This is the second visual identity this app has shipped. The first was a photoreal-skeuomorphic stompbox skin; a second attempt replaced it with a kraft-cardboard retail-box register that the user rejected outright for reading as stationery, not music gear. This build is a from-scratch rebuild grounded in reference photography of real Boss/Ibanez/Electro-Harmonix pedals and a Pedaltrain board, refusing both the earlier chrome-photoreal extreme and the paper-flat retreat.",
+    "keyCharacteristics": [
+      "Literal diecast pedal enclosures with 4 corner phillips screws, a side jack, and a silkscreen ID plate.",
+      "Knurled black-plastic knobs with a printed tick-mark reference arc.",
+      "A chrome-ribbed footswitch with a jewel LED that only glows when engaged.",
+      "A felt-and-cable-groove pedalboard rail, not a generic dark card grid.",
+      "Amps render in a distinct brushed-aluminum finish, a different hardware class from stompboxes.",
+      "Anton for every wordmark/headline, system sans for body copy, monospace for live readings."
+    ],
+    "rules": [
+      { "name": "The One-Color-Per-Category Rule", "body": "Each pedal/amp type owns exactly one flat paint color (--pedal-color), applied to its enclosure gradient, knob-pointer accent, and footswitch LED consistently.", "section": "colors" },
+      { "name": "The Metal-Stays-Metal Rule", "body": "Screws, the jack barrel, and the footswitch face always render in the chrome ramp regardless of the enclosure's paint color.", "section": "colors" },
+      { "name": "The Data-Is-Mono Rule", "body": "Any numeral read as a live measurement renders in monospace with tabular figures; Anton never carries a numeral.", "section": "typography" },
+      { "name": "The 11px Floor Rule", "body": "No functional label drops below 11px, even in the densest toolbar control strip.", "section": "typography" },
+      { "name": "The Lit-Not-Glowing Rule", "body": "The only colored, blurred glow in the system is a genuine LED indicator; no other element borrows that treatment as decoration.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep every enclosure gradient standing in for real paint sheen, never a flat single-color fill.",
+      "Do render screws, the jack, and the footswitch face in the metal ramp regardless of --pedal-color.",
+      "Do keep the jewel-LED glow as the system's only decorative blur.",
+      "Do keep functional text at 11px or larger.",
+      "Do pair any machined 1.5-2px border with a tightened shadow, never a hairline border with a large diffuse blur."
+    ],
+    "donts": [
+      "Don't reintroduce kraft/paper/cardboard color, barcode corners, or rubber-stamp print flourishes anywhere.",
+      "Don't flatten a pedal enclosure to a single solid-fill icon swatch.",
+      "Don't use a colored border-left strip as a category-color legend; use a small swatch dot instead.",
+      "Don't add a second pill-shaped control beyond the mini-toggle."
+    ]
+  }
+}
