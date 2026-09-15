@@ -121,6 +121,39 @@
       </div>
       <canvas id="looperWaveform" class="looper-waveform" width="640" height="90"></canvas>
       <div id="looperStatus" class="looper-status">No recording yet.</div>
+
+      <div class="drumkit-box">
+        <div class="drumkit-header">
+          <span class="looper-rack-label">Drum Pads</span>
+          <label class="drumkit-field">Kit
+            <select id="drumKitSelect">
+              <option value="acoustic">Acoustic</option>
+              <option value="analog">Analog</option>
+              <option value="electronic">Electronic</option>
+              <option value="lofi">Lo-Fi</option>
+              <option value="recorded">Recorded (Real Samples)</option>
+            </select>
+          </label>
+          <label class="drumkit-field">Volume
+            <input type="range" id="drumVolRange" min="0" max="150" value="90">
+          </label>
+        </div>
+        <div id="drumPadGrid" class="drum-pad-grid"></div>
+        <p class="hint">Click a pad, or press its number key on your keyboard. Drum hits
+          play live and get captured into the loop while you're recording.</p>
+
+        <div class="beat-presets">
+          <div class="beat-presets-header">
+            <span class="looper-rack-label">Beat Presets</span>
+            <label class="drumkit-field">Tempo
+              <input type="range" id="beatTempoRange" min="40" max="220" value="100">
+              <input type="number" id="beatTempoInput" min="40" max="220" value="100" class="tempo-number">
+              <span class="tempo-unit">BPM</span>
+            </label>
+          </div>
+          <div id="beatPresetRow" class="beat-preset-row"></div>
+        </div>
+      </div>
     </div>
   </section>
 

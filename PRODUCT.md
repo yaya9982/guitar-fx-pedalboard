@@ -50,7 +50,11 @@ experimentation, and casual recording via the built-in looper/WAV export.
 - Amp library: Clean/Crunch/Lead standard amps plus 4 "Signature" band-tribute amps
   (AC/DC, Led Zeppelin, Oasis, Dire Straits).
 - Acoustic-guitar-simulation toggle, built-in tuner (reads pre-effects signal), looper
-  with WAV export, preset save/load/autosave/export/import.
+  with WAV export and a recorded-waveform display, preset save/load/autosave/export/import.
+- Synthesized drum pads (8 pads, 4 kits: Acoustic/Analog/Electronic/Lo-Fi) on the Looper
+  page, triggerable by click or number-key shortcut; hits are audible live and captured
+  into the loop while recording. Synthesized via oscillators/filtered noise — no sample
+  files, consistent with the offline/no-third-party-binaries constraint.
 - Drag-to-reorder pedal chain via a dedicated grip handle (Pointer Events, not native
   HTML5 drag-and-drop — native DnD proved unreliable and must not be reintroduced).
 - Adaptive spectral-subtraction "Denoise" (off by default, adds ~16–17ms latency), noise

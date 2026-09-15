@@ -5,6 +5,8 @@ import { Tuner } from './tuner.js';
 import { Looper } from './looper.js';
 import { audioBufferToWavBlob } from './wav-encoder.js';
 import { playTestSequence } from './test-signal.js';
+import { DrumKit, DRUM_PADS } from './drum-kit.js';
+import { BEAT_PRESETS, PatternPlayer } from './beat-presets.js';
 import {
   buildStateObject, loadPresetList, savePreset, deletePreset,
   saveAutosave, loadAutosave, exportStateAsFile, importStateFromFile,
@@ -46,6 +48,12 @@ const looperClearBtn = $('looperClearBtn');
 const looperDownloadBtn = $('looperDownloadBtn');
 const looperStatus = $('looperStatus');
 const looperWaveform = $('looperWaveform');
+const drumKitSelect = $('drumKitSelect');
+const drumVolRange = $('drumVolRange');
+const drumPadGrid = $('drumPadGrid');
+const beatPresetRow = $('beatPresetRow');
+const beatTempoRange = $('beatTempoRange');
+const beatTempoInput = $('beatTempoInput');
 
 const presetName = $('presetName');
 const presetSaveBtn = $('presetSaveBtn');
@@ -57,8 +65,110 @@ const engine = new AudioEngine();
 window.engine = engine; // exposed for console-driven testing (inject synthetic notes, inspect chain state)
 let tuner = null;
 let looper = null;
+let drumKit = null;
+let drumBus = null;
+let patternPlayer = null;
 let isRecording = false;
 let autosaveTimer = null;
+
+// ---------------------------------------------------------------------------
+// Drum pads
+// ---------------------------------------------------------------------------
+
+DRUM_PADS.forEach((pad) => {
+  const btn = document.createElement('button');
+  btn.className = 'drum-pad';
+  btn.dataset.pad = pad.id;
+  btn.type = 'button';
+  const keyBadge = document.createElement('span');
+  keyBadge.className = 'pad-key';
+  keyBadge.textContent = pad.key;
+  btn.appendChild(keyBadge);
+  btn.appendChild(document.createTextNode(pad.label));
+  btn.addEventListener('click', () => triggerDrumPad(pad.id));
+  drumPadGrid.appendChild(btn);
+});
+
+function flashDrumPad(padId) {
+  const btn = drumPadGrid.querySelector(`[data-pad="${padId}"]`);
+  if (btn) {
+    btn.classList.add('hit');
+    setTimeout(() => btn.classList.remove('hit'), 100);
+  }
+}
+
+function triggerDrumPad(padId) {
+  if (!drumKit) return;
+  drumKit.trigger(padId);
+  flashDrumPad(padId);
+}
+
+BEAT_PRESETS.forEach((preset) => {
+  const btn = document.createElement('button');
+  btn.className = 'beat-preset-btn';
+  btn.type = 'button';
+  btn.dataset.preset = preset.id;
+  const name = document.createElement('span');
+  name.className = 'preset-name';
+  name.textContent = preset.label;
+  const genre = document.createElement('span');
+  genre.className = 'preset-genre';
+  genre.textContent = `${preset.genre} · ${preset.bpm} BPM`;
+  btn.appendChild(name);
+  btn.appendChild(genre);
+  btn.addEventListener('click', () => {
+    if (!patternPlayer) return;
+    if (patternPlayer.isPlaying && patternPlayer.activePresetId === preset.id) {
+      patternPlayer.stop();
+    } else {
+      patternPlayer.play(preset);
+      // Reflect this preset's suggested tempo in the tempo controls — the user can
+      // still drag/type over it immediately afterward to override.
+      beatTempoRange.value = preset.bpm;
+      beatTempoInput.value = preset.bpm;
+    }
+    updateBeatPresetButtons();
+  });
+  beatPresetRow.appendChild(btn);
+});
+
+function setTempo(bpm, { clampDisplay = true } = {}) {
+  const clamped = Math.min(220, Math.max(40, bpm));
+  beatTempoRange.value = clamped;
+  if (clampDisplay) beatTempoInput.value = clamped;
+  if (patternPlayer && patternPlayer.isPlaying) patternPlayer.bpm = clamped;
+}
+beatTempoRange.addEventListener('input', () => setTempo(parseInt(beatTempoRange.value, 10)));
+// Live-apply the typed tempo without clamping the number box's own display on every
+// keystroke — clamping mid-type (e.g. typing "150" briefly clamps at "5") fights typing.
+// The slider still reflects the clamped value immediately; the number box only snaps to
+// the clamped value once the user leaves the field.
+beatTempoInput.addEventListener('input', () => {
+  const v = parseInt(beatTempoInput.value, 10);
+  if (Number.isFinite(v)) setTempo(v, { clampDisplay: false });
+});
+beatTempoInput.addEventListener('change', () => {
+  const v = parseInt(beatTempoInput.value, 10);
+  setTempo(Number.isFinite(v) ? v : 100);
+});
+
+function updateBeatPresetButtons() {
+  beatPresetRow.querySelectorAll('.beat-preset-btn').forEach((btn) => {
+    btn.classList.toggle('playing', !!patternPlayer && patternPlayer.isPlaying && patternPlayer.activePresetId === btn.dataset.preset);
+  });
+}
+
+drumKitSelect.addEventListener('change', () => { if (drumKit) drumKit.setKit(drumKitSelect.value); });
+drumVolRange.addEventListener('input', () => { if (drumBus) drumBus.gain.value = parseFloat(drumVolRange.value) / 100; });
+
+// Number-key shortcuts for the pads — ignored while typing in a text field so preset
+// names, etc. aren't hijacked by a stray "1"-"8" keypress.
+document.addEventListener('keydown', (e) => {
+  const tag = document.activeElement?.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  const pad = DRUM_PADS.find((p) => p.key === e.key);
+  if (pad) { e.preventDefault(); triggerDrumPad(pad.id); }
+});
 
 // ---------------------------------------------------------------------------
 // Tabs
@@ -94,6 +204,24 @@ enableAudioBtn.addEventListener('click', async () => {
     demoSetupsBtn.disabled = false;
     muteInputBtn.disabled = false;
     acousticSimEnabled.disabled = false;
+
+    // Drum bus: a plain gain node feeding both the speakers and the looper's recording
+    // tap, so pad hits are audible live and captured into whatever's being recorded —
+    // entirely independent of the guitar pedal chain (drums don't need effects applied).
+    drumBus = engine.ctx.createGain();
+    drumBus.gain.value = parseFloat(drumVolRange.value) / 100;
+    drumBus.connect(engine.ctx.destination);
+    drumBus.connect(engine.mediaStreamDest);
+    drumKit = new DrumKit(engine.ctx, drumBus);
+    drumKit.setKit(drumKitSelect.value);
+    drumKit.preloadSamples(); // fire-and-forget — kicks off the fetch/decode for the
+    // "Recorded" kit immediately so it's ready by the time someone switches to it
+    patternPlayer = new PatternPlayer(drumKit);
+    patternPlayer.onStep = (step) => {
+      Object.entries(patternPlayer.pattern || {}).forEach(([padId, steps]) => {
+        if (steps.includes(step)) flashDrumPad(padId);
+      });
+    };
 
     const autosaved = loadAutosave();
     if (autosaved) await restoreState(autosaved);
