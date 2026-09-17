@@ -368,8 +368,14 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 16px;
-  padding: 22px 18px 30px;
+  column-gap: 16px;
+  /* extra room between rows for the patch-cable's staple bend (see .chain-wires) —
+     the orthogonal route needs far less clearance than the old smooth curve did */
+  row-gap: 40px;
+  /* extra left/right room so a bend's vertical leg — which lands right at a row's
+     first/last pedal — has clearance from the board edge instead of the corner
+     rounding crowding the felt border */
+  padding: 22px 34px 30px;
   border-radius: 8px;
   position: relative;
   background:
@@ -377,6 +383,94 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
     linear-gradient(180deg, var(--felt), oklch(7% 0.006 260));
   box-shadow: inset 0 3px 12px rgba(0, 0, 0, 0.7), inset 0 -1px 0 rgba(255, 255, 255, 0.02);
   min-height: 120px;
+}
+/* the patch-cable chain: drawn behind the pedals (see updateChainWires in ui.js),
+   sagging slightly within a row and bending between rows when the chain wraps */
+.chain-wires {
+  position: absolute; top: 0; left: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 0;
+}
+/* Ground shadow, two distances — same vocabulary as .pedal-stompbox's own rest
+   shadow (a soft far-throw plus a tight near-contact shadow), just lower-key. */
+.chain-wires .chain-wire-shadow-far {
+  fill: none;
+  stroke: oklch(0% 0 0 / 0.45);
+  stroke-width: 13px;
+  stroke-linecap: round;
+  transform: translate(4px, 7px);
+  filter: blur(5px);
+}
+.chain-wires .chain-wire-shadow-near {
+  fill: none;
+  stroke: oklch(0% 0 0 / 0.6);
+  stroke-width: 9px;
+  stroke-linecap: round;
+  transform: translate(1.5px, 2.5px);
+  filter: blur(1.5px);
+}
+/* Stray fiber ends around the weave — a cotton/nylon jacket is never a crisp
+   silhouette the way a molded rubber cord would be. */
+.chain-wires .chain-wire-fuzz {
+  fill: none;
+  stroke: var(--chrome-lo);
+  stroke-width: 11px;
+  stroke-linecap: round;
+  opacity: 0.22;
+  filter: blur(2.2px);
+}
+/* Dark rim, wider than the body — gives the woven jacket a defined rounded edge
+   instead of reading as a flat printed ribbon. */
+.chain-wires .chain-wire-rim {
+  fill: none;
+  stroke: var(--mat);
+  stroke-width: 8.6px;
+  stroke-linecap: round;
+}
+/* Braided nylon jacket — a diagonal three-tone weave (see the #cableBraid pattern
+   built in updateChainWires), referenced from sources/photos/cable.jpg/cable2.jpg,
+   instead of a flat rubber-cord fill. */
+.chain-wires .chain-wire-body {
+  fill: none;
+  stroke: url(#cableBraid);
+  stroke-width: 7px;
+  stroke-linecap: round;
+}
+.chain-wires .cable-braid-dark { fill: var(--mat); }
+.chain-wires .cable-braid-mid { fill: var(--board); }
+.chain-wires .cable-braid-light { fill: var(--chrome-lo); }
+/* Grain flecks: fixed-position noise dots (see updateChainWires) that break up
+   the weave's clean stripe edges into something closer to spun fiber. */
+.chain-wires .cable-grain-dark { fill: oklch(0% 0 0 / 0.35); }
+.chain-wires .cable-grain-light { fill: color-mix(in oklch, var(--chrome-hi) 100%, transparent 84%); }
+/* Under-shade along the bottom of the cylinder — the highlight below covers the
+   top; a cylinder needs both to read as round instead of flat. */
+.chain-wires .chain-wire-undershade {
+  fill: none;
+  stroke: oklch(0% 0 0 / 0.5);
+  stroke-width: 2.4px;
+  stroke-linecap: round;
+  transform: translate(0, 2.2px);
+}
+/* A soft sheen along the top of the cable's rounded cross-section — matte woven
+   nylon, not polished metal, so this stays low-contrast and desaturated (the
+   --chrome-hi/--chrome-lo pair used on the knob and footswitch reads too shiny
+   here; this is a much duller, fabric-appropriate lift instead). */
+.chain-wires .chain-wire-highlight {
+  fill: none;
+  stroke: var(--text-dim);
+  stroke-width: 1.6px;
+  stroke-linecap: round;
+  opacity: 0.22;
+  transform: translate(0, -1.8px);
+}
+/* Gold-plated 1/4" plug tip where the cable meets a pedal's jack — the metal-stays-
+   metal rule applies here too, same chrome ramp as screws/jack barrel/footswitch. */
+.chain-wires .chain-wire-tip {
+  fill: var(--brass);
+  stroke: var(--chrome-lo);
+  stroke-width: 1px;
 }
 /* velcro/felt strip bands running the length of the board, like a real pedalboard's
    loop-side strips showing between racked pedals */
@@ -403,6 +497,7 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   border-radius: 7px 18px 9px 4px;
   padding: 10px 12px 14px;
   position: relative;
+  z-index: 1; /* paint over .chain-wires, which sits behind at z-index 0 */
   cursor: default;
   color: oklch(98% 0.01 90);
   background:
@@ -430,6 +525,8 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 }
 .pedal-card-placeholder {
   --pedal-color: var(--brass);
+  position: relative;
+  z-index: 1; /* paint over .chain-wires, same as .pedal-stompbox */
   border: 2px dashed color-mix(in oklch, var(--pedal-color) 55%, transparent);
   border-radius: 9px;
   background: color-mix(in oklch, var(--pedal-color) 10%, transparent);
@@ -524,6 +621,9 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   align-items: center;
   gap: 10px;
   min-height: 0;
+  /* the tick-ring under each knob overflows 7px past its own box (see .knob-ticks
+     inset) — without top clearance here it touches/crosses the header divider line. */
+  padding-top: 12px;
   position: relative;
 }
 /* a faint, original etched-linework motif per category (a spring, a peak, a wave...) —
@@ -580,28 +680,25 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 /* knurled black-plastic knob with a printed tick-mark arc underneath, matching real
    stompbox pots (e.g. Ibanez TS9): a ring of reference ticks sits behind the dial. */
 .knob-dial-wrap {
-  --knob-angle: -135deg;
+  --knob-angle: -129.675deg; /* mirrors KNOB_MAX_ANGLE in js/ui.js */
   position: relative; width: 40px; height: 40px;
   display: flex; align-items: center; justify-content: center;
 }
-/* the first control is the pedal's primary character knob (Drive, Rate, Time...) —
-   sizing it up breaks the uniform equal-knob grid EarthQuaker/Walrus-style boutique
-   pedals avoid, and gives each card a clear focal point instead of a flat control row. */
-.pedal-knobs > .knob-row:first-child .knob-dial-wrap { transform: scale(1.22); }
 .knob-ticks {
   position: absolute; inset: -7px; border-radius: 50%;
-  background: conic-gradient(from 0deg,
-    rgba(255,255,255,0.55) 0deg 1.2deg, transparent 1.2deg 25.8deg,
-    rgba(255,255,255,0.55) 25.8deg 28.2deg, transparent 28.2deg 52.8deg,
-    rgba(255,255,255,0.55) 52.8deg 55.2deg, transparent 55.2deg 79.8deg,
-    rgba(255,255,255,0.55) 79.8deg 82.2deg, transparent 82.2deg 106.8deg,
-    rgba(255,255,255,0.55) 106.8deg 109.2deg, transparent 109.2deg 133.8deg,
-    rgba(255,255,255,0.55) 133.8deg 136.2deg, transparent 136.2deg 223.8deg,
-    rgba(255,255,255,0.55) 223.8deg 226.2deg, transparent 226.2deg 250.8deg,
-    rgba(255,255,255,0.55) 250.8deg 253.2deg, transparent 253.2deg 277.8deg,
-    rgba(255,255,255,0.55) 277.8deg 280.2deg, transparent 280.2deg 304.8deg,
-    rgba(255,255,255,0.55) 304.8deg 307.2deg, transparent 307.2deg 331.8deg,
-    rgba(255,255,255,0.55) 331.8deg 334.2deg, transparent 334.2deg 360deg);
+  /* 9 evenly-spaced dashes (centers 30deg apart) across the pointer's -120deg..120deg
+     sweep in .knob-dial-wrap/setKnobAngle — the first and last dashes end exactly at
+     0deg/240deg so the ring visibly reaches both extremes the pointer can reach. */
+  background: conic-gradient(from -120deg,
+    rgba(255,255,255,1) 0deg 2.4deg, transparent 2.4deg 28.8deg,
+    rgba(255,255,255,1) 28.8deg 31.2deg, transparent 31.2deg 58.8deg,
+    rgba(255,255,255,1) 58.8deg 61.2deg, transparent 61.2deg 88.8deg,
+    rgba(255,255,255,1) 88.8deg 91.2deg, transparent 91.2deg 118.8deg,
+    rgba(255,255,255,1) 118.8deg 121.2deg, transparent 121.2deg 148.8deg,
+    rgba(255,255,255,1) 148.8deg 151.2deg, transparent 151.2deg 178.8deg,
+    rgba(255,255,255,1) 178.8deg 181.2deg, transparent 181.2deg 208.8deg,
+    rgba(255,255,255,1) 208.8deg 211.2deg, transparent 211.2deg 237.6deg,
+    rgba(255,255,255,1) 237.6deg 240deg, transparent 240deg 360deg);
   -webkit-mask-image: radial-gradient(circle, transparent 63%, black 66% 76%, transparent 79%);
   mask-image: radial-gradient(circle, transparent 63%, black 66% 76%, transparent 79%);
 }
@@ -695,11 +792,7 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   margin-top: 2px;
 }
 .pedal-stompbox.amp-card .pedal-knobs {
-  /* vertical padding sized to actually contain the enlarged primary knob (scale 1.22)
-     plus its tick-ring — at 8px this panel was cropping the top/bottom of that knob's
-     ticks, letting the recessed panel color and the body color show through the same
-     control at once. 17px covers the ~13px of extra overflow the scale-up adds. */
-  padding: 17px 10px; margin: 0 -2px;
+  padding: 12px 10px 8px; margin: 0 -2px;
   border-radius: 6px;
   background: color-mix(in oklch, var(--pedal-accent) 88%, black 12%);
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.35);

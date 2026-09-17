@@ -18,9 +18,10 @@ function pedalColor(typeDef) {
 }
 
 
-// Real pots sweep ~270° (-135deg to +135deg) rather than a full circle.
-const KNOB_MIN_ANGLE = -135;
-const KNOB_MAX_ANGLE = 135;
+// Pointer sweep, with generous mechanical overtravel past the printed tick range
+// (ticks stay anchored to -120deg..120deg — see .knob-ticks in style.css).
+const KNOB_MIN_ANGLE = -129.675;
+const KNOB_MAX_ANGLE = 129.675;
 
 function setKnobAngle(dialEl, paramDef, value) {
   const norm = (value - paramDef.min) / (paramDef.max - paramDef.min);
@@ -149,7 +150,162 @@ export function showInfoPopover(anchorEl, title, text) {
   setTimeout(() => document.addEventListener('click', closeOnOutside, true), 0);
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// Jack points for a cable between two pedals, in coordinates relative to `container`.
+function wireEndpoints(cardA, cardB, container) {
+  const cRect = container.getBoundingClientRect();
+  const a = cardA.getBoundingClientRect();
+  const b = cardB.getBoundingClientRect();
+  return {
+    x1: a.right - cRect.left, y1: a.top - cRect.top + a.height * 0.64,
+    x2: b.left - cRect.left, y2: b.top - cRect.top + b.height * 0.64,
+    aBottom: a.bottom - cRect.top, bTop: b.top - cRect.top,
+    sameRow: Math.abs(a.bottom - b.bottom) < 2,
+  };
+}
+
+// Patch-cable path between two pedals' jack points. Pedals on the same flex row
+// (same bottom edge, since the row is bottom-aligned) get a gently sagging cable.
+// A pedal that wrapped to a new row gets an orthogonal "staple" instead of a wide
+// diagonal sweep: a short straight lead out of the source jack (a real plug
+// doesn't turn the instant it leaves the barrel), one rounded corner down into
+// the row-gap, a level run parallel to the row tops, a rounded corner back up,
+// and a matching straight lead into the destination — so both the leftmost and
+// rightmost pedal in the bend get a visible straight run right at the jack
+// before the cable actually bends, rather than kinking at the pedal edge.
+function wirePathBetween({ x1, y1, x2, y2, sameRow, aBottom, bTop }) {
+  if (sameRow) {
+    const midX = (x1 + x2) / 2;
+    const sag = 10;
+    return `M ${x1} ${y1} C ${midX} ${y1 + sag}, ${midX} ${y2 + sag}, ${x2} ${y2}`;
+  }
+  const yh = (aBottom + bTop) / 2;
+  const lead = Math.min(14, Math.abs(x2 - x1) / 4);
+  // The source's own jack always points east (.jack-nub sits on the pedal's
+  // right edge); the destination is entered at its left edge, so its lead runs
+  // west, away from the pedal body — independent of which side x2 lands on.
+  const sx = x1 + lead;
+  const dx = x2 - lead;
+  const r = Math.min(14, Math.abs(dx - sx) / 2, Math.abs(yh - y1) / 2, Math.abs(y2 - yh) / 2);
+  const hx = Math.sign(dx - sx) || 1;
+  return `M ${x1} ${y1} L ${sx} ${y1} L ${sx} ${yh - r} Q ${sx} ${yh}, ${sx + hx * r} ${yh} L ${dx - hx * r} ${yh} Q ${dx} ${yh}, ${dx} ${yh + r} L ${dx} ${y2} L ${x2} ${y2}`;
+}
+
+export function updateChainWires(container) {
+  let svg = container.querySelector(':scope > svg.chain-wires');
+  if (!svg) {
+    svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'chain-wires');
+  }
+  container.insertBefore(svg, container.firstChild); // stays behind the cards
+  // While a card is mid-drag it's position:fixed (no longer part of the flex
+  // flow), so its dashed placeholder stands in for it at the landing slot.
+  const cards = [...container.querySelectorAll(':scope > .pedal-stompbox:not(.dragging), :scope > .pedal-card-placeholder')];
+  const cRect = container.getBoundingClientRect();
+  svg.setAttribute('width', cRect.width);
+  svg.setAttribute('height', cRect.height);
+  svg.innerHTML = '';
+
+  // Braided nylon jacket, referenced from sources/photos/cable.jpg and cable2.jpg:
+  // a diagonal weave with three interleaved tones (not a flat cord, and not a
+  // clean two-tone candy stripe) so it reads as woven fiber, not printed pattern.
+  const defs = document.createElementNS(SVG_NS, 'defs');
+  const pattern = document.createElementNS(SVG_NS, 'pattern');
+  pattern.setAttribute('id', 'cableBraid');
+  pattern.setAttribute('width', '6');
+  pattern.setAttribute('height', '6');
+  pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+  pattern.setAttribute('patternTransform', 'rotate(45)');
+  const swatches = [
+    ['cable-braid-dark', 0, 6, 6],
+    ['cable-braid-mid', 0, 3.4, 6],
+    ['cable-braid-light', 0, 2, 6],
+  ];
+  for (const [cls, x, w, h] of swatches) {
+    const rect = document.createElementNS(SVG_NS, 'rect');
+    rect.setAttribute('x', x);
+    rect.setAttribute('width', w);
+    rect.setAttribute('height', h);
+    rect.setAttribute('class', cls);
+    pattern.appendChild(rect);
+  }
+  // Grain flecks — fixed, hand-placed positions (not runtime randomness or a
+  // per-pixel filter) so the weave reads as matte spun fiber instead of a clean
+  // printed/glossy stripe.
+  const flecks = [
+    [1, 1, 0.55, 'cable-grain-dark'], [4.2, 0.8, 0.4, 'cable-grain-light'],
+    [2.6, 3.1, 0.45, 'cable-grain-light'], [0.6, 4.6, 0.4, 'cable-grain-dark'],
+    [5.2, 4.2, 0.5, 'cable-grain-dark'], [3.4, 5.4, 0.4, 'cable-grain-light'],
+  ];
+  for (const [cx, cy, r, cls] of flecks) {
+    const fleck = document.createElementNS(SVG_NS, 'circle');
+    fleck.setAttribute('cx', cx);
+    fleck.setAttribute('cy', cy);
+    fleck.setAttribute('r', r);
+    fleck.setAttribute('class', cls);
+    pattern.appendChild(fleck);
+  }
+  defs.appendChild(pattern);
+  svg.appendChild(defs);
+
+  // Draws one cable as the same layered-fake-material stack used for the knob
+  // dial and footswitch, back to front: a two-distance ground shadow (soft far +
+  // tight near, same vocabulary as .pedal-stompbox's own rest shadow), a fuzzy
+  // halo of stray fiber ends (cotton/nylon jackets are never a crisp silhouette),
+  // a dark rim so the woven jacket reads as a rounded cord, the braided body
+  // itself, an under-shade, and a specular highlight — then a gold-plated 1/4"
+  // plug tip (see sources/photos/cable.jpg/cable2.jpg) at each given point.
+  function drawWire(d, tipPoints) {
+    const group = document.createElementNS(SVG_NS, 'g');
+    group.setAttribute('class', 'chain-wire');
+    for (const cls of ['chain-wire-shadow-far', 'chain-wire-shadow-near', 'chain-wire-fuzz', 'chain-wire-rim', 'chain-wire-body', 'chain-wire-undershade', 'chain-wire-highlight']) {
+      const path = document.createElementNS(SVG_NS, 'path');
+      path.setAttribute('class', cls);
+      path.setAttribute('d', d);
+      group.appendChild(path);
+    }
+    for (const [x, y] of tipPoints) {
+      const tip = document.createElementNS(SVG_NS, 'circle');
+      tip.setAttribute('class', 'chain-wire-tip');
+      tip.setAttribute('cx', x);
+      tip.setAttribute('cy', y);
+      tip.setAttribute('r', 3.2);
+      group.appendChild(tip);
+    }
+    svg.appendChild(group);
+  }
+
+  for (let i = 0; i < cards.length - 1; i++) {
+    const ends = wireEndpoints(cards[i], cards[i + 1], container);
+    drawWire(wirePathBetween(ends), [[ends.x1, ends.y1], [ends.x2, ends.y2]]);
+  }
+
+  // Input/output stubs: a short run of cable heading off the first and last
+  // pedal, into the extra board padding either side (see .pedal-chain), so the
+  // chain reads as visibly wired even when it's short enough to need no bend.
+  if (cards.length > 0) {
+    const stub = 24;
+    const first = cards[0].getBoundingClientRect();
+    const last = cards[cards.length - 1].getBoundingClientRect();
+    const y1 = first.top - cRect.top + first.height * 0.64;
+    const x1 = first.left - cRect.left;
+    drawWire(`M ${Math.max(0, x1 - stub)} ${y1} L ${x1} ${y1}`, [[Math.max(0, x1 - stub), y1]]);
+    const y2 = last.top - cRect.top + last.height * 0.64;
+    const x2 = last.right - cRect.left;
+    drawWire(`M ${x2} ${y2} L ${x2 + stub} ${y2}`, [[x2 + stub, y2]]);
+  }
+}
+
+// Redraw the most recently rendered chain's wires on viewport/layout changes
+// (pedals reflow to a different number of rows as the window is resized).
+let lastWireContainer = null;
+window.addEventListener('resize', () => {
+  if (lastWireContainer && lastWireContainer.isConnected) updateChainWires(lastWireContainer);
+});
+
 export function renderChain(engine, container, template, callbacks) {
+  lastWireContainer = container;
   container.innerHTML = '';
   engine.chain.forEach((inst) => {
     const frag = template.content.cloneNode(true);
@@ -195,6 +351,7 @@ export function renderChain(engine, container, template, callbacks) {
 
     container.appendChild(frag);
   });
+  updateChainWires(container);
 }
 
 function getDragAfterElement(container, x) {
@@ -240,6 +397,7 @@ function startCardDrag(card, container, callbacks, startEvent) {
     const afterElement = getDragAfterElement(container, e.clientX);
     if (afterElement == null) container.appendChild(placeholder);
     else if (afterElement !== placeholder) container.insertBefore(placeholder, afterElement);
+    updateChainWires(container);
   };
 
   const finish = (e) => {
@@ -256,6 +414,7 @@ function startCardDrag(card, container, callbacks, startEvent) {
     card.style.zIndex = '';
     container.insertBefore(card, placeholder);
     placeholder.remove();
+    updateChainWires(container);
     const newOrder = [...container.querySelectorAll('.pedal-stompbox')].map((el) => el.dataset.instanceId);
     callbacks.onReorder(newOrder);
   };
@@ -433,6 +592,32 @@ export function drawScope(analyser, canvas) {
   for (let x = 0; x < width; x++) {
     const v = data[Math.floor(x * step)] / 128 - 1;
     const y = height / 2 + v * (height / 2 - 2);
+    if (x === 0) ctx2d.moveTo(x, y); else ctx2d.lineTo(x, y);
+  }
+  ctx2d.stroke();
+}
+
+// Static trace of an already-rendered sample array (distinct from drawScope's
+// live analyser read) — used for the toolbar's offline "signal preview".
+// Auto-scaled to its own peak (like a scope's autoranging) rather than a fixed
+// +/-1 — a pedal chain's output level varies hugely (a compressor/EQ-heavy chain
+// might peak at 0.04, a cranked overdrive well past 1), and at a fixed scale
+// most setups would just draw as a flat, seemingly unreacting line.
+export function drawStaticWave(samples, canvas) {
+  const ctx2d = canvas.getContext('2d');
+  const { width, height } = canvas;
+  ctx2d.clearRect(0, 0, width, height);
+  if (!samples || !samples.length) return;
+  let peak = 0;
+  for (let i = 0; i < samples.length; i++) { const a = Math.abs(samples[i]); if (a > peak) peak = a; }
+  if (peak < 1e-4) peak = 1e-4; // silence stays a flat centered line instead of divide-by-near-zero noise
+  ctx2d.strokeStyle = '#e2a33e'; // same amber trace as drawScope, for the same .scope bezel
+  ctx2d.lineWidth = 1.3;
+  ctx2d.beginPath();
+  const step = samples.length / width;
+  for (let x = 0; x < width; x++) {
+    const v = Math.max(-1, Math.min(1, samples[Math.floor(x * step)] / peak));
+    const y = height / 2 - v * (height / 2 - 2);
     if (x === 0) ctx2d.moveTo(x, y); else ctx2d.lineTo(x, y);
   }
   ctx2d.stroke();

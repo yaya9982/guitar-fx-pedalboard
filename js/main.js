@@ -1,5 +1,6 @@
 import { AudioEngine } from './audio-engine.js';
-import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, updateLevelMeter, drawScope, drawWaveform } from './ui.js';
+import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, updateLevelMeter, drawScope, drawWaveform, drawStaticWave } from './ui.js';
+import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js';
 import { Tuner } from './tuner.js';
 import { Looper } from './looper.js';
@@ -19,6 +20,7 @@ const inputDeviceSelect = $('inputDeviceSelect');
 const latencyReadout = $('latencyReadout');
 const inputMeterBar = $('inputMeterBar');
 const scopeCanvas = $('scopeCanvas');
+const waveCanvas = $('waveCanvas');
 
 const inputGainRange = $('inputGainRange');
 const muteInputBtn = $('muteInputBtn');
@@ -304,12 +306,40 @@ testChordBtn.addEventListener('click', async () => {
 
 function refreshChainUI() {
   renderChain(engine, pedalChain, pedalCardTemplate, {
-    onParamChange: async (instanceId, key, value) => { await engine.setParam(instanceId, key, value); autosave(); },
+    onParamChange: async (instanceId, key, value) => { await engine.setParam(instanceId, key, value); autosave(); scheduleWavePreview(); },
     onToggle: (instanceId) => { engine.toggleEnabled(instanceId); refreshChainUI(); autosave(); },
     onRemove: (instanceId) => { engine.removeFromChain(instanceId); refreshChainUI(); autosave(); },
-    onReorder: (newOrder) => { engine.reorderChain(newOrder); autosave(); },
+    onReorder: (newOrder) => { engine.reorderChain(newOrder); autosave(); scheduleWavePreview(); },
   });
+  scheduleWavePreview();
 }
+
+// ---------------------------------------------------------------------------
+// Toolbar signal preview: a plain sine rendered offline through the current
+// pedal chain (see wave-preview.js), so the "Signal Preview" scope shows what
+// the chain would hypothetically do to a clean waveform.
+// ---------------------------------------------------------------------------
+
+let wavePreviewTimer = null;
+function scheduleWavePreview() {
+  clearTimeout(wavePreviewTimer);
+  wavePreviewTimer = setTimeout(updateWavePreview, 120);
+}
+
+async function updateWavePreview() {
+  if (!waveCanvas) return;
+  const sampleRate = engine.ctx ? engine.ctx.sampleRate : 44100;
+  try {
+    const samples = await renderPreviewWaveform(engine.chain, sampleRate);
+    drawStaticWave(samples, waveCanvas);
+  } catch (e) {
+    // Best-effort cosmetic preview — leave the last good trace on failure.
+  }
+}
+
+// Draw a plain-sine baseline immediately, before audio is even enabled or any
+// pedal exists — renderPreviewWaveform needs no live engine to do this.
+scheduleWavePreview();
 
 async function loadDefaultChain() {
   const defaults = [
