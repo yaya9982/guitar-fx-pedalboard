@@ -34,6 +34,7 @@ const acousticSimEnabled = $('acousticSimEnabled');
 const addPedalBtn = $('addPedalBtn');
 const testChordBtn = $('testChordBtn');
 const demoSetupsBtn = $('demoSetupsBtn');
+const clearSetupBtn = $('clearSetupBtn');
 const pedalChain = $('pedalChain');
 const pedalCardTemplate = $('pedalCardTemplate');
 
@@ -204,6 +205,7 @@ enableAudioBtn.addEventListener('click', async () => {
     addPedalBtn.disabled = false;
     testChordBtn.disabled = false;
     demoSetupsBtn.disabled = false;
+    clearSetupBtn.disabled = false;
     muteInputBtn.disabled = false;
     acousticSimEnabled.disabled = false;
 
@@ -289,6 +291,12 @@ demoSetupsBtn.addEventListener('click', () => {
     await restoreState(demo.state);
     autosave();
   });
+});
+
+clearSetupBtn.addEventListener('click', () => {
+  engine.clearChain();
+  refreshChainUI();
+  autosave();
 });
 
 testChordBtn.addEventListener('click', async () => {

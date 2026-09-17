@@ -395,6 +395,42 @@
         ],
         "createdAt": "2026-09-14T11:16:22.078Z",
         "reason": "tested: every one of the 6 repeating-gradient uses (felt board, velcro strip, paint-sheen, knurled-knob ticks, ribbed footswitch chrome, brushed-aluminum amp finish) independently triggers this advisory in isolation; the rule cannot distinguish real material simulation from gratuitous stripe decoration here. Each texture is named and justified in DESIGN.md's material rules; removing them would undo the hardware-realism direction the user explicitly asked for."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgb(27, 6, 5)",
+        "createdAt": "2026-09-17T14:42:59.862Z",
+        "reason": "clear-btn text color, derived from --danger hue 25 same as demo-btn/test-btn's own accent-color recipe"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(42%0.15 25)",
+        "createdAt": "2026-09-17T14:43:00.051Z",
+        "reason": "clear-btn border color, derived from --danger hue 25 same as demo-btn/test-btn's own accent-color recipe"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(80% 0.19 25)",
+        "createdAt": "2026-09-17T14:44:13.285Z",
+        "reason": "clear-btn gradient top stop, same derivation as demo-btn/test-btn (hue matches --danger)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(64% 0.19 25)",
+        "createdAt": "2026-09-17T14:44:13.465Z",
+        "reason": "clear-btn gradient bottom stop, same derivation as demo-btn/test-btn (hue matches --danger)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(16% 0.04 25)",
+        "createdAt": "2026-09-17T14:44:13.631Z",
+        "reason": "clear-btn text color, same derivation as demo-btn/test-btn (hue matches --danger)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(42% 0.15 25)",
+        "createdAt": "2026-09-17T14:44:13.814Z",
+        "reason": "clear-btn border color, same derivation as demo-btn/test-btn (hue matches --danger)"
       }
     ]
   }

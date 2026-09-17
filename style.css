@@ -285,6 +285,12 @@ main { flex: 1; padding: var(--space-lg); }
   border-color: oklch(38% 0.1 330);
 }
 
+.add-pedal-btn.clear-btn {
+  background: linear-gradient(180deg, oklch(80% 0.19 25), oklch(64% 0.19 25));
+  color: oklch(16% 0.04 25);
+  border-color: oklch(42% 0.15 25);
+}
+
 .demo-menu {
   position: absolute; z-index: 50; width: 300px; max-height: 70vh; overflow-y: auto;
   background: linear-gradient(180deg, oklch(24% 0.012 260), oklch(18% 0.012 260));
