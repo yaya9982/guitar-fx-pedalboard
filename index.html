@@ -19,6 +19,9 @@
     <select id="inputDeviceSelect" class="device-select" disabled>
       <option value="">Select input device&hellip;</option>
     </select>
+    <select id="outputDeviceSelect" class="device-select" disabled title="Route output to the same interface as your input, where supported, to keep the whole round-trip on one low-latency audio driver">
+      <option value="">Select output device&hellip;</option>
+    </select>
     <span id="latencyReadout" class="latency-readout"></span>
   </div>
 
@@ -282,6 +285,6 @@
   </div>
 </template>
 
-<script type="module" src="js/main.js?v=14"></script>
+<script type="module" src="js/main.js?v=15"></script>
 </body>
 </html>

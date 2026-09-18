@@ -1,4 +1,4 @@
-import { AudioEngine } from './audio-engine.js?v=4';
+import { AudioEngine } from './audio-engine.js?v=5';
 import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, updateLevelMeter, drawScope, drawWaveform, drawStaticWave } from './ui.js';
 import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js';
@@ -16,6 +16,7 @@ const $ = (id) => document.getElementById(id);
 
 const enableAudioBtn = $('enableAudioBtn');
 const inputDeviceSelect = $('inputDeviceSelect');
+const outputDeviceSelect = $('outputDeviceSelect');
 const latencyReadout = $('latencyReadout');
 const inputMeterBar = $('inputMeterBar');
 const scopeCanvas = $('scopeCanvas');
@@ -243,7 +244,8 @@ enableAudioBtn.addEventListener('click', async () => {
   enableAudioBtn.textContent = 'Requesting microphone…';
   try {
     const devices = await engine.enableAudio();
-    populateDeviceSelect(devices, engine.currentDeviceId);
+    populateDeviceSelect(inputDeviceSelect, devices, engine.currentDeviceId, 'Input');
+    await refreshOutputDeviceSelect();
     enableAudioBtn.textContent = 'Audio Enabled';
     enableAudioBtn.classList.add('enabled');
     inputDeviceSelect.disabled = false;
@@ -286,19 +288,42 @@ enableAudioBtn.addEventListener('click', async () => {
   }
 });
 
-function populateDeviceSelect(devices, currentId) {
-  inputDeviceSelect.innerHTML = '';
+function populateDeviceSelect(selectEl, devices, currentId, fallbackLabel) {
+  selectEl.innerHTML = '';
   devices.forEach((d, i) => {
     const opt = document.createElement('option');
     opt.value = d.deviceId;
-    opt.textContent = d.label || `Input ${i + 1}`;
+    opt.textContent = d.label || `${fallbackLabel} ${i + 1}`;
     if (d.deviceId === currentId) opt.selected = true;
-    inputDeviceSelect.appendChild(opt);
+    selectEl.appendChild(opt);
   });
 }
 
 inputDeviceSelect.addEventListener('change', async () => {
   await engine.switchInputDevice(inputDeviceSelect.value);
+});
+
+// Output routing (AudioContext.setSinkId) — Chrome 110+ only, feature-detected.
+// Picking the same interface used for input keeps the round-trip on one driver's
+// buffering instead of handing off to a separate, often higher-latency output path.
+async function refreshOutputDeviceSelect() {
+  if (!engine.supportsOutputDeviceSelection) {
+    outputDeviceSelect.disabled = true;
+    outputDeviceSelect.title = 'Output device selection is not supported in this browser';
+    return;
+  }
+  const outputs = await engine.listOutputDevices();
+  const withDefault = [{ deviceId: '', label: 'System Default' }, ...outputs];
+  populateDeviceSelect(outputDeviceSelect, withDefault, engine.ctx.sinkId ?? '', 'Output');
+  outputDeviceSelect.disabled = false;
+}
+
+outputDeviceSelect.addEventListener('change', async () => {
+  try {
+    await engine.setOutputDevice(outputDeviceSelect.value);
+  } catch (err) {
+    alert('Could not switch output device: ' + err.message);
+  }
 });
 
 // The device list is otherwise only captured once, at Enable Audio — plugging in
@@ -307,7 +332,8 @@ inputDeviceSelect.addEventListener('change', async () => {
 navigator.mediaDevices.addEventListener('devicechange', async () => {
   if (!engine.isReady) return;
   const devices = await engine.listInputDevices();
-  populateDeviceSelect(devices, engine.currentDeviceId);
+  populateDeviceSelect(inputDeviceSelect, devices, engine.currentDeviceId, 'Input');
+  await refreshOutputDeviceSelect();
 });
 
 // ---------------------------------------------------------------------------

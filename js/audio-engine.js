@@ -174,6 +174,26 @@ export class AudioEngine {
     await this._openInput(deviceId);
   }
 
+  // ---- output device (setSinkId) ----
+  // Chrome 110+ only (feature-detected below); routes the context's output to a
+  // chosen device instead of the OS default. Picking the *same* interface used for
+  // input keeps the whole round-trip on one audio driver's buffering, rather than a
+  // pro interface for input handing off to generic laptop speakers on a separate,
+  // often higher-latency driver stack for output.
+  get supportsOutputDeviceSelection() {
+    return !!this.ctx && typeof this.ctx.setSinkId === 'function';
+  }
+
+  async listOutputDevices() {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.filter((d) => d.kind === 'audiooutput');
+  }
+
+  async setOutputDevice(deviceId) {
+    if (!this.supportsOutputDeviceSelection) return;
+    await this.ctx.setSinkId(deviceId || ''); // '' resets to the system default sink
+  }
+
   // ---- global controls ----
 
   setInputGainPct(pct) {
