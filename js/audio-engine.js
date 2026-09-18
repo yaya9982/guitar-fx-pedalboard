@@ -4,6 +4,22 @@ import { getAmpType, createAcousticSimNodes } from './amp-registry.js';
 let idCounter = 0;
 function nextId() { return `inst-${++idCounter}-${Date.now().toString(36)}`; }
 
+// A memoryless soft-knee limiter curve for WaveShaperNode: linear (untouched) below
+// the threshold, compressed by `ratio` above it, hard-clamped to +/-1. Used in place
+// of DynamicsCompressorNode for the always-on output safety limiter — see the call
+// site in _buildStaticGraph for why.
+function buildLimiterCurve(thresholdDb, ratio, samples = 1024) {
+  const thresholdLin = Math.pow(10, thresholdDb / 20);
+  const curve = new Float32Array(samples);
+  for (let i = 0; i < samples; i++) {
+    const x = (i / (samples - 1)) * 2 - 1;
+    const absX = Math.abs(x);
+    const y = absX <= thresholdLin ? x : Math.sign(x) * (thresholdLin + (absX - thresholdLin) / ratio);
+    curve[i] = Math.max(-1, Math.min(1, y));
+  }
+  return curve;
+}
+
 export class AudioEngine {
   constructor() {
     this.ctx = null;
@@ -37,10 +53,13 @@ export class AudioEngine {
   }
 
   async _loadWorklets() {
-    await this.ctx.audioWorklet.addModule('js/noise-gate-worklet.js');
-    await this.ctx.audioWorklet.addModule('js/bitcrusher-worklet.js');
-    await this.ctx.audioWorklet.addModule('js/pitch-worklet.js');
-    await this.ctx.audioWorklet.addModule('js/spectral-denoise-worklet.js');
+    // Cache-busted: these are fetched by the browser like any other resource, and this
+    // dev server sends no cache-control headers, so an edited worklet can otherwise keep
+    // being served stale from HTTP cache across reloads within the same session.
+    await this.ctx.audioWorklet.addModule('js/noise-gate-worklet.js?v=2');
+    await this.ctx.audioWorklet.addModule('js/bitcrusher-worklet.js?v=2');
+    await this.ctx.audioWorklet.addModule('js/pitch-worklet.js?v=2');
+    await this.ctx.audioWorklet.addModule('js/spectral-denoise-worklet.js?v=2');
   }
 
   _buildStaticGraph() {
@@ -65,12 +84,18 @@ export class AudioEngine {
     // Always-on safety limiter: pedals/amps vary hugely in loudness (a saturated Fuzz or
     // high-gain amp can be many times louder than a filter-heavy pedal like Wah), so this
     // catches surprise peaks instead of letting them hit the speakers or clip the output.
-    this.outputLimiter = ctx.createDynamicsCompressor();
-    this.outputLimiter.threshold.value = -6;
-    this.outputLimiter.knee.value = 0;
-    this.outputLimiter.ratio.value = 20;
-    this.outputLimiter.attack.value = 0.003;
-    this.outputLimiter.release.value = 0.1;
+    // A WaveShaperNode, not createDynamicsCompressor(): every implementation of
+    // DynamicsCompressorNode carries a fixed ~6ms internal look-ahead (not exposed as a
+    // parameter, so it can't be dialed down) — and because this node sits unconditionally
+    // in every user's signal path, that's 6ms nobody could opt out of. A waveshaper is a
+    // memoryless per-sample transfer function, so it adds zero latency: linear (untouched)
+    // below -6dBFS, soft-knee compressed at a 20:1 ratio above it (matching the old
+    // settings), hard-clamped at full scale. The trade-off is character, not safety — a
+    // rare loud peak gets instant soft saturation instead of a real compressor's smooth,
+    // time-based gain reduction — but normal playing levels pass through exactly as before.
+    this.outputLimiter = ctx.createWaveShaper();
+    this.outputLimiter.curve = buildLimiterCurve(-6, 20);
+    this.outputLimiter.oversample = '2x'; // reduces aliasing from the nonlinearity
 
     this.outputAnalyser = ctx.createAnalyser();
     this.outputAnalyser.fftSize = 1024;
