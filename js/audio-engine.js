@@ -60,6 +60,7 @@ export class AudioEngine {
     await this.ctx.audioWorklet.addModule('js/bitcrusher-worklet.js?v=2');
     await this.ctx.audioWorklet.addModule('js/pitch-worklet.js?v=2');
     await this.ctx.audioWorklet.addModule('js/spectral-denoise-worklet.js?v=2');
+    await this.ctx.audioWorklet.addModule('js/latency-probe-worklet.js?v=1');
   }
 
   _buildStaticGraph() {
@@ -163,6 +164,51 @@ export class AudioEngine {
     const base = this.ctx.baseLatency || 0;
     const out = this.ctx.outputLatency || 0; // not supported in every browser; falls back to 0
     return (base + out) * 1000;
+  }
+
+  // Real round-trip latency, not just the output-side estimate above: plays a short
+  // click through the current output device and times its arrival back at the input
+  // via a sample-accurate AudioWorklet probe (tapped pre-noise-gate, so the gate's
+  // own attack time can't bias the reading). Requires a loopback — either a physical
+  // cable from an output jack back into an input (most accurate: also captures real
+  // interface I/O buffering), or close mic/speaker placement for an acoustic path.
+  async measureRoundTripLatency({ timeoutMs = 3000 } = {}) {
+    if (!this.ctx) throw new Error('Audio not enabled yet.');
+    const ctx = this.ctx;
+
+    const probe = new AudioWorkletNode(ctx, 'latency-probe-processor');
+    this.inputGain.connect(probe); // a side-tap, like the meter/scope analysers — no output needed to keep running
+
+    const waitFor = (predicate) => new Promise((resolve) => {
+      probe.port.onmessage = (e) => { if (predicate(e.data)) { probe.port.onmessage = null; resolve(e.data); } };
+    });
+
+    try {
+      probe.port.postMessage('calibrate');
+      await waitFor((d) => d.type === 'calibrated');
+
+      // A short, loud broadband noise burst — sharper and easier to time precisely
+      // than a tone, which ramps up smoothly from whatever phase it starts at.
+      const burstSeconds = 0.01;
+      const buffer = ctx.createBuffer(1, Math.round(ctx.sampleRate * burstSeconds), ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.9;
+      const click = ctx.createBufferSource();
+      click.buffer = buffer;
+      click.connect(ctx.destination); // bypasses the pedal chain/master entirely — a controlled, consistent test level
+
+      probe.port.postMessage('arm');
+      const playAt = ctx.currentTime + 0.15; // gives the worklet time to actually be armed before it plays
+      click.start(playAt);
+
+      const timeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('No signal detected at the input. Connect a loopback cable from an output jack back into an input (or place a mic close to a speaker), and make sure input gain is turned up.')), timeoutMs);
+      });
+      const detected = await Promise.race([waitFor((d) => d.type === 'detected'), timeout]);
+      return (detected.time - playAt) * 1000;
+    } finally {
+      probe.disconnect();
+    }
   }
 
   async listInputDevices() {

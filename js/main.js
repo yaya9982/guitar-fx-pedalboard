@@ -1,4 +1,4 @@
-import { AudioEngine } from './audio-engine.js?v=5';
+import { AudioEngine } from './audio-engine.js?v=6';
 import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, updateLevelMeter, drawScope, drawWaveform, drawStaticWave } from './ui.js';
 import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js';
@@ -18,6 +18,7 @@ const enableAudioBtn = $('enableAudioBtn');
 const inputDeviceSelect = $('inputDeviceSelect');
 const outputDeviceSelect = $('outputDeviceSelect');
 const latencyReadout = $('latencyReadout');
+const measureLatencyBtn = $('measureLatencyBtn');
 const inputMeterBar = $('inputMeterBar');
 const scopeCanvas = $('scopeCanvas');
 const waveCanvas = $('waveCanvas');
@@ -250,12 +251,16 @@ enableAudioBtn.addEventListener('click', async () => {
     enableAudioBtn.classList.add('enabled');
     inputDeviceSelect.disabled = false;
     const latencyMs = engine.getMeasuredLatencyMs();
-    if (latencyMs != null) latencyReadout.innerHTML = `Latency: <span class="latency-value">${latencyMs.toFixed(0)}ms</span>`;
+    // Labeled "Est. output" rather than plain "Latency" — this only covers the output
+    // buffer hand-off (baseLatency + outputLatency), not input capture or any DSP/pedal
+    // lookahead, so it understates the actual round-trip. "Measure" gets the real number.
+    if (latencyMs != null) latencyReadout.innerHTML = `Est. output: <span class="latency-value">${latencyMs.toFixed(0)}ms</span>`;
     addPedalBtn.disabled = false;
     demoSetupsBtn.disabled = false;
     clearSetupBtn.disabled = false;
     muteInputBtn.disabled = false;
     acousticSimEnabled.disabled = false;
+    measureLatencyBtn.disabled = false;
 
     // Drum bus: a plain gain node feeding both the speakers and the looper's recording
     // tap, so pad hits are audible live and captured into whatever's being recorded —
@@ -323,6 +328,21 @@ outputDeviceSelect.addEventListener('change', async () => {
     await engine.setOutputDevice(outputDeviceSelect.value);
   } catch (err) {
     alert('Could not switch output device: ' + err.message);
+  }
+});
+
+measureLatencyBtn.addEventListener('click', async () => {
+  measureLatencyBtn.disabled = true;
+  const prevText = measureLatencyBtn.textContent;
+  measureLatencyBtn.textContent = 'Listening…';
+  try {
+    const ms = await engine.measureRoundTripLatency();
+    latencyReadout.innerHTML = `Round-trip: <span class="latency-value">${ms.toFixed(0)}ms</span>`;
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    measureLatencyBtn.disabled = false;
+    measureLatencyBtn.textContent = prevText;
   }
 });
 
