@@ -102,14 +102,35 @@ export class AudioEngine {
         echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: false,
-        channelCount: 1,
+        // Requesting mono here (channelCount: 1) makes some browser/driver combos
+        // just grab channel 1 of a 2-channel interface instead of mixing both —
+        // silently dropping anything plugged into channel 2. Ask for stereo and
+        // downmix explicitly in the graph below instead, so either channel reaches
+        // the pedal chain regardless of which physical input it's plugged into.
+        channelCount: { ideal: 2 },
         ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
       },
     };
     this.stream = await navigator.mediaDevices.getUserMedia(constraints);
     this.currentDeviceId = deviceId || this.stream.getAudioTracks()[0]?.getSettings().deviceId || null;
     this.sourceNode = this.ctx.createMediaStreamSource(this.stream);
-    this.sourceNode.connect(this.inputGain);
+
+    const trackSettings = this.stream.getAudioTracks()[0]?.getSettings() || {};
+    const channels = trackSettings.channelCount || this.sourceNode.channelCount || 1;
+    // eslint-disable-next-line no-console
+    console.log('[GuitarFX] input track settings:', trackSettings, '| sourceNode.channelCount:', this.sourceNode.channelCount);
+
+    if (channels > 1) {
+      // Explicit per-channel sum via a splitter, rather than relying on
+      // channelInterpretation's automatic downmix — that path is inconsistent
+      // for live MediaStream sources across browsers, and silently drops a
+      // channel on some driver/browser combos instead of mixing it in.
+      const splitter = this.ctx.createChannelSplitter(channels);
+      this.sourceNode.connect(splitter);
+      for (let i = 0; i < channels; i++) splitter.connect(this.inputGain, i, 0);
+    } else {
+      this.sourceNode.connect(this.inputGain);
+    }
   }
 
   getMeasuredLatencyMs() {

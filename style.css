@@ -230,6 +230,28 @@ main { flex: 1; padding: var(--space-lg); }
 }
 .board-toolbar .mini-label { margin-top: 2px; }
 
+/* two auto margins in the same row (this one's left, .toolbar-right's own) split
+   the leftover toolbar space evenly, centering the player between Master and
+   the button group instead of it hugging Master's right edge. */
+.control.youtube-embed { width: 260px; margin-left: auto; }
+.control.youtube-embed input[type="text"] {
+  background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+  border-radius: 4px; padding: 5px 8px; font-size: 12px; font-family: inherit;
+}
+.control.youtube-embed input[type="text"]::placeholder { color: var(--text-dim); }
+.control.youtube-embed input[type="text"]:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
+.youtube-player-wrap {
+  width: 100%; aspect-ratio: 16 / 9; border-radius: 4px; overflow: hidden;
+  background: oklch(7% 0.01 145); border: 1px solid oklch(30% 0.03 150);
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.8);
+  display: flex; align-items: center; justify-content: center;
+}
+.youtube-player-wrap:empty::before {
+  content: "Paste a link above to load a video"; font-size: 11px; color: var(--text-dim);
+  text-align: center; padding: 0 10px;
+}
+.youtube-player-wrap iframe { width: 100%; height: 100%; border: 0; display: block; }
+
 .mute-btn {
   background: var(--panel-2); color: var(--text-dim); border: 1px solid var(--border);
   border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 800;
@@ -252,7 +274,10 @@ main { flex: 1; padding: var(--space-lg); }
   color: white; border-color: oklch(35% 0.15 25);
 }
 
-.toolbar-actions { margin-left: auto; display: flex; gap: 8px; }
+/* groups the signal preview directly above the action buttons, both right-aligned
+   as one unit, instead of the preview sitting inline to the buttons' left */
+.toolbar-right { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 20px; }
+.toolbar-actions { display: flex; gap: 8px; }
 
 .add-pedal-btn {
   font-family: var(--font-display);
@@ -272,12 +297,6 @@ main { flex: 1; padding: var(--space-lg); }
 .add-pedal-btn:hover:not(:disabled) { transform: translateY(-1px); }
 .add-pedal-btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 .add-pedal-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-
-.add-pedal-btn.test-btn {
-  background: linear-gradient(180deg, oklch(80% 0.10 195), oklch(64% 0.10 195));
-  color: oklch(15% 0.02 195);
-  border-color: oklch(40% 0.08 195);
-}
 
 .add-pedal-btn.demo-btn {
   background: linear-gradient(180deg, oklch(80% 0.14 330), oklch(64% 0.14 330));
@@ -308,6 +327,9 @@ main { flex: 1; padding: var(--space-lg); }
 .demo-menu-item .demo-blurb { font-size: 11px; color: var(--text-dim); display: block; margin-top: 2px; }
 
 .mini-toggle { position: relative; display: inline-block; width: 36px; height: 19px; }
+/* pulls the Noise Gate/Denoise switches up closer to their own label, since those
+   two controls stack an extra label+switch row that the other toolbar controls don't */
+.control.noise-gate .mini-toggle, .control.denoise-ctrl .mini-toggle { margin-top: -4px; }
 .mini-toggle input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
 .mini-toggle label {
   position: absolute; inset: 0; border-radius: 999px; cursor: pointer;

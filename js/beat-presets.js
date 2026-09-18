@@ -1,8 +1,9 @@
 // Generic, widely-taught rhythm-section drum patterns — the "basic rock beat," "four-
-// on-the-floor," "boom-bap," "funk," and "reggae one-drop" are standard vocabulary from
-// any drum method book or intro music-theory course, not derived from any specific
-// recording or artist. 16 steps per pattern = one bar of 4/4 at 16th-note resolution
-// (step 0 = beat 1, step 4 = beat 2, step 8 = beat 3, step 12 = beat 4).
+// on-the-floor," "boom-bap," "funk," "reggae one-drop," "train beat," "rockabilly
+// backbeat," and "classic rock" groove are standard vocabulary from any drum method
+// book or intro music-theory course, not derived from any specific recording or
+// artist. 16 steps per pattern = one bar of 4/4 at 16th-note resolution (step 0 =
+// beat 1, step 4 = beat 2, step 8 = beat 3, step 12 = beat 4).
 
 export const BEAT_PRESETS = [
   {
@@ -43,6 +44,34 @@ export const BEAT_PRESETS = [
       kick: [8],
       snare: [8],
       hatClosed: [2, 6, 10, 14],
+    },
+  },
+  // Rock and roll presets below: also generic drum-pedagogy vocabulary (the "train
+  // beat" gallop, a rockabilly backbeat, and a crash-accented classic-rock groove),
+  // not transcribed from any specific recording or drummer.
+  {
+    id: 'preset6', label: 'Preset 6', genre: 'Rock \'n\' Roll Train Beat', bpm: 160,
+    pattern: {
+      kick: [0, 6, 8, 14],
+      snare: [4, 12],
+      hatClosed: [0, 2, 4, 6, 8, 10, 12, 14],
+    },
+  },
+  {
+    id: 'preset7', label: 'Preset 7', genre: 'Rockabilly Backbeat', bpm: 150,
+    pattern: {
+      kick: [0, 8],
+      snare: [4, 12],
+      rim: [2, 6, 10, 14],
+    },
+  },
+  {
+    id: 'preset8', label: 'Preset 8', genre: 'Classic Rock Anthem', bpm: 120,
+    pattern: {
+      kick: [0, 6, 8],
+      snare: [4, 12],
+      hatClosed: [0, 2, 4, 6, 8, 10, 12, 14],
+      crash: [0],
     },
   },
 ];

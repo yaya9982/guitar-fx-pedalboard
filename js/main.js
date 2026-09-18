@@ -1,13 +1,12 @@
-import { AudioEngine } from './audio-engine.js';
+import { AudioEngine } from './audio-engine.js?v=3';
 import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, updateLevelMeter, drawScope, drawWaveform, drawStaticWave } from './ui.js';
 import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js';
 import { Tuner } from './tuner.js';
 import { Looper } from './looper.js';
 import { audioBufferToWavBlob } from './wav-encoder.js';
-import { playTestSequence } from './test-signal.js';
 import { DrumKit, DRUM_PADS } from './drum-kit.js';
-import { BEAT_PRESETS, PatternPlayer } from './beat-presets.js';
+import { BEAT_PRESETS, PatternPlayer } from './beat-presets.js?v=2';
 import {
   buildStateObject, loadPresetList, savePreset, deletePreset,
   saveAutosave, loadAutosave, exportStateAsFile, importStateFromFile,
@@ -23,16 +22,20 @@ const scopeCanvas = $('scopeCanvas');
 const waveCanvas = $('waveCanvas');
 
 const inputGainRange = $('inputGainRange');
+const inputTrimInfoBtn = $('inputTrimInfoBtn');
 const muteInputBtn = $('muteInputBtn');
 const masterVolRange = $('masterVolRange');
+const masterInfoBtn = $('masterInfoBtn');
 const noiseGateEnabled = $('noiseGateEnabled');
+const noiseGateInfoBtn = $('noiseGateInfoBtn');
 const gateThreshold = $('gateThreshold');
+const gateThresholdInfoBtn = $('gateThresholdInfoBtn');
 const denoiseEnabled = $('denoiseEnabled');
 const denoiseStrength = $('denoiseStrength');
+const denoiseStrengthInfoBtn = $('denoiseStrengthInfoBtn');
 const denoiseInfoBtn = $('denoiseInfoBtn');
 const acousticSimEnabled = $('acousticSimEnabled');
 const addPedalBtn = $('addPedalBtn');
-const testChordBtn = $('testChordBtn');
 const demoSetupsBtn = $('demoSetupsBtn');
 const clearSetupBtn = $('clearSetupBtn');
 const pedalChain = $('pedalChain');
@@ -188,6 +191,50 @@ document.querySelectorAll('.tab-btn').forEach((btn) => {
 });
 
 // ---------------------------------------------------------------------------
+// YouTube reference player — independent of the pedal chain/audio engine, so it
+// works even before audio is enabled.
+// ---------------------------------------------------------------------------
+
+const youtubeUrlInput = $('youtubeUrlInput');
+const youtubePlayerWrap = $('youtubePlayerWrap');
+const YOUTUBE_URL_KEY = 'gfxYoutubeUrl';
+
+function extractYouTubeId(url) {
+  let u;
+  try { u = new URL(url.trim()); } catch (e) { return null; }
+  const host = u.hostname.replace(/^www\./, '');
+  if (host === 'youtu.be') return u.pathname.slice(1) || null;
+  if (host === 'youtube.com' || host === 'm.youtube.com') {
+    if (u.pathname === '/watch') return u.searchParams.get('v');
+    const match = u.pathname.match(/^\/(?:embed|shorts)\/([^/?]+)/);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+function loadYouTubeVideo(url) {
+  const id = extractYouTubeId(url);
+  youtubePlayerWrap.innerHTML = '';
+  if (!id) return;
+  const iframe = document.createElement('iframe');
+  iframe.src = `https://www.youtube.com/embed/${id}`;
+  iframe.title = 'YouTube video player';
+  iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+  iframe.allowFullscreen = true;
+  youtubePlayerWrap.appendChild(iframe);
+  localStorage.setItem(YOUTUBE_URL_KEY, url);
+}
+
+youtubeUrlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadYouTubeVideo(youtubeUrlInput.value); });
+youtubeUrlInput.addEventListener('change', () => loadYouTubeVideo(youtubeUrlInput.value));
+
+const savedYoutubeUrl = localStorage.getItem(YOUTUBE_URL_KEY);
+if (savedYoutubeUrl) {
+  youtubeUrlInput.value = savedYoutubeUrl;
+  loadYouTubeVideo(savedYoutubeUrl);
+}
+
+// ---------------------------------------------------------------------------
 // Enable audio
 // ---------------------------------------------------------------------------
 
@@ -203,7 +250,6 @@ enableAudioBtn.addEventListener('click', async () => {
     const latencyMs = engine.getMeasuredLatencyMs();
     if (latencyMs != null) latencyReadout.innerHTML = `Latency: <span class="latency-value">${latencyMs.toFixed(0)}ms</span>`;
     addPedalBtn.disabled = false;
-    testChordBtn.disabled = false;
     demoSetupsBtn.disabled = false;
     clearSetupBtn.disabled = false;
     muteInputBtn.disabled = false;
@@ -255,11 +301,24 @@ inputDeviceSelect.addEventListener('change', async () => {
   await engine.switchInputDevice(inputDeviceSelect.value);
 });
 
+// The device list is otherwise only captured once, at Enable Audio — plugging in
+// an interface afterward (e.g. a UMC 22) would never show up without this, since
+// the browser never re-scans devices on its own.
+navigator.mediaDevices.addEventListener('devicechange', async () => {
+  if (!engine.isReady) return;
+  const devices = await engine.listInputDevices();
+  populateDeviceSelect(devices, engine.currentDeviceId);
+});
+
 // ---------------------------------------------------------------------------
 // Toolbar controls
 // ---------------------------------------------------------------------------
 
 inputGainRange.addEventListener('input', () => { engine.setInputGainPct(parseFloat(inputGainRange.value)); autosave(); });
+inputTrimInfoBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  showInfoPopover(inputTrimInfoBtn, 'Input Trim', 'Sets your guitar\'s input gain before any effects — raise it if the input meter barely moves, lower it if it\'s pinned red/clipping.');
+});
 muteInputBtn.addEventListener('click', () => {
   const muted = !engine.inputMuted;
   engine.setInputMuted(muted);
@@ -268,14 +327,30 @@ muteInputBtn.addEventListener('click', () => {
   autosave();
 });
 masterVolRange.addEventListener('input', () => { engine.setMasterVolumePct(parseFloat(masterVolRange.value)); autosave(); });
+masterInfoBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  showInfoPopover(masterInfoBtn, 'Master', 'The final output volume after every pedal/amp in your chain — turn it down if the board as a whole is too loud or clipping, up if it\'s too quiet.');
+});
 noiseGateEnabled.addEventListener('change', () => { engine.setNoiseGateEnabled(noiseGateEnabled.checked); autosave(); });
+noiseGateInfoBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  showInfoPopover(noiseGateInfoBtn, 'Noise Gate', 'Automatically mutes your signal whenever it drops below the Threshold, silencing hiss and hum between notes instead of letting it ring through.');
+});
 gateThreshold.addEventListener('input', () => { engine.setNoiseGateParam('threshold', parseFloat(gateThreshold.value)); autosave(); });
+gateThresholdInfoBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  showInfoPopover(gateThresholdInfoBtn, 'Threshold', 'The input level below which the Noise Gate cuts the signal — lower it if quiet notes get chopped off, raise it if hiss still leaks through between notes.');
+});
 denoiseEnabled.addEventListener('change', () => { engine.setDenoiseEnabled(denoiseEnabled.checked); autosave(); });
 denoiseInfoBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   showInfoPopover(denoiseInfoBtn, 'Denoise', 'Adaptive spectral noise reduction that continuously learns your hiss/hum profile in real time with no manual setup step. It\'s automatic/adaptive DSP, not a literal neural network. Adds roughly 16-17ms of latency on top of your measured round-trip, which is why it\'s off by default — the Strength slider trades more reduction for more tonal thinning if pushed too far.');
 });
 denoiseStrength.addEventListener('input', () => { engine.setDenoiseStrength(parseFloat(denoiseStrength.value)); autosave(); });
+denoiseStrengthInfoBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  showInfoPopover(denoiseStrengthInfoBtn, 'Strength', 'How aggressively Denoise reduces background noise — higher values remove more hiss but can thin out your tone if pushed too far.');
+});
 acousticSimEnabled.addEventListener('change', async () => { await engine.setAcousticSimEnabled(acousticSimEnabled.checked); autosave(); });
 
 addPedalBtn.addEventListener('click', () => {
@@ -297,15 +372,6 @@ clearSetupBtn.addEventListener('click', () => {
   engine.clearChain();
   refreshChainUI();
   autosave();
-});
-
-testChordBtn.addEventListener('click', async () => {
-  if (!engine.isReady) return;
-  testChordBtn.disabled = true;
-  testChordBtn.textContent = '♪ Playing…';
-  await playTestSequence(engine);
-  testChordBtn.disabled = false;
-  testChordBtn.textContent = '▶ Play Test Chords';
 });
 
 // ---------------------------------------------------------------------------

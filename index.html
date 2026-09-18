@@ -46,17 +46,24 @@
       <div class="control input-trim">
         <label for="inputGainRange">
           Input Trim
+          <button type="button" id="inputTrimInfoBtn" class="hint-tag" title="What does this do?">?</button>
           <button id="muteInputBtn" class="mute-btn" disabled title="Mute input">Mute</button>
         </label>
         <input type="range" id="inputGainRange" min="0" max="150" value="100">
       </div>
       <div class="control noise-gate">
-        <label>Noise Gate</label>
+        <label>
+          Noise Gate
+          <button type="button" id="noiseGateInfoBtn" class="hint-tag" title="What does this do?">?</button>
+        </label>
         <span class="mini-toggle">
           <input type="checkbox" id="noiseGateEnabled" checked>
           <label for="noiseGateEnabled"></label>
         </span>
-        <label for="gateThreshold" class="mini-label">Threshold</label>
+        <label for="gateThreshold" class="mini-label">
+          Threshold
+          <button type="button" id="gateThresholdInfoBtn" class="hint-tag" title="What does this do?">?</button>
+        </label>
         <input type="range" id="gateThreshold" min="-80" max="-10" value="-50">
       </div>
       <div class="control denoise-ctrl">
@@ -68,7 +75,10 @@
           <input type="checkbox" id="denoiseEnabled">
           <label for="denoiseEnabled"></label>
         </span>
-        <label for="denoiseStrength" class="mini-label">Strength</label>
+        <label for="denoiseStrength" class="mini-label">
+          Strength
+          <button type="button" id="denoiseStrengthInfoBtn" class="hint-tag" title="What does this do?">?</button>
+        </label>
         <input type="range" id="denoiseStrength" min="0" max="100" value="50">
       </div>
       <div class="control acoustic-sim">
@@ -79,18 +89,27 @@
         </span>
       </div>
       <div class="control master-vol">
-        <label for="masterVolRange">Master</label>
+        <label for="masterVolRange">
+          Master
+          <button type="button" id="masterInfoBtn" class="hint-tag" title="What does this do?">?</button>
+        </label>
         <input type="range" id="masterVolRange" min="0" max="150" value="100">
       </div>
-      <div class="control wave-preview">
-        <label>Signal Preview</label>
-        <canvas id="waveCanvas" width="320" height="52" class="scope" title="How a plain sine wave would hypothetically look after your current pedal chain"></canvas>
+      <div class="control youtube-embed">
+        <label for="youtubeUrlInput">YouTube</label>
+        <input type="text" id="youtubeUrlInput" placeholder="Paste a YouTube link…">
+        <div id="youtubePlayerWrap" class="youtube-player-wrap"></div>
       </div>
-      <div class="toolbar-actions">
-        <button id="demoSetupsBtn" class="add-pedal-btn demo-btn" disabled title="Load a hand-tuned full pedalboard setup">&#9835; Demo Setups</button>
-        <button id="testChordBtn" class="add-pedal-btn test-btn" disabled title="Plays synthesized notes/chords through your current pedal chain, so you can hear it without a guitar plugged in">&#9654; Play Test Chords</button>
-        <button id="clearSetupBtn" class="add-pedal-btn clear-btn" disabled title="Remove every pedal and amp from the board">&#10005; Clear Setup</button>
-        <button id="addPedalBtn" class="add-pedal-btn" disabled>+ Add Pedal</button>
+      <div class="toolbar-right">
+        <div class="control wave-preview">
+          <label>Signal Preview</label>
+          <canvas id="waveCanvas" width="320" height="52" class="scope" title="How a plain sine wave would hypothetically look after your current pedal chain"></canvas>
+        </div>
+        <div class="toolbar-actions">
+          <button id="demoSetupsBtn" class="add-pedal-btn demo-btn" disabled title="Load a hand-tuned full pedalboard setup">&#9835; Demo Setups</button>
+          <button id="clearSetupBtn" class="add-pedal-btn clear-btn" disabled title="Remove every pedal and amp from the board">&#10005; Clear Setup</button>
+          <button id="addPedalBtn" class="add-pedal-btn" disabled>+ Add Pedal</button>
+        </div>
       </div>
     </div>
 
@@ -263,6 +282,6 @@
   </div>
 </template>
 
-<script type="module" src="js/main.js?v=6"></script>
+<script type="module" src="js/main.js?v=13"></script>
 </body>
 </html>
