@@ -1,0 +1,55 @@
+name: Deploy Pages (master + latency-optimization preview)
+
+# Publishes master at the site root and latency-optimization under /latency-optimization/
+# in the same deployment, so the branch gets a shareable preview link without disturbing
+# the main site. Runs on pushes to either branch, and can be re-run manually.
+on:
+  push:
+    branches: [master, latency-optimization]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          path: site
+
+      - name: Checkout latency-optimization (preview subpath)
+        uses: actions/checkout@v4
+        with:
+          ref: latency-optimization
+          path: site/latency-optimization
+
+      - name: Strip git metadata, disable Jekyll processing
+        run: |
+          rm -rf site/.git site/latency-optimization/.git
+          touch site/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
