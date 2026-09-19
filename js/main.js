@@ -201,7 +201,12 @@ document.querySelectorAll('.tab-btn').forEach((btn) => {
 
 const youtubeUrlInput = $('youtubeUrlInput');
 const youtubePlayerWrap = $('youtubePlayerWrap');
+const youtubePlayBtn = $('youtubePlayBtn');
+const youtubeBackBtn = $('youtubeBackBtn');
+const youtubeForwardBtn = $('youtubeForwardBtn');
+const youtubeVolRange = $('youtubeVolRange');
 const YOUTUBE_URL_KEY = 'gfxYoutubeUrl';
+const YT_SEEK_SECONDS = 5;
 
 function extractYouTubeId(url) {
   let u;
@@ -216,21 +221,83 @@ function extractYouTubeId(url) {
   return null;
 }
 
+// Uses the YouTube IFrame Player API (not a plain <iframe src="...">) so the
+// play/stop, seek, and volume controls below can drive the video programmatically.
+let ytPlayer = null;
+let ytApiLoading = false;
+let pendingVideoId = null;
+
+function setYoutubeControlsEnabled(enabled) {
+  [youtubePlayBtn, youtubeBackBtn, youtubeForwardBtn, youtubeVolRange].forEach((el) => { el.disabled = !enabled; });
+}
+
+function updateYoutubePlayBtn() {
+  if (!ytPlayer || typeof ytPlayer.getPlayerState !== 'function') return;
+  youtubePlayBtn.innerHTML = ytPlayer.getPlayerState() === YT.PlayerState.PLAYING ? '&#9632; Stop' : '&#9654; Play';
+}
+
+function createYtPlayer(id) {
+  youtubePlayerWrap.innerHTML = '';
+  const mount = document.createElement('div');
+  youtubePlayerWrap.appendChild(mount);
+  ytPlayer = new YT.Player(mount, {
+    videoId: id,
+    playerVars: { rel: 0, origin: window.location.origin },
+    events: {
+      onReady: () => {
+        ytPlayer.setVolume(parseInt(youtubeVolRange.value, 10));
+        setYoutubeControlsEnabled(true);
+        updateYoutubePlayBtn();
+      },
+      onStateChange: updateYoutubePlayBtn,
+    },
+  });
+}
+
+function ensureYouTubeApi() {
+  if (window.YT && window.YT.Player) return true;
+  if (!ytApiLoading) {
+    ytApiLoading = true;
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+    window.onYouTubeIframeAPIReady = () => { if (pendingVideoId) createYtPlayer(pendingVideoId); };
+  }
+  return false;
+}
+
 function loadYouTubeVideo(url) {
   const id = extractYouTubeId(url);
-  youtubePlayerWrap.innerHTML = '';
-  if (!id) return;
-  const iframe = document.createElement('iframe');
-  iframe.src = `https://www.youtube.com/embed/${id}`;
-  iframe.title = 'YouTube video player';
-  iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-  iframe.allowFullscreen = true;
-  youtubePlayerWrap.appendChild(iframe);
+  if (!id) {
+    youtubePlayerWrap.innerHTML = '';
+    ytPlayer = null;
+    setYoutubeControlsEnabled(false);
+    return;
+  }
   localStorage.setItem(YOUTUBE_URL_KEY, url);
+  pendingVideoId = id;
+  if (ensureYouTubeApi()) createYtPlayer(id);
 }
 
 youtubeUrlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadYouTubeVideo(youtubeUrlInput.value); });
 youtubeUrlInput.addEventListener('change', () => loadYouTubeVideo(youtubeUrlInput.value));
+
+youtubePlayBtn.addEventListener('click', () => {
+  if (!ytPlayer) return;
+  if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) ytPlayer.stopVideo();
+  else ytPlayer.playVideo();
+});
+youtubeBackBtn.addEventListener('click', () => {
+  if (!ytPlayer) return;
+  ytPlayer.seekTo(Math.max(0, ytPlayer.getCurrentTime() - YT_SEEK_SECONDS), true);
+});
+youtubeForwardBtn.addEventListener('click', () => {
+  if (!ytPlayer) return;
+  ytPlayer.seekTo(ytPlayer.getCurrentTime() + YT_SEEK_SECONDS, true);
+});
+youtubeVolRange.addEventListener('input', () => {
+  if (ytPlayer && typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(parseInt(youtubeVolRange.value, 10));
+});
 
 const savedYoutubeUrl = localStorage.getItem(YOUTUBE_URL_KEY);
 if (savedYoutubeUrl) {

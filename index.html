@@ -102,6 +102,12 @@
         <label for="youtubeUrlInput">YouTube</label>
         <input type="text" id="youtubeUrlInput" placeholder="Paste a YouTube link…">
         <div id="youtubePlayerWrap" class="youtube-player-wrap"></div>
+        <div class="youtube-transport">
+          <button type="button" id="youtubeBackBtn" class="mute-btn" disabled title="Back 5 seconds">&#8634; 5s</button>
+          <button type="button" id="youtubePlayBtn" class="mute-btn" disabled title="Play/Stop">&#9654; Play</button>
+          <button type="button" id="youtubeForwardBtn" class="mute-btn" disabled title="Forward 5 seconds">5s &#8635;</button>
+          <input type="range" id="youtubeVolRange" class="youtube-vol" min="0" max="100" value="100" disabled title="Volume">
+        </div>
       </div>
       <div class="toolbar-right">
         <div class="control wave-preview">
@@ -297,6 +303,6 @@
   </div>
 </template>
 
-<script type="module" src="js/main.js?v=24"></script>
+<script type="module" src="js/main.js?v=29"></script>
 </body>
 </html>
