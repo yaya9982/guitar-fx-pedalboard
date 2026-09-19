@@ -188,7 +188,7 @@ export class AudioEngine {
       processorOptions: { frequency: freq },
     });
     const gain = ctx.createGain();
-    gain.gain.value = 0.6;
+    gain.gain.value = 0.3;
     pluck.connect(gain).connect(ctx.destination);
     // The processor stops itself once it's decayed to silence; this just detaches the
     // now-idle node from the graph instead of leaving it connected indefinitely.

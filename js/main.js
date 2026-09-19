@@ -1,4 +1,4 @@
-import { AudioEngine } from './audio-engine.js?v=11';
+import { AudioEngine } from './audio-engine.js?v=12';
 import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, updateLevelMeter, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=1';
 import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js';
