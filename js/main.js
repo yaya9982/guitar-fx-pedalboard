@@ -3,7 +3,7 @@ import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, updateLevelMet
 import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js';
 import { Tuner, GUITAR_STRINGS, centsFromTarget } from './tuner.js?v=3';
-import { Looper } from './looper.js?v=1';
+import { Looper } from './looper.js?v=3';
 import { audioBufferToWavBlob } from './wav-encoder.js';
 import { DrumKit, DRUM_PADS } from './drum-kit.js';
 import { BEAT_PRESETS, PatternPlayer } from './beat-presets.js?v=2';
@@ -237,7 +237,9 @@ function setYoutubeControlsEnabled(enabled) {
 
 function updateYoutubePlayBtn() {
   if (!ytPlayer || typeof ytPlayer.getPlayerState !== 'function') return;
-  youtubePlayBtn.innerHTML = ytPlayer.getPlayerState() === YT.PlayerState.PLAYING ? '&#9632; Stop' : '&#9654; Play';
+  // Pause, not Stop — stopVideo() resets playback to 0:00, which is surprising for a
+  // button whose only other state is "Play." Pausing keeps your place in the video.
+  youtubePlayBtn.innerHTML = ytPlayer.getPlayerState() === YT.PlayerState.PLAYING ? '&#10074;&#10074; Pause' : '&#9654; Play';
 }
 
 function createYtPlayer(id) {
@@ -288,7 +290,7 @@ youtubeUrlInput.addEventListener('change', () => loadYouTubeVideo(youtubeUrlInpu
 
 youtubePlayBtn.addEventListener('click', () => {
   if (!ytPlayer) return;
-  if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) ytPlayer.stopVideo();
+  if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
   else ytPlayer.playVideo();
 });
 youtubeBackBtn.addEventListener('click', () => {
@@ -685,8 +687,8 @@ function resetLooperControlsIdle() {
   isRecording = false;
   looperRecordBtn.disabled = false;
   looperRecordBtn.textContent = '● Record';
-  looperStopBtn.textContent = '■ Stop';
-  [looperPlayBtn, looperStopBtn, looperLoopBtn, looperClearBtn].forEach((b) => (b.disabled = false));
+  looperStopBtn.disabled = true; // Stop Recording only ever makes sense while actually recording
+  [looperPlayBtn, looperLoopBtn, looperClearBtn].forEach((b) => (b.disabled = false));
 }
 
 async function finishRecording() {
@@ -722,39 +724,45 @@ async function finishRecording() {
 
 looperRecordBtn.addEventListener('click', async () => {
   if (!engine.isReady) { alert('Click "Enable Audio" first.'); return; }
-  if (!looper) looper = new Looper(engine.ctx, engine.mediaStreamDest);
+  if (!looper) {
+    looper = new Looper(engine.ctx, engine.mediaStreamDest);
+    // Reaching the end without looping stops playback on its own (see Looper._handleEnded) —
+    // this just keeps the toggle button's label in sync with that.
+    looper.onEnded = () => { looperPlayBtn.innerHTML = '&#9654; Play'; };
+  }
 
   const captureScreen = looperCaptureScreenAudio.checked;
   looperRecordBtn.disabled = true;
   if (captureScreen) looperStatus.textContent = 'Choose a screen/tab to share…';
   await looper.startRecording(captureScreen);
   isRecording = true;
-  looperStatus.textContent = looper.hasScreenAudio || !captureScreen ? 'Recording…' : 'Recording (screen audio unavailable — guitar only)…';
-  // The Record button itself never changes role or label — it just disables while a
-  // recording is in progress. The one button that reads "Stop Recording" is the only
-  // control that can end it, so there's never two differently-behaving buttons that
-  // both say "Stop" at the same time.
-  looperStopBtn.textContent = '■ Stop Recording';
+  looperStatus.textContent = looper.hasScreenAudio || !captureScreen
+    ? 'Recording…'
+    : 'Recording (no screen audio track — pick "Entire Screen" or a browser Tab and check "Share audio"; sharing a single Window never includes audio)…';
   looperStopBtn.disabled = false;
   [looperPlayBtn, looperLoopBtn, looperClearBtn, looperSourceBtn].forEach((b) => (b.disabled = true));
   looperDownloadBtn.classList.add('disabled');
   looperSeekRange.disabled = true;
 });
 
+// A single toggle, same idea as the YouTube player's Play/Pause: shows Play while
+// idle, Pause while playing, and pressing Play again resumes from wherever it was
+// left rather than restarting from the beginning.
 looperPlayBtn.addEventListener('click', () => {
   if (!looper) return;
-  looper.play();
-  startSeekLoop();
+  if (looper.isPlaying) {
+    looper.pause();
+    cancelAnimationFrame(seekRafId);
+    updateSeekDisplay();
+    looperPlayBtn.innerHTML = '&#9654; Play';
+  } else {
+    looper.play();
+    startSeekLoop();
+    looperPlayBtn.innerHTML = '&#10074;&#10074; Pause';
+  }
 });
-// Stop does double duty by design, but never by ambiguous labeling: its text is
-// "Stop Recording" only while a recording is actually in progress, and plain "Stop"
-// (halting loop playback) otherwise.
 looperStopBtn.addEventListener('click', () => {
-  if (isRecording) { finishRecording(); return; }
-  if (!looper) return;
-  looper.stopPlayback();
-  cancelAnimationFrame(seekRafId);
-  updateSeekDisplay();
+  if (isRecording) finishRecording();
 });
 looperLoopBtn.addEventListener('click', () => {
   if (!looper) return;
@@ -776,6 +784,7 @@ looperClearBtn.addEventListener('click', () => {
   cancelAnimationFrame(seekRafId);
   looperStatus.textContent = 'No recording yet.';
   drawWaveform(null, looperWaveform);
+  looperPlayBtn.innerHTML = '&#9654; Play';
   [looperPlayBtn, looperStopBtn, looperLoopBtn, looperClearBtn].forEach((b) => (b.disabled = true));
   looperDownloadBtn.classList.add('disabled');
   looperSourceBtn.disabled = true;

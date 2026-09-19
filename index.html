@@ -104,7 +104,7 @@
         <div id="youtubePlayerWrap" class="youtube-player-wrap"></div>
         <div class="youtube-transport">
           <button type="button" id="youtubeBackBtn" class="mute-btn" disabled title="Back 5 seconds">&#8634; 5s</button>
-          <button type="button" id="youtubePlayBtn" class="mute-btn" disabled title="Play/Stop">&#9654; Play</button>
+          <button type="button" id="youtubePlayBtn" class="mute-btn" disabled title="Play/Pause">&#9654; Play</button>
           <button type="button" id="youtubeForwardBtn" class="mute-btn" disabled title="Forward 5 seconds">5s &#8635;</button>
           <input type="range" id="youtubeVolRange" class="youtube-vol" min="0" max="100" value="100" disabled title="Volume">
         </div>
@@ -157,14 +157,14 @@
       <div class="looper-rack-label">Looper</div>
       <div class="looper-transport">
         <button id="looperRecordBtn" class="looper-btn record">&#9679; Record</button>
-        <button id="looperPlayBtn" class="looper-btn" disabled>&#9654; Play</button>
-        <button id="looperStopBtn" class="looper-btn" disabled>&#9632; Stop</button>
+        <button id="looperPlayBtn" class="looper-btn" disabled title="Play/Pause">&#9654; Play</button>
+        <button id="looperStopBtn" class="looper-btn" disabled>&#9632; Stop Recording</button>
         <button id="looperLoopBtn" class="looper-btn toggle" disabled>&#8635; Loop: Off</button>
         <button id="looperClearBtn" class="looper-btn" disabled>Clear</button>
         <a id="looperDownloadBtn" class="looper-btn download disabled" href="#" download="loop.wav">&#8595; Download .wav</a>
       </div>
       <div class="looper-options">
-        <span class="looper-screen-toggle">
+        <span class="looper-screen-toggle" title="When you click Record, pick &quot;Entire Screen&quot; or a browser Tab and check &quot;Share audio&quot;/&quot;Share tab audio&quot; — sharing a single Window never includes audio, that's a browser limitation.">
           <span class="mini-toggle">
             <input type="checkbox" id="looperCaptureScreenAudio">
             <label for="looperCaptureScreenAudio"></label>
@@ -317,6 +317,6 @@
   </div>
 </template>
 
-<script type="module" src="js/main.js?v=30"></script>
+<script type="module" src="js/main.js?v=32"></script>
 </body>
 </html>

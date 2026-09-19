@@ -59,13 +59,27 @@ export class Looper {
   // guitar-only recording instead of failing outright.
   async startRecording(captureScreenAudio) {
     this.screenMediaStream = null;
+    this._displayStream = null;
     if (captureScreenAudio) {
       try {
         const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
         const audioTracks = display.getAudioTracks();
-        display.getVideoTracks().forEach((t) => t.stop()); // video is required by the API but never used here
-        if (audioTracks.length > 0) this.screenMediaStream = new MediaStream(audioTracks);
-        else display.getTracks().forEach((t) => t.stop());
+        if (audioTracks.length > 0) {
+          // Keep the raw display stream (including its video track) alive for the
+          // whole recording instead of stopping the video track immediately — on
+          // some Chrome versions the audio and video tracks share one underlying
+          // capture session, and stopping video right away silently kills audio
+          // delivery too, even though the two tracks are nominally independent.
+          // The video track is never read/rendered anywhere; it's just parked.
+          this._displayStream = display;
+          this.screenMediaStream = new MediaStream(audioTracks);
+        } else {
+          // No audio track came back at all — most commonly because the picker was
+          // used to share a specific Window (Chrome only supports capturing system
+          // audio from "Entire Screen" or a browser Tab, never an individual
+          // window), or because "Share audio"/"Share tab audio" wasn't checked.
+          display.getTracks().forEach((t) => t.stop());
+        }
       } catch (err) {
         this.screenMediaStream = null; // cancelled picker, or permission denied
       }
@@ -118,8 +132,11 @@ export class Looper {
 
       Promise.all([guitarStopped, screenStopped]).then(async () => {
         this.isRecording = false;
-        // Releases the browser's "you are sharing your screen" indicator/border.
-        if (this.screenMediaStream) this.screenMediaStream.getTracks().forEach((t) => t.stop());
+        // Releases the browser's "you are sharing your screen" indicator/border. Stops
+        // the raw display stream's tracks (video included), not just the audio-only
+        // copy used for recording.
+        if (this._displayStream) this._displayStream.getTracks().forEach((t) => t.stop());
+        this._displayStream = null;
         try {
           if (this.guitarChunks.length === 0) throw new Error('No audio was captured — try recording for at least a second.');
           this.guitarBuffer = await this._decode(this.guitarChunks);
@@ -187,6 +204,17 @@ export class Looper {
     this.screenSourceNode = null;
   }
 
+  // Halts playback but remembers the position, so the next play() resumes instead of
+  // restarting from 0. This is what the UI's Play/Pause toggle button calls.
+  pause() {
+    if (!this.isPlaying) return;
+    this._playOffset = this.getCurrentTime();
+    this._stopSourceNodes();
+    this.isPlaying = false;
+  }
+
+  // A hard stop: halts playback and resets position to the beginning. Used by clear()
+  // rather than the transport's Play/Pause button, which should never lose your place.
   stopPlayback() {
     this._stopSourceNodes();
     this.isPlaying = false;
