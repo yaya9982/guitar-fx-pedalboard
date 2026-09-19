@@ -197,6 +197,11 @@ quantization; the source image, logo, or artwork itself is never placed in the a
   the jack barrel, and the footswitch's brushed-ribbed face.
 - **Ok / Danger** (`oklch(72% 0.17 145)` / `oklch(60% 0.19 25)`): success/on-state
   (level meter, in-tune indicator) and destructive/record-state accents.
+- **Wood-hi / Wood-mid / Wood-lo** (`oklch(34% 0.045 55)` / `oklch(24% 0.04 50)` /
+  `oklch(18% 0.035 48)`) and **Bone-hi / Bone-lo** (`oklch(90% 0.02 90)` /
+  `oklch(78% 0.02 85)`) and **Fretboard-hi / Fretboard-lo** (`oklch(15% 0.03 50)` /
+  `oklch(10% 0.025 45)`): quantized from a real 6-in-line headstock reference photo, scoped
+  only to the tuner panel's headstock/nut/fretboard illustration — not used elsewhere.
 
 ### Named Rules
 **The One-Color-Per-Category Rule.** Each pedal/amp type owns exactly one flat paint

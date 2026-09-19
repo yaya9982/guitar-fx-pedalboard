@@ -431,6 +431,14 @@
         "value": "oklch(42% 0.15 25)",
         "createdAt": "2026-09-17T14:44:13.814Z",
         "reason": "clear-btn border color, same derivation as demo-btn/test-btn (hue matches --danger)"
+      },
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          "index.html"
+        ],
+        "createdAt": "2026-09-18T07:18:19.404Z"
       }
     ]
   }

@@ -1,5 +1,28 @@
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
+// Standard 6-string tuning, low to high. Frequencies are the standard 12-TET values
+// (A4 = 440Hz), not derived from any particular instrument or brand's spec.
+// gaugeIn is a typical light-gauge electric set (e.g. Ernie Ball Regular Slinky:
+// .010/.013/.017/.026/.036/.046") — used only to scale the string-line thickness
+// in the tuner's guitar illustration, in real inches so the ~4.6x low-to-high
+// ratio is accurate rather than eyeballed.
+export const GUITAR_STRINGS = [
+  { id: 'E2', label: 'E', octave: 2, freq: 82.41, gaugeIn: 0.046 },
+  { id: 'A2', label: 'A', octave: 2, freq: 110.00, gaugeIn: 0.036 },
+  { id: 'D3', label: 'D', octave: 3, freq: 146.83, gaugeIn: 0.026 },
+  { id: 'G3', label: 'G', octave: 3, freq: 196.00, gaugeIn: 0.017 },
+  { id: 'B3', label: 'B', octave: 3, freq: 246.94, gaugeIn: 0.013 },
+  { id: 'E4', label: 'e', octave: 4, freq: 329.63, gaugeIn: 0.010 },
+];
+
+// Cents offset of a detected frequency from a specific target (e.g. a chosen string),
+// rather than from whatever chromatic note happens to be nearest — used by "focused"
+// per-string tuning mode, where a wildly out-of-tune string should still read as
+// "flat/sharp of THIS string," not jump to a different note name.
+export function centsFromTarget(freq, targetFreq) {
+  return Math.round(1200 * Math.log2(freq / targetFreq));
+}
+
 // Autocorrelation pitch detection with parabolic interpolation for sub-sample precision.
 // Standard technique for real-time instrument tuners; O(n^2) but fine at ~30fps with a 2048 buffer.
 export function autoCorrelate(buf, sampleRate) {

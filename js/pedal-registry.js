@@ -35,17 +35,21 @@ export const PEDAL_TYPES = [
     blurb: 'Evens out your dynamics — squashes loud notes and lifts quiet ones for a smoother, more consistent volume.',
     about: 'A compressor automatically reduces the volume of anything that crosses a threshold, then applies makeup gain to bring the overall level back up. The result is smoother, more consistent playing — quieter notes sustain longer and pick attacks feel less spiky. Classic for funk/country chicken-pickin\' and for tightening up a solo.',
     createNodes(ctx) {
-      const comp = ctx.createDynamicsCompressor();
-      comp.knee.value = 12;
+      // AudioWorklet-based (js/dynamics-worklet.js), not createDynamicsCompressor() —
+      // the native node's fixed ~6ms look-ahead isn't exposed as a parameter, so this
+      // pedal used to cost every player 6ms whether they cared or not. See the master
+      // output limiter's WaveShaper swap for the original version of this fix.
+      const comp = new AudioWorkletNode(ctx, 'dynamics-processor');
+      comp.parameters.get('knee').value = 12;
       const makeup = ctx.createGain();
       comp.connect(makeup);
       return { input: comp, output: makeup, nodes: { comp, makeup } };
     },
     params: [
-      { key: 'threshold', label: 'Threshold', min: -60, max: 0, default: -24, unit: 'dB', apply: (n, v) => (n.comp.threshold.value = v) },
-      { key: 'ratio', label: 'Ratio', min: 1, max: 20, default: 4, apply: (n, v) => (n.comp.ratio.value = v) },
-      { key: 'attack', label: 'Attack', min: 0, max: 50, default: 5, unit: 'ms', apply: (n, v) => (n.comp.attack.value = v / 1000) },
-      { key: 'release', label: 'Release', min: 10, max: 1000, default: 150, unit: 'ms', apply: (n, v) => (n.comp.release.value = v / 1000) },
+      { key: 'threshold', label: 'Threshold', min: -60, max: 0, default: -24, unit: 'dB', apply: (n, v) => (n.comp.parameters.get('threshold').value = v) },
+      { key: 'ratio', label: 'Ratio', min: 1, max: 20, default: 4, apply: (n, v) => (n.comp.parameters.get('ratio').value = v) },
+      { key: 'attack', label: 'Attack', min: 0, max: 50, default: 5, unit: 'ms', apply: (n, v) => (n.comp.parameters.get('attack').value = v / 1000) },
+      { key: 'release', label: 'Release', min: 10, max: 1000, default: 150, unit: 'ms', apply: (n, v) => (n.comp.parameters.get('release').value = v / 1000) },
       { key: 'level', label: 'Level', min: 0, max: 200, default: 100, unit: '%', apply: (n, v) => (n.makeup.gain.value = v / 100) },
     ],
   },
@@ -70,15 +74,23 @@ export const PEDAL_TYPES = [
     blurb: 'A safety net that caps sudden loud peaks so nothing spikes or clips.',
     about: 'A limiter is a hard-ratio compressor that puts a ceiling on peak level — anything above the Ceiling knob gets clamped down fast. It\'s mostly transparent at moderate settings and mainly there to catch surprise volume spikes rather than shape your tone.',
     createNodes(ctx) {
-      const comp = ctx.createDynamicsCompressor();
-      comp.ratio.value = 20; comp.knee.value = 2;
+      // AudioWorklet-based (js/dynamics-worklet.js) — see the Compressor pedal above
+      // for why, in place of createDynamicsCompressor()'s fixed ~6ms look-ahead. A fast
+      // fixed attack (not user-exposed, matching the original's default) since this is
+      // meant to catch peaks quickly; without look-ahead a very sharp transient can
+      // overshoot slightly before the gain catches up, the honest trade-off of zero
+      // added latency instead of the native node hiding a delay to avoid it.
+      const comp = new AudioWorkletNode(ctx, 'dynamics-processor');
+      comp.parameters.get('ratio').value = 20;
+      comp.parameters.get('knee').value = 2;
+      comp.parameters.get('attack').value = 0.001;
       const makeup = ctx.createGain();
       comp.connect(makeup);
       return { input: comp, output: makeup, nodes: { comp, makeup } };
     },
     params: [
-      { key: 'ceiling', label: 'Ceiling', min: -24, max: 0, default: -3, unit: 'dB', apply: (n, v) => (n.comp.threshold.value = v) },
-      { key: 'release', label: 'Release', min: 10, max: 500, default: 80, unit: 'ms', apply: (n, v) => (n.comp.release.value = v / 1000) },
+      { key: 'ceiling', label: 'Ceiling', min: -24, max: 0, default: -3, unit: 'dB', apply: (n, v) => (n.comp.parameters.get('threshold').value = v) },
+      { key: 'release', label: 'Release', min: 10, max: 500, default: 80, unit: 'ms', apply: (n, v) => (n.comp.parameters.get('release').value = v / 1000) },
       { key: 'level', label: 'Level', min: 0, max: 200, default: 100, unit: '%', apply: (n, v) => (n.makeup.gain.value = v / 100) },
     ],
   },

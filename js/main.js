@@ -1,8 +1,8 @@
-import { AudioEngine } from './audio-engine.js?v=6';
-import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, updateLevelMeter, drawScope, drawWaveform, drawStaticWave } from './ui.js';
+import { AudioEngine } from './audio-engine.js?v=10';
+import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, updateLevelMeter, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=1';
 import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js';
-import { Tuner } from './tuner.js';
+import { Tuner, GUITAR_STRINGS, centsFromTarget } from './tuner.js?v=3';
 import { Looper } from './looper.js';
 import { audioBufferToWavBlob } from './wav-encoder.js';
 import { DrumKit, DRUM_PADS } from './drum-kit.js';
@@ -18,7 +18,6 @@ const enableAudioBtn = $('enableAudioBtn');
 const inputDeviceSelect = $('inputDeviceSelect');
 const outputDeviceSelect = $('outputDeviceSelect');
 const latencyReadout = $('latencyReadout');
-const measureLatencyBtn = $('measureLatencyBtn');
 const inputMeterBar = $('inputMeterBar');
 const scopeCanvas = $('scopeCanvas');
 const waveCanvas = $('waveCanvas');
@@ -47,6 +46,9 @@ const tunerNote = $('tunerNote');
 const tunerNeedle = $('tunerNeedle');
 const tunerCents = $('tunerCents');
 const tunerFreq = $('tunerFreq');
+const tunerStringRow = $('tunerStringRow');
+const tunerDirection = $('tunerDirection');
+const tunerHint = $('tunerHint');
 
 const looperRecordBtn = $('looperRecordBtn');
 const looperPlayBtn = $('looperPlayBtn');
@@ -250,17 +252,13 @@ enableAudioBtn.addEventListener('click', async () => {
     enableAudioBtn.textContent = 'Audio Enabled';
     enableAudioBtn.classList.add('enabled');
     inputDeviceSelect.disabled = false;
-    const latencyMs = engine.getMeasuredLatencyMs();
-    // Labeled "Est. output" rather than plain "Latency" — this only covers the output
-    // buffer hand-off (baseLatency + outputLatency), not input capture or any DSP/pedal
-    // lookahead, so it understates the actual round-trip. "Measure" gets the real number.
-    if (latencyMs != null) latencyReadout.innerHTML = `Est. output: <span class="latency-value">${latencyMs.toFixed(0)}ms</span>`;
+    startLiveLatencyLoop();
     addPedalBtn.disabled = false;
     demoSetupsBtn.disabled = false;
     clearSetupBtn.disabled = false;
     muteInputBtn.disabled = false;
     acousticSimEnabled.disabled = false;
-    measureLatencyBtn.disabled = false;
+    tunerStringRow.querySelectorAll('.tuner-string-btn').forEach((b) => { b.disabled = false; });
 
     // Drum bus: a plain gain node feeding both the speakers and the looper's recording
     // tap, so pad hits are audible live and captured into whatever's being recorded —
@@ -331,20 +329,24 @@ outputDeviceSelect.addEventListener('change', async () => {
   }
 });
 
-measureLatencyBtn.addEventListener('click', async () => {
-  measureLatencyBtn.disabled = true;
-  const prevText = measureLatencyBtn.textContent;
-  measureLatencyBtn.textContent = 'Listening…';
-  try {
-    const ms = await engine.measureRoundTripLatency();
-    latencyReadout.innerHTML = `Round-trip: <span class="latency-value">${ms.toFixed(0)}ms</span>`;
-  } catch (err) {
-    alert(err.message);
-  } finally {
-    measureLatencyBtn.disabled = false;
-    measureLatencyBtn.textContent = prevText;
-  }
-});
+// Live "ping meter" — like a shooter HUD's latency indicator, this polls continuously
+// once audio is on rather than requiring a manual re-check. It shows the silent output
+// estimate (baseLatency + outputLatency).
+function latencyClass(ms) {
+  if (ms <= 20) return 'lat-good';
+  if (ms <= 40) return 'lat-warn';
+  return 'lat-bad';
+}
+
+function startLiveLatencyLoop() {
+  const tick = () => {
+    const ms = engine.getMeasuredLatencyMs();
+    if (ms == null) return;
+    latencyReadout.innerHTML = `<span class="live-dot"></span>Est. output: <span class="latency-value ${latencyClass(ms)}">${ms.toFixed(0)}ms</span>`;
+  };
+  tick();
+  setInterval(tick, 500);
+}
 
 // The device list is otherwise only captured once, at Enable Audio — plugging in
 // an interface afterward (e.g. a UMC 22) would never show up without this, since
@@ -486,6 +488,53 @@ function meterLoop() {
 // Tuner
 // ---------------------------------------------------------------------------
 
+// Per-string "focused" mode: null means plain chromatic auto-detect (original
+// behavior); set to a GUITAR_STRINGS entry to lock the display onto that string's
+// exact target frequency, however far off the detected pitch actually is, instead
+// of snapping to whatever chromatic note happens to be nearest.
+let focusedString = null;
+const CHROMATIC_HINT = 'Play a single string. Tuner reads the raw, pre-effects signal.';
+
+function buildTunerStringRow() {
+  GUITAR_STRINGS.forEach((str) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tuner-string-btn';
+    btn.disabled = true;
+    btn.title = `${str.label}${str.octave} · ${str.freq.toFixed(2)} Hz — click to hear it and focus the tuner on this string`;
+    const letter = document.createElement('span');
+    letter.className = 'string-letter';
+    letter.textContent = str.label;
+    const octave = document.createElement('span');
+    octave.className = 'string-octave';
+    octave.textContent = str.octave;
+    btn.append(letter, octave);
+    btn.addEventListener('click', () => {
+      if (!engine.isReady) return;
+      if (focusedString?.id === str.id) {
+        focusedString = null;
+        btn.classList.remove('active');
+        tunerHint.textContent = CHROMATIC_HINT;
+        return;
+      }
+      focusedString = str;
+      tunerStringRow.querySelectorAll('.tuner-string-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      tunerHint.textContent = `Focused on ${str.label}${str.octave} (${str.freq.toFixed(2)} Hz) — click the string again to go back to auto chromatic mode.`;
+      engine.playReferenceTone(str.freq);
+    });
+
+    const row = document.createElement('div');
+    row.className = 'tuner-string';
+    const line = document.createElement('span');
+    line.className = 'string-line';
+    line.style.height = `${(str.gaugeIn * 100).toFixed(1)}px`; // real gauge inches x100 -> px, keeps the ~4.6:1 low-to-high ratio
+    row.append(line, btn);
+    tunerStringRow.appendChild(row);
+  });
+}
+buildTunerStringRow();
+
 function startTuner() {
   if (!engine.isReady) return;
   if (!tuner) tuner = new Tuner(engine.tunerAnalyser, engine.ctx.sampleRate);
@@ -494,14 +543,28 @@ function startTuner() {
       tunerNote.textContent = '—'; tunerNote.style.color = 'var(--text)';
       tunerCents.textContent = '0 cents'; tunerFreq.textContent = '0.0 Hz';
       tunerNeedle.style.transform = 'translateX(-50%) rotate(0deg)';
+      tunerDirection.textContent = ''; tunerDirection.className = 'tuner-direction';
       return;
     }
-    tunerNote.textContent = note.name + note.octave;
-    tunerCents.textContent = `${note.cents > 0 ? '+' : ''}${note.cents} cents`;
     tunerFreq.textContent = `${note.frequency.toFixed(1)} Hz`;
-    const clamped = Math.max(-50, Math.min(50, note.cents));
+
+    const cents = focusedString ? centsFromTarget(note.frequency, focusedString.freq) : note.cents;
+    tunerNote.textContent = focusedString ? focusedString.label + focusedString.octave : note.name + note.octave;
+    tunerCents.textContent = `${cents > 0 ? '+' : ''}${cents} cents`;
+    const clamped = Math.max(-50, Math.min(50, cents));
     tunerNeedle.style.transform = `translateX(-50%) rotate(${clamped * 0.8}deg)`;
-    tunerNote.style.color = Math.abs(note.cents) < 5 ? 'var(--ok)' : 'var(--text)';
+    const inTune = Math.abs(cents) < 5;
+    tunerNote.style.color = inTune ? 'var(--ok)' : 'var(--text)';
+
+    if (!focusedString) {
+      tunerDirection.textContent = ''; tunerDirection.className = 'tuner-direction';
+    } else if (inTune) {
+      tunerDirection.textContent = '✓ In Tune'; tunerDirection.className = 'tuner-direction in-tune';
+    } else if (cents < 0) {
+      tunerDirection.textContent = '▲ Tune Up'; tunerDirection.className = 'tuner-direction tune-up';
+    } else {
+      tunerDirection.textContent = '▼ Tune Down'; tunerDirection.className = 'tuner-direction tune-down';
+    }
   });
 }
 

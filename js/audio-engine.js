@@ -1,5 +1,5 @@
-import { getPedalType } from './pedal-registry.js';
-import { getAmpType, createAcousticSimNodes } from './amp-registry.js';
+import { getPedalType } from './pedal-registry.js?v=1';
+import { getAmpType, createAcousticSimNodes } from './amp-registry.js?v=1';
 
 let idCounter = 0;
 function nextId() { return `inst-${++idCounter}-${Date.now().toString(36)}`; }
@@ -60,7 +60,8 @@ export class AudioEngine {
     await this.ctx.audioWorklet.addModule('js/bitcrusher-worklet.js?v=2');
     await this.ctx.audioWorklet.addModule('js/pitch-worklet.js?v=2');
     await this.ctx.audioWorklet.addModule('js/spectral-denoise-worklet.js?v=2');
-    await this.ctx.audioWorklet.addModule('js/latency-probe-worklet.js?v=1');
+    await this.ctx.audioWorklet.addModule('js/pluck-worklet.js?v=1');
+    await this.ctx.audioWorklet.addModule('js/dynamics-worklet.js?v=1');
   }
 
   _buildStaticGraph() {
@@ -128,6 +129,10 @@ export class AudioEngine {
         echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: false,
+        // Non-standard but Chrome-honored: hints the capture side toward the smallest
+        // buffer it can run, mirroring the AudioContext's own latencyHint: 0 on the
+        // output side. Harmless where unsupported — browsers ignore unknown constraints.
+        latency: { ideal: 0 },
         // Requesting mono here (channelCount: 1) makes some browser/driver combos
         // just grab channel 1 of a 2-channel interface instead of mixing both —
         // silently dropping anything plugged into channel 2. Ask for stereo and
@@ -166,49 +171,25 @@ export class AudioEngine {
     return (base + out) * 1000;
   }
 
-  // Real round-trip latency, not just the output-side estimate above: plays a short
-  // click through the current output device and times its arrival back at the input
-  // via a sample-accurate AudioWorklet probe (tapped pre-noise-gate, so the gate's
-  // own attack time can't bias the reading). Requires a loopback — either a physical
-  // cable from an output jack back into an input (most accurate: also captures real
-  // interface I/O buffering), or close mic/speaker placement for an acoustic path.
-  async measureRoundTripLatency({ timeoutMs = 3000 } = {}) {
-    if (!this.ctx) throw new Error('Audio not enabled yet.');
+  // Plucked-string reference tone for the tuner's per-string "play" button — a
+  // Karplus-Strong synth (see pluck-worklet.js) rather than a plain sine oscillator, so
+  // it sounds like an acoustic guitar string instead of a lab tone, while staying
+  // exactly on pitch. Like the drum bus, it goes straight to destination, bypassing the
+  // pedal chain, since it's a pitch reference, not something meant to pick up effects.
+  playReferenceTone(freq, durationSec = 2.2) {
+    if (!this.ctx) return;
     const ctx = this.ctx;
-
-    const probe = new AudioWorkletNode(ctx, 'latency-probe-processor');
-    this.inputGain.connect(probe); // a side-tap, like the meter/scope analysers — no output needed to keep running
-
-    const waitFor = (predicate) => new Promise((resolve) => {
-      probe.port.onmessage = (e) => { if (predicate(e.data)) { probe.port.onmessage = null; resolve(e.data); } };
+    const pluck = new AudioWorkletNode(ctx, 'pluck-processor', {
+      numberOfInputs: 0,
+      outputChannelCount: [1],
+      processorOptions: { frequency: freq },
     });
-
-    try {
-      probe.port.postMessage('calibrate');
-      await waitFor((d) => d.type === 'calibrated');
-
-      // A short, loud broadband noise burst — sharper and easier to time precisely
-      // than a tone, which ramps up smoothly from whatever phase it starts at.
-      const burstSeconds = 0.01;
-      const buffer = ctx.createBuffer(1, Math.round(ctx.sampleRate * burstSeconds), ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.9;
-      const click = ctx.createBufferSource();
-      click.buffer = buffer;
-      click.connect(ctx.destination); // bypasses the pedal chain/master entirely — a controlled, consistent test level
-
-      probe.port.postMessage('arm');
-      const playAt = ctx.currentTime + 0.15; // gives the worklet time to actually be armed before it plays
-      click.start(playAt);
-
-      const timeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('No signal detected at the input. Connect a loopback cable from an output jack back into an input (or place a mic close to a speaker), and make sure input gain is turned up.')), timeoutMs);
-      });
-      const detected = await Promise.race([waitFor((d) => d.type === 'detected'), timeout]);
-      return (detected.time - playAt) * 1000;
-    } finally {
-      probe.disconnect();
-    }
+    const gain = ctx.createGain();
+    gain.gain.value = 0.6;
+    pluck.connect(gain).connect(ctx.destination);
+    // The processor stops itself once it's decayed to silence; this just detaches the
+    // now-idle node from the graph instead of leaving it connected indefinitely.
+    setTimeout(() => { try { pluck.disconnect(); gain.disconnect(); } catch { /* already gone */ } }, durationSec * 1000);
   }
 
   async listInputDevices() {
