@@ -1,4 +1,4 @@
-import { AudioEngine } from './audio-engine.js?v=10';
+import { AudioEngine } from './audio-engine.js?v=11';
 import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, updateLevelMeter, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=1';
 import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js';
@@ -248,7 +248,7 @@ enableAudioBtn.addEventListener('click', async () => {
   try {
     const devices = await engine.enableAudio();
     populateDeviceSelect(inputDeviceSelect, devices, engine.currentDeviceId, 'Input');
-    await refreshOutputDeviceSelect();
+    await refreshOutputDeviceSelect(true);
     enableAudioBtn.textContent = 'Audio Enabled';
     enableAudioBtn.classList.add('enabled');
     inputDeviceSelect.disabled = false;
@@ -309,11 +309,20 @@ inputDeviceSelect.addEventListener('change', async () => {
 // Output routing (AudioContext.setSinkId) — Chrome 110+ only, feature-detected.
 // Picking the same interface used for input keeps the round-trip on one driver's
 // buffering instead of handing off to a separate, often higher-latency output path.
-async function refreshOutputDeviceSelect() {
+// autoMatch (only passed true right after enabling audio, never on a later device
+// hotplug refresh) tries to default the output to whatever's paired with the current
+// input — e.g. USB headphones with a built-in mic — instead of leaving it on whatever
+// the OS happens to call the system default, which the user would otherwise have to
+// notice and fix themselves.
+async function refreshOutputDeviceSelect(autoMatch = false) {
   if (!engine.supportsOutputDeviceSelection) {
     outputDeviceSelect.disabled = true;
     outputDeviceSelect.title = 'Output device selection is not supported in this browser';
     return;
+  }
+  if (autoMatch) {
+    const matchId = await engine.findMatchingOutputDeviceId();
+    if (matchId) await engine.setOutputDevice(matchId);
   }
   const outputs = await engine.listOutputDevices();
   const withDefault = [{ deviceId: '', label: 'System Default' }, ...outputs];

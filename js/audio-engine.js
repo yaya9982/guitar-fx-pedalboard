@@ -133,6 +133,9 @@ export class AudioEngine {
         // buffer it can run, mirroring the AudioContext's own latencyHint: 0 on the
         // output side. Harmless where unsupported — browsers ignore unknown constraints.
         latency: { ideal: 0 },
+        // Asking the mic to capture at the same rate the AudioContext already runs at
+        // avoids an extra internal resampling step between capture and the graph.
+        sampleRate: { ideal: this.ctx.sampleRate },
         // Requesting mono here (channelCount: 1) makes some browser/driver combos
         // just grab channel 1 of a 2-channel interface instead of mixing both —
         // silently dropping anything plugged into channel 2. Ask for stereo and
@@ -219,6 +222,19 @@ export class AudioEngine {
   async setOutputDevice(deviceId) {
     if (!this.supportsOutputDeviceSelection) return;
     await this.ctx.setSinkId(deviceId || ''); // '' resets to the system default sink
+  }
+
+  // Finds the output paired with the current input via MediaDeviceInfo.groupId — a USB
+  // headset's mic and speaker/headphone driver share one groupId since they're the same
+  // physical hardware. Lets the output default to matching the input automatically
+  // instead of requiring the user to notice and pick it themselves from the dropdown.
+  async findMatchingOutputDeviceId() {
+    if (!this.currentDeviceId) return null;
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const input = devices.find((d) => d.kind === 'audioinput' && d.deviceId === this.currentDeviceId);
+    if (!input || !input.groupId) return null;
+    const match = devices.find((d) => d.kind === 'audiooutput' && d.groupId === input.groupId);
+    return match ? match.deviceId : null;
   }
 
   // ---- global controls ----
