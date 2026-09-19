@@ -3,7 +3,7 @@ import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, updateLevelMet
 import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js';
 import { Tuner, GUITAR_STRINGS, centsFromTarget } from './tuner.js?v=3';
-import { Looper } from './looper.js';
+import { Looper } from './looper.js?v=1';
 import { audioBufferToWavBlob } from './wav-encoder.js';
 import { DrumKit, DRUM_PADS } from './drum-kit.js';
 import { BEAT_PRESETS, PatternPlayer } from './beat-presets.js?v=2';
@@ -58,6 +58,10 @@ const looperClearBtn = $('looperClearBtn');
 const looperDownloadBtn = $('looperDownloadBtn');
 const looperStatus = $('looperStatus');
 const looperWaveform = $('looperWaveform');
+const looperCaptureScreenAudio = $('looperCaptureScreenAudio');
+const looperSourceBtn = $('looperSourceBtn');
+const looperSeekRange = $('looperSeekRange');
+const looperTimeLabel = $('looperTimeLabel');
 const drumKitSelect = $('drumKitSelect');
 const drumVolRange = $('drumVolRange');
 const drumPadGrid = $('drumPadGrid');
@@ -653,6 +657,29 @@ function stopTuner() { if (tuner) tuner.stop(); }
 // isStopping guards against a double-click firing stopRecording() twice concurrently —
 // the second call would hit an already-inactive MediaRecorder and throw.
 let isStopping = false;
+let seekRafId = null;
+let isScrubbing = false; // true while the user is actively dragging the seek range
+
+function formatTime(seconds) {
+  const s = Math.max(0, Math.floor(seconds || 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function updateSeekDisplay() {
+  if (!looper || isScrubbing) return;
+  const current = looper.getCurrentTime();
+  looperSeekRange.value = current;
+  looperTimeLabel.textContent = `${formatTime(current)} / ${formatTime(looper.duration)}`;
+}
+
+function startSeekLoop() {
+  cancelAnimationFrame(seekRafId);
+  const tick = () => {
+    updateSeekDisplay();
+    if (looper && looper.isPlaying) seekRafId = requestAnimationFrame(tick);
+  };
+  tick();
+}
 
 function resetLooperControlsIdle() {
   isRecording = false;
@@ -667,13 +694,22 @@ async function finishRecording() {
   isStopping = true;
   looperStopBtn.disabled = true; // prevent a second click while the async stop is in flight
   try {
-    const buffer = await looper.stopRecording();
+    const { guitarBuffer, screenBuffer } = await looper.stopRecording();
     resetLooperControlsIdle();
-    looperStatus.textContent = `Recorded ${buffer.duration.toFixed(1)}s`;
-    drawWaveform(buffer, looperWaveform);
-    const blob = audioBufferToWavBlob(buffer);
+    looperStatus.textContent = `Recorded ${guitarBuffer.duration.toFixed(1)}s` + (screenBuffer ? ' (+ screen audio)' : '');
+    drawWaveform(guitarBuffer, looperWaveform);
+    const blob = audioBufferToWavBlob(guitarBuffer);
     looperDownloadBtn.href = URL.createObjectURL(blob);
     looperDownloadBtn.classList.remove('disabled');
+
+    looperSeekRange.max = looper.duration;
+    looperSeekRange.value = 0;
+    looperSeekRange.disabled = false;
+    looperTimeLabel.textContent = `0:00 / ${formatTime(looper.duration)}`;
+
+    looperSourceBtn.disabled = !screenBuffer;
+    looperSourceBtn.textContent = 'Source: Guitar';
+    looperSourceBtn.classList.remove('active');
   } catch (err) {
     // A failed stop (e.g. nothing captured) must not leave the UI stuck showing
     // "Stop Recording" with no way to escape it — always fall back to a clean idle state.
@@ -688,27 +724,37 @@ looperRecordBtn.addEventListener('click', async () => {
   if (!engine.isReady) { alert('Click "Enable Audio" first.'); return; }
   if (!looper) looper = new Looper(engine.ctx, engine.mediaStreamDest);
 
-  looper.startRecording();
+  const captureScreen = looperCaptureScreenAudio.checked;
+  looperRecordBtn.disabled = true;
+  if (captureScreen) looperStatus.textContent = 'Choose a screen/tab to share…';
+  await looper.startRecording(captureScreen);
   isRecording = true;
-  looperStatus.textContent = 'Recording…';
+  looperStatus.textContent = looper.hasScreenAudio || !captureScreen ? 'Recording…' : 'Recording (screen audio unavailable — guitar only)…';
   // The Record button itself never changes role or label — it just disables while a
   // recording is in progress. The one button that reads "Stop Recording" is the only
   // control that can end it, so there's never two differently-behaving buttons that
   // both say "Stop" at the same time.
-  looperRecordBtn.disabled = true;
   looperStopBtn.textContent = '■ Stop Recording';
   looperStopBtn.disabled = false;
-  [looperPlayBtn, looperLoopBtn, looperClearBtn].forEach((b) => (b.disabled = true));
+  [looperPlayBtn, looperLoopBtn, looperClearBtn, looperSourceBtn].forEach((b) => (b.disabled = true));
   looperDownloadBtn.classList.add('disabled');
+  looperSeekRange.disabled = true;
 });
 
-looperPlayBtn.addEventListener('click', () => looper && looper.play());
+looperPlayBtn.addEventListener('click', () => {
+  if (!looper) return;
+  looper.play();
+  startSeekLoop();
+});
 // Stop does double duty by design, but never by ambiguous labeling: its text is
 // "Stop Recording" only while a recording is actually in progress, and plain "Stop"
 // (halting loop playback) otherwise.
 looperStopBtn.addEventListener('click', () => {
-  if (isRecording) finishRecording();
-  else if (looper) looper.stopPlayback();
+  if (isRecording) { finishRecording(); return; }
+  if (!looper) return;
+  looper.stopPlayback();
+  cancelAnimationFrame(seekRafId);
+  updateSeekDisplay();
 });
 looperLoopBtn.addEventListener('click', () => {
   if (!looper) return;
@@ -717,14 +763,39 @@ looperLoopBtn.addEventListener('click', () => {
   looperLoopBtn.textContent = `↻ Loop: ${newLoop ? 'On' : 'Off'}`;
   looperLoopBtn.classList.toggle('active', newLoop);
 });
+looperSourceBtn.addEventListener('click', () => {
+  if (!looper || !looper.hasScreenAudio) return;
+  const newSource = looper.source === 'guitar' ? 'both' : 'guitar';
+  looper.setSource(newSource);
+  looperSourceBtn.textContent = `Source: ${newSource === 'both' ? 'Both' : 'Guitar'}`;
+  looperSourceBtn.classList.toggle('active', newSource === 'both');
+});
 looperClearBtn.addEventListener('click', () => {
   if (!looper) return;
   looper.clear();
+  cancelAnimationFrame(seekRafId);
   looperStatus.textContent = 'No recording yet.';
   drawWaveform(null, looperWaveform);
   [looperPlayBtn, looperStopBtn, looperLoopBtn, looperClearBtn].forEach((b) => (b.disabled = true));
   looperDownloadBtn.classList.add('disabled');
+  looperSourceBtn.disabled = true;
+  looperSourceBtn.textContent = 'Source: Guitar';
+  looperSourceBtn.classList.remove('active');
+  looperSeekRange.max = 0;
+  looperSeekRange.value = 0;
+  looperSeekRange.disabled = true;
+  looperTimeLabel.textContent = '0:00 / 0:00';
 });
+
+// Dragging the scrubber seeks live while playing, or just sets where the next Play
+// will start from while idle — either way it suppresses the rAF display loop's own
+// updates for the duration of the drag so it doesn't fight the user's finger/cursor.
+looperSeekRange.addEventListener('pointerdown', () => { isScrubbing = true; });
+looperSeekRange.addEventListener('input', () => {
+  looperTimeLabel.textContent = `${formatTime(parseFloat(looperSeekRange.value))} / ${formatTime(looper ? looper.duration : 0)}`;
+  if (looper) looper.seekTo(parseFloat(looperSeekRange.value));
+});
+['pointerup', 'change'].forEach((evt) => looperSeekRange.addEventListener(evt, () => { isScrubbing = false; }));
 
 // ---------------------------------------------------------------------------
 // Presets
