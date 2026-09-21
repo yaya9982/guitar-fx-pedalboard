@@ -1131,7 +1131,9 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 
 /* ---------- setup ---------- */
 
-.setup-box { max-width: 720px; line-height: 1.55; font-size: 13.5px; }
+/* Long-form prose, unlike the compact instrument-panel scale the rest of the UI uses:
+   this panel now carries the privacy notice and terms, which get read, not glanced at. */
+.setup-box { max-width: 680px; line-height: 1.6; font-size: 14px; }
 .setup-box h2 {
   font-family: var(--font-display); font-weight: 400;
   font-size: 15px; margin-top: 26px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--brass);
