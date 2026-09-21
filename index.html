@@ -23,6 +23,7 @@
       <option value="">Select output device&hellip;</option>
     </select>
     <span id="latencyReadout" class="latency-readout"></span>
+    <span class="safety-note" title="This tool can produce loud, distorted sound, including sudden feedback. See the Information tab for the full safety notice.">Start volume low &mdash; protect your hearing</span>
   </div>
 
   <div class="topbar-right">
@@ -39,7 +40,7 @@
   <button class="tab-btn" data-tab="tuner"><span class="tab-led"></span>Tuner</button>
   <button class="tab-btn" data-tab="looper"><span class="tab-led"></span>Looper</button>
   <button class="tab-btn" data-tab="presets"><span class="tab-led"></span>Presets</button>
-  <button class="tab-btn" data-tab="setup"><span class="tab-led"></span>Setup / Help</button>
+  <button class="tab-btn" data-tab="info"><span class="tab-led"></span>Information</button>
 </nav>
 
 <main>
@@ -230,7 +231,7 @@
     </div>
   </section>
 
-  <section id="panel-setup" class="panel">
+  <section id="panel-info" class="panel">
     <div class="setup-box">
       <h2>Setup</h2>
       <ol>
@@ -279,11 +280,146 @@
       <h2>Browser</h2>
       <p>Chrome or Edge recommended (most consistent Web Audio/AudioWorklet behavior on Windows).
         Firefox should also work.</p>
-      <h2>What this is / isn't</h2>
-      <p>Amp names like "AC/DC" or "Led Zeppelin" describe tonal <em>character</em> (EQ curve, drive
-        style, cabinet resonance) crafted to evoke those rigs, not licensed or sampled
-        emulations. Acoustic Sim is a similar EQ + resonance approximation of an acoustic body, not
-        true acoustic modeling.</p>
+      <h2>Privacy &amp; Your Data</h2>
+      <p><strong>Short version:</strong> everything you play, record, and save stays on your own
+        computer. This app has no backend, no accounts, no analytics, and no tracking. The optional
+        YouTube player is the one exception, and it is described below.</p>
+
+      <h3>What the app accesses</h3>
+      <p><strong>Microphone / instrument input.</strong> When you click "Click to Enable Audio",
+        your browser asks permission to use your input device. That audio is processed entirely
+        inside your browser tab by the Web Audio API. It is never uploaded, transmitted, or stored
+        by this app, and closing or reloading the page discards it. Once you grant permission, the
+        page also reads the list of audio devices on your computer, purely to fill the input and
+        output dropdowns and to match your output device to your input device.</p>
+      <p><strong>Screen or tab audio (optional).</strong> In the Looper, "Also capture screen/tab
+        audio" uses your browser's own screen-share picker to record audio from a screen or tab
+        that you choose. Your browser requires a video track to be requested alongside the audio,
+        so you may see a screen-sharing indicator while recording. That video is never read,
+        displayed, or saved &mdash; only the audio is used, and every shared track, video included,
+        is released as soon as recording stops or fails to start.</p>
+      <p><strong>Recordings.</strong> Loop recordings exist only in your browser tab's memory. They
+        reach your disk only when you click Download, and they are lost when you reload or close
+        the page.</p>
+      <p><strong>Saved presets.</strong> Your presets, the autosave state, and the last YouTube
+        link you entered are stored in your browser's local storage on your own computer, under the
+        keys <code>guitarfx.presets.v1</code>, <code>guitarfx.autosave.v1</code>, and
+        <code>gfxYoutubeUrl</code>. None of it leaves your computer. Clearing this page's site data
+        in your browser deletes it permanently, and there is no backup.</p>
+      <p><strong>Bundled files.</strong> The drum kit's audio files load from the same place this
+        page is served from. No third party is involved.</p>
+
+      <h3>The one third-party connection: YouTube</h3>
+      <p>The optional YouTube player is the only feature that contacts anything beyond the server
+        hosting this page, and it does so only after you paste a video link &mdash; nothing is
+        contacted if you never use it. The page then loads YouTube's IFrame Player API and embeds
+        Google's player in YouTube's privacy-enhanced ("nocookie") mode, which holds back
+        ad-related cookies until you press play.</p>
+      <p>From that point, Google &mdash; not this app &mdash; receives your IP address and other
+        standard request data. That connection is governed by Google's Privacy Policy and YouTube's
+        Terms of Service, not by this page. This app receives nothing back from it other than
+        playback controls. If you would rather avoid the connection entirely, do not paste a
+        YouTube link; every other feature works with no network access at all.</p>
+
+      <h3>Hosting</h3>
+      <p>If you are using a copy of this page hosted online, for example on GitHub Pages, the host
+        serves the files and, like any web host, may log ordinary request data such as IP address,
+        browser user agent, and timestamps, and may set its own cookies, under its own privacy
+        policy. This app neither controls nor receives any of that. Running the page from a local
+        web server on your own computer avoids it entirely.</p>
+
+      <h3>Your rights over your data</h3>
+      <p>There is nothing to request here. This app has no backend and no database, so your audio,
+        your recordings, and your presets never reach the authors in the first place. There is no
+        copy of yours for anyone to look up, correct, or delete.</p>
+
+      <h3>What is never collected</h3>
+      <p>No accounts, names, email addresses, or payment details. No analytics, telemetry, crash
+        reporting, fingerprinting, or advertising. No cookies are set by this app. Your audio is
+        never sent anywhere.</p>
+
+      <h2>Terms of Use</h2>
+      <p>By using this software you accept these terms. If you do not accept them, do not use it.</p>
+
+      <h3>1. What this is</h3>
+      <p>A free, browser-based guitar effects tool.</p>
+
+      <h3>2. Provided as is</h3>
+      <p>This software is provided <strong>as is, with no warranty of any kind</strong>, express or
+        implied. To the fullest extent the law allows, the authors are not liable for any claim,
+        damages, data loss, equipment damage, hearing damage, or other liability arising from the
+        software or its use.</p>
+      <p>Some places do not allow certain warranty exclusions or liability limits, so parts of the
+        above may not apply to you. Nothing here limits liability that cannot lawfully be limited.</p>
+
+      <h3>3. Hearing and equipment safety</h3>
+      <div class="legal-warn">
+        <p>This tool can produce loud, distorted sound, including sudden feedback.</p>
+        <ul>
+          <li>Start with your master volume and your system volume low, then bring them up.</li>
+          <li>Take particular care with headphones and in-ear monitors.</li>
+          <li>Feedback can occur when your microphone picks up your speakers.</li>
+        </ul>
+        <p>A safety limiter sits in the output stage of the guitar and pedal signal path. It does
+          not cover the drum pads, loop playback, or the tuner's reference tone, and it is not a
+          substitute for care in any case.</p>
+        <p><strong>You are responsible for setting safe levels. Loud audio can permanently damage
+          your hearing and your equipment.</strong></p>
+      </div>
+
+      <h3>4. Recording and third-party terms</h3>
+      <p>You alone are responsible for what you record and what you do with it.</p>
+      <ul>
+        <li>Screen and tab audio capture can pick up other people's voices, such as a call or a
+          meeting, and can record copyrighted material. Recording someone without the consent the
+          law requires, or keeping or sharing copyrighted audio, may break the law or infringe
+          someone's rights. Many countries and US states require every party's consent to record a
+          conversation. Follow the law where you are.</li>
+        <li>Use of the YouTube player must comply with YouTube's Terms of Service.</li>
+      </ul>
+
+      <h3>5. Names, trademarks, and no affiliation</h3>
+      <p>Some amp models are named after well-known bands &mdash; including AC/DC, Led Zeppelin,
+        Oasis, and Dire Straits &mdash; because that is the clearest way to describe the tonal
+        character being aimed for, in the same way a gear review might reference an artist's sound.
+        The names are used only in that descriptive sense.</p>
+      <p>These amp models are original DSP voicings, not audio samples of anyone's real gear. They
+        are not licensed, authorized, endorsed, or sponsored by, and are not affiliated with, those
+        bands, artists, their estates, labels, management, or any equipment manufacturer, and no
+        sponsorship or approval should be inferred. All band names, artist names, and trademarks
+        belong to their respective owners.</p>
+      <p>"Denoise" is classical spectral-subtraction DSP, not a machine-learning or "AI" model.
+        Acoustic Sim is an EQ and resonance approximation of an acoustic body, not true acoustic
+        modeling.</p>
+
+      <h3>6. Your content</h3>
+      <p>You keep every right to whatever you record or create with this tool. The authors claim no
+        rights over it and never receive a copy of it. This does not give you rights to third-party
+        material you capture, such as a song playing during a screen-audio recording &mdash; see
+        section 4.</p>
+
+      <h3>7. Not legal advice</h3>
+      <p>This page is published for transparency. It is not legal advice.</p>
+
+      <h3>8. Severability and changes</h3>
+      <p>If any part of these terms turns out to be unenforceable, the rest still applies. These
+        terms may change as the software changes, and continued use after a change means you accept
+        the updated version.</p>
+
+      <h2>Credits &amp; Licenses</h2>
+      <p>The "Recorded" drum kit uses one-shot samples shared by their creators on Freesound.org
+        under Creative Commons licenses. <code>drums/clap.wav</code> by InspectorJ is CC-BY 4.0 and
+        requires the attribution given in <code>CREDITS.md</code>, which carries the full per-file
+        table, including a note on the samples whose licenses could not be independently
+        re-verified.</p>
+      <p>Fonts and all other assets are bundled with the page. No CDN or web-font service is
+        contacted.</p>
+
+      <h3>Contact</h3>
+      <p>Bug reports, questions, and takedown requests: open an issue at
+        <a href="https://github.com/yaya9982/guitar-fx-pedalboard/issues" target="_blank" rel="noopener noreferrer">github.com/yaya9982/guitar-fx-pedalboard/issues</a>.</p>
+
+      <p class="legal-updated">Last updated: September 21, 2026.</p>
     </div>
   </section>
 

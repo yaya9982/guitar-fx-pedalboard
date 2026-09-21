@@ -248,6 +248,9 @@ function createYtPlayer(id) {
   youtubePlayerWrap.appendChild(mount);
   ytPlayer = new YT.Player(mount, {
     videoId: id,
+    // Privacy-enhanced mode: YouTube holds back ad/tracking cookies until playback starts.
+    // Google still sees the viewer's IP either way — nocookie only limits the cookie side.
+    host: 'https://www.youtube-nocookie.com',
     playerVars: { rel: 0, origin: window.location.origin },
     events: {
       onReady: () => {

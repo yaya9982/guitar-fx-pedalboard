@@ -88,23 +88,41 @@ export class Looper {
     this._mimeType = Looper.pickMimeType();
     const opts = this._mimeType ? { mimeType: this._mimeType } : undefined;
 
-    this.guitarChunks = [];
-    this.guitarRecorder = new MediaRecorder(this.guitarStream, opts);
-    this.guitarRecorder.ondataavailable = (e) => { if (e.data.size > 0) this.guitarChunks.push(e.data); };
+    // Anything that throws from here on leaves the screen share running — the browser
+    // keeps showing "you are sharing your screen" with no recording to stop and no other
+    // path that releases it. Release it before rethrowing, so the privacy notice's
+    // promise that shared tracks are always released holds even when recording fails.
+    try {
+      this.guitarChunks = [];
+      this.guitarRecorder = new MediaRecorder(this.guitarStream, opts);
+      this.guitarRecorder.ondataavailable = (e) => { if (e.data.size > 0) this.guitarChunks.push(e.data); };
 
-    if (this.screenMediaStream) {
-      this.screenChunks = [];
-      this.screenRecorder = new MediaRecorder(this.screenMediaStream, opts);
-      this.screenRecorder.ondataavailable = (e) => { if (e.data.size > 0) this.screenChunks.push(e.data); };
-    } else {
+      if (this.screenMediaStream) {
+        this.screenChunks = [];
+        this.screenRecorder = new MediaRecorder(this.screenMediaStream, opts);
+        this.screenRecorder.ondataavailable = (e) => { if (e.data.size > 0) this.screenChunks.push(e.data); };
+      } else {
+        this.screenRecorder = null;
+      }
+
+      // Started back to back (not before the picker resolves) so the two tracks stay
+      // as time-aligned as two independent MediaRecorder instances reasonably can.
+      this.guitarRecorder.start();
+      if (this.screenRecorder) this.screenRecorder.start();
+      this.isRecording = true;
+    } catch (err) {
+      this._releaseDisplayStream();
       this.screenRecorder = null;
+      this.screenMediaStream = null;
+      throw err;
     }
+  }
 
-    // Started back to back (not before the picker resolves) so the two tracks stay
-    // as time-aligned as two independent MediaRecorder instances reasonably can.
-    this.guitarRecorder.start();
-    if (this.screenRecorder) this.screenRecorder.start();
-    this.isRecording = true;
+  // Releases the browser's "you are sharing your screen" indicator by stopping the raw
+  // display stream's tracks (video included), not just the audio-only copy used for recording.
+  _releaseDisplayStream() {
+    if (this._displayStream) this._displayStream.getTracks().forEach((t) => t.stop());
+    this._displayStream = null;
   }
 
   async _decode(chunks) {
@@ -132,11 +150,7 @@ export class Looper {
 
       Promise.all([guitarStopped, screenStopped]).then(async () => {
         this.isRecording = false;
-        // Releases the browser's "you are sharing your screen" indicator/border. Stops
-        // the raw display stream's tracks (video included), not just the audio-only
-        // copy used for recording.
-        if (this._displayStream) this._displayStream.getTracks().forEach((t) => t.stop());
-        this._displayStream = null;
+        this._releaseDisplayStream();
         try {
           if (this.guitarChunks.length === 0) throw new Error('No audio was captured — try recording for at least a second.');
           this.guitarBuffer = await this._decode(this.guitarChunks);
