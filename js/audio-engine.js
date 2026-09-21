@@ -1,6 +1,12 @@
 import { getPedalType } from './pedal-registry.js?v=1';
 import { getAmpType, createAcousticSimNodes } from './amp-registry.js?v=1';
 
+// Keep in sync with WORKLET_MODULES in wave-preview.js (same URLs, so both share one HTTP cache entry).
+const WORKLET_URLS = [
+  'js/noise-gate-worklet.js?v=2', 'js/bitcrusher-worklet.js?v=2', 'js/pitch-worklet.js?v=2',
+  'js/spectral-denoise-worklet.js?v=2', 'js/pluck-worklet.js?v=1', 'js/dynamics-worklet.js?v=1',
+];
+
 let idCounter = 0;
 function nextId() { return `inst-${++idCounter}-${Date.now().toString(36)}`; }
 
@@ -34,7 +40,6 @@ export class AudioEngine {
     this.noiseGateEnabled = true;
     this.denoiseEnabled = false; // opt-in: adds ~16-17ms latency, so off until asked for
     this.denoiseStrength = 50;
-    this.onMeter = null; // optional callback(rms) set by UI
   }
 
   get isReady() { return !!this.ctx; }
@@ -53,15 +58,10 @@ export class AudioEngine {
   }
 
   async _loadWorklets() {
-    // Cache-busted: these are fetched by the browser like any other resource, and this
-    // dev server sends no cache-control headers, so an edited worklet can otherwise keep
-    // being served stale from HTTP cache across reloads within the same session.
-    await this.ctx.audioWorklet.addModule('js/noise-gate-worklet.js?v=2');
-    await this.ctx.audioWorklet.addModule('js/bitcrusher-worklet.js?v=2');
-    await this.ctx.audioWorklet.addModule('js/pitch-worklet.js?v=2');
-    await this.ctx.audioWorklet.addModule('js/spectral-denoise-worklet.js?v=2');
-    await this.ctx.audioWorklet.addModule('js/pluck-worklet.js?v=1');
-    await this.ctx.audioWorklet.addModule('js/dynamics-worklet.js?v=1');
+    // Cache-busted: this dev server sends no cache-control headers, so an edited worklet
+    // can otherwise be served stale from HTTP cache. Loaded in parallel (independent
+    // files) so startup isn't six sequential fetch+compile round trips.
+    await Promise.all(WORKLET_URLS.map((url) => this.ctx.audioWorklet.addModule(url)));
   }
 
   _buildStaticGraph() {
@@ -69,8 +69,6 @@ export class AudioEngine {
     this.inputGain = ctx.createGain();
     this.inputGain.gain.value = this.inputGainPct / 100;
 
-    this.inputMeterAnalyser = ctx.createAnalyser();
-    this.inputMeterAnalyser.fftSize = 1024;
     this.scopeAnalyser = ctx.createAnalyser();
     this.scopeAnalyser.fftSize = 2048;
     this.tunerAnalyser = ctx.createAnalyser();
@@ -97,14 +95,11 @@ export class AudioEngine {
     // time-based gain reduction — but normal playing levels pass through exactly as before.
     this.outputLimiter = ctx.createWaveShaper();
     this.outputLimiter.curve = buildLimiterCurve(-6, 20);
-    this.outputLimiter.oversample = '2x'; // reduces aliasing from the nonlinearity
-
-    this.outputAnalyser = ctx.createAnalyser();
-    this.outputAnalyser.fftSize = 1024;
+    // oversample stays 'none': the curve is linear below -6dBFS, so 2x/4x only adds
+    // resampling-filter delay to every user's path for aliasing on rare peaks.
 
     this.mediaStreamDest = ctx.createMediaStreamDestination();
 
-    this.inputGain.connect(this.inputMeterAnalyser);
     this.inputGain.connect(this.scopeAnalyser);
     this.inputGain.connect(this.tunerAnalyser);
     this.inputGain.connect(this.spectralDenoiseNode);
@@ -113,7 +108,6 @@ export class AudioEngine {
 
     this.masterGain.connect(this.outputLimiter);
     this.outputLimiter.connect(ctx.destination);
-    this.outputLimiter.connect(this.outputAnalyser);
     this.outputLimiter.connect(this.mediaStreamDest);
 
     this._rebuildChain();
@@ -301,15 +295,24 @@ export class AudioEngine {
     return instance.instanceId;
   }
 
+  // Oscillators (LFOs, ring-mod carrier) are started at creation and never end on their
+  // own, so a removed pedal must stop them or they leak for the life of the page.
+  _dispose(inst) {
+    try { inst.output.disconnect(); } catch (e) { /* noop */ }
+    Object.values(inst.nodes).forEach((n) => {
+      if (n instanceof OscillatorNode) { try { n.stop(); } catch (e) { /* noop */ } }
+    });
+  }
+
   removeFromChain(instanceId) {
     const inst = this.chain.find((i) => i.instanceId === instanceId);
-    if (inst) { try { inst.output.disconnect(); } catch (e) { /* noop */ } }
+    if (inst) this._dispose(inst);
     this.chain = this.chain.filter((i) => i.instanceId !== instanceId);
     this._rebuildChain();
   }
 
   clearChain() {
-    this.chain.forEach((inst) => { try { inst.output.disconnect(); } catch (e) { /* noop */ } });
+    this.chain.forEach((inst) => this._dispose(inst));
     this.chain = [];
     this._rebuildChain();
   }

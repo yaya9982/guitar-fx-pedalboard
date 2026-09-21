@@ -1,6 +1,14 @@
 import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js';
 import { driveCurve } from './pedal-registry.js?v=1';
 
+function makeBand(ctx, band) {
+  const f = ctx.createBiquadFilter();
+  f.type = band.type; f.frequency.value = band.freq;
+  if (band.Q !== undefined) f.Q.value = band.Q;
+  if (band.gain !== undefined) f.gain.value = band.gain;
+  return f;
+}
+
 // Shared amp factory: inputGain -> preEQ -> waveshaper(fixed curve) -> postEQ -> cab convolver -> outputLevel.
 // The "gain" knob drives inputGain (how hard the signal hits the fixed curve, like a real preamp),
 // "presence" scales a dedicated presence band in the post-EQ, "level" is a plain output trim.
@@ -8,25 +16,13 @@ async function createAmpNodes(ctx, cfg) {
   const inputGain = ctx.createGain();
   inputGain.gain.value = cfg.driveRange[0];
 
-  const preEQNodes = cfg.preEQ.map((band) => {
-    const f = ctx.createBiquadFilter();
-    f.type = band.type; f.frequency.value = band.freq;
-    if (band.Q !== undefined) f.Q.value = band.Q;
-    if (band.gain !== undefined) f.gain.value = band.gain;
-    return f;
-  });
+  const preEQNodes = cfg.preEQ.map((band) => makeBand(ctx, band));
 
   const shaper = ctx.createWaveShaper();
   shaper.curve = driveCurve(cfg.curveK, cfg.curveBias || 0);
   shaper.oversample = cfg.oversample || '2x';
 
-  const postEQNodes = cfg.postEQ.map((band) => {
-    const f = ctx.createBiquadFilter();
-    f.type = band.type; f.frequency.value = band.freq;
-    if (band.Q !== undefined) f.Q.value = band.Q;
-    if (band.gain !== undefined) f.gain.value = band.gain;
-    return f;
-  });
+  const postEQNodes = cfg.postEQ.map((band) => makeBand(ctx, band));
   const presenceNode = postEQNodes[cfg.presenceBandIndex];
 
   let dynamicsNode = null;

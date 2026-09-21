@@ -1,5 +1,5 @@
 import { AudioEngine } from './audio-engine.js?v=12';
-import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, updateLevelMeter, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=1';
+import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=1';
 import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js';
 import { Tuner, GUITAR_STRINGS, centsFromTarget } from './tuner.js?v=3';
@@ -527,7 +527,7 @@ function refreshChainUI() {
 let wavePreviewTimer = null;
 function scheduleWavePreview() {
   clearTimeout(wavePreviewTimer);
-  wavePreviewTimer = setTimeout(updateWavePreview, 120);
+  wavePreviewTimer = setTimeout(updateWavePreview, 250); // each run builds a full offline graph, so coalesce knob drags harder
 }
 
 async function updateWavePreview() {
@@ -560,8 +560,8 @@ async function loadDefaultChain() {
 
 function meterLoop() {
   if (engine.isReady) {
-    updateLevelMeter(engine.inputMeterAnalyser, inputMeterBar);
-    drawScope(engine.scopeAnalyser, scopeCanvas);
+    const peak = drawScope(engine.scopeAnalyser, scopeCanvas);
+    inputMeterBar.style.transform = `scaleX(${Math.min(1, peak * 1.3)})`;
   }
   requestAnimationFrame(meterLoop);
 }

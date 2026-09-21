@@ -521,19 +521,6 @@ export function showDemoMenu(anchorEl, demos, onPick) {
   setTimeout(() => document.addEventListener('click', closeOnOutside, true), 0);
 }
 
-export function updateLevelMeter(analyser, barEl) {
-  const data = new Uint8Array(analyser.fftSize);
-  analyser.getByteTimeDomainData(data);
-  let peak = 0;
-  for (let i = 0; i < data.length; i++) {
-    const v = Math.abs(data[i] - 128) / 128;
-    if (v > peak) peak = v;
-  }
-  barEl.style.transform = `scaleX(${Math.min(1, peak * 1.3)})`;
-}
-
-// Static min/max-per-column waveform of a fully-recorded buffer (distinct from
-// drawScope's live scrolling scope of the pre-effects input signal).
 export function drawWaveform(buffer, canvas) {
   const ctx2d = canvas.getContext('2d');
   const { width, height } = canvas;
@@ -579,10 +566,21 @@ export function drawWaveform(buffer, canvas) {
   ctx2d.stroke();
 }
 
+// Reused every frame: allocating a fresh array per rAF tick only feeds the GC.
+let scopeData = null;
+
+// Draws the scope and returns the buffer's peak (0..1) so the caller can drive the
+// input meter from the same read instead of polling a second analyser.
 export function drawScope(analyser, canvas) {
   const ctx2d = canvas.getContext('2d');
-  const data = new Uint8Array(analyser.fftSize);
+  if (!scopeData || scopeData.length !== analyser.fftSize) scopeData = new Uint8Array(analyser.fftSize);
+  const data = scopeData;
   analyser.getByteTimeDomainData(data);
+  let peak = 0;
+  for (let i = 0; i < data.length; i++) {
+    const v = Math.abs(data[i] - 128) / 128;
+    if (v > peak) peak = v;
+  }
   const { width, height } = canvas;
   ctx2d.clearRect(0, 0, width, height);
   ctx2d.strokeStyle = '#e2a33e';
@@ -595,6 +593,7 @@ export function drawScope(analyser, canvas) {
     if (x === 0) ctx2d.moveTo(x, y); else ctx2d.lineTo(x, y);
   }
   ctx2d.stroke();
+  return peak;
 }
 
 // Static trace of an already-rendered sample array (distinct from drawScope's

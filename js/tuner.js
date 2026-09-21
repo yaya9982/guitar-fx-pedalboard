@@ -24,7 +24,7 @@ export function centsFromTarget(freq, targetFreq) {
 }
 
 // Autocorrelation pitch detection with parabolic interpolation for sub-sample precision.
-// Standard technique for real-time instrument tuners; O(n^2) but fine at ~30fps with a 2048 buffer.
+// Standard technique for real-time instrument tuners; O(n*maxLag), run at ~30fps (see Tuner.start).
 export function autoCorrelate(buf, sampleRate) {
   const SIZE = buf.length;
   let rms = 0;
@@ -41,21 +41,23 @@ export function autoCorrelate(buf, sampleRate) {
   const n = trimmed.length;
   if (n < 8) return -1;
 
-  const c = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
+  // Lags past one period of the lowest pitch we report (~55Hz) can't matter, so skip them.
+  const maxLag = Math.min(n, Math.ceil(sampleRate / 55));
+  const c = new Float32Array(maxLag);
+  for (let i = 0; i < maxLag; i++) {
     let sum = 0;
     for (let j = 0; j < n - i; j++) sum += trimmed[j] * trimmed[j + i];
     c[i] = sum;
   }
 
   let d = 0;
-  while (d < n - 1 && c[d] > c[d + 1]) d++;
+  while (d < maxLag - 1 && c[d] > c[d + 1]) d++;
 
   let maxVal = -1, maxPos = -1;
-  for (let i = d; i < n; i++) {
+  for (let i = d; i < maxLag; i++) {
     if (c[i] > maxVal) { maxVal = c[i]; maxPos = i; }
   }
-  if (maxPos <= 0 || maxPos >= n - 1) return -1;
+  if (maxPos <= 0 || maxPos >= maxLag - 1) return -1;
 
   const x1 = c[maxPos - 1], x2 = c[maxPos], x3 = c[maxPos + 1];
   const a = (x1 + x3 - 2 * x2) / 2;
@@ -84,14 +86,18 @@ export class Tuner {
   }
 
   start(callback) {
+    this.stop(); // re-entering the tab must not stack a second rAF loop
     this.running = true;
-    const loop = () => {
+    let last = 0;
+    const loop = (t = 0) => {
       if (!this.running) return;
+      this.rafId = requestAnimationFrame(loop);
+      if (t - last < 33) return; // ~30fps is plenty for a needle; halves main-thread work
+      last = t;
       this.analyser.getFloatTimeDomainData(this.buf);
       const freq = autoCorrelate(this.buf, this.sampleRate);
       if (freq !== -1 && freq > 60 && freq < 1300) callback(frequencyToNote(freq));
       else callback(null);
-      this.rafId = requestAnimationFrame(loop);
     };
     loop();
   }

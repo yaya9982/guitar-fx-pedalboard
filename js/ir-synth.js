@@ -10,6 +10,14 @@ function makeWhiteNoiseBuffer(offlineCtx, seconds) {
   return buffer;
 }
 
+// Rendering an IR spins up an OfflineAudioContext, and the Signal Preview re-runs every
+// pedal's createNodes on each knob move — cache by inputs so each IR renders once.
+const irCache = new Map();
+function cached(key, make) {
+  if (!irCache.has(key)) irCache.set(key, make());
+  return irCache.get(key);
+}
+
 async function render(sampleRate, seconds, build) {
   const length = Math.max(1, Math.ceil(seconds * sampleRate));
   const offlineCtx = new OfflineAudioContext(1, length, sampleRate);
@@ -34,7 +42,9 @@ export const REVERB_TYPES = {
   spring: { label: 'Spring', decaySeconds: 1.2 },
 };
 
-export async function generateReverbIR(sampleRate, type = 'room') {
+export const generateReverbIR = (sampleRate, type = 'room') => cached(`rev:${sampleRate}:${type}`, () => buildReverbIR(sampleRate, type));
+
+async function buildReverbIR(sampleRate, type) {
   const cfg = REVERB_TYPES[type] || REVERB_TYPES.room;
   return render(sampleRate, cfg.decaySeconds, (ctx, source, envelope) => {
     switch (type) {
@@ -87,7 +97,9 @@ export async function generateReverbIR(sampleRate, type = 'room') {
   });
 }
 
-export async function generateCabIR(sampleRate, opts = {}) {
+export const generateCabIR = (sampleRate, opts = {}) => cached(`cab:${sampleRate}:${JSON.stringify(opts)}`, () => buildCabIR(sampleRate, opts));
+
+async function buildCabIR(sampleRate, opts) {
   const {
     resonanceHz = 2800,
     resonanceQ = 2.5,
@@ -118,7 +130,9 @@ export async function generateCabIR(sampleRate, opts = {}) {
   });
 }
 
-export async function generateAcousticBodyIR(sampleRate) {
+export const generateAcousticBodyIR = (sampleRate) => cached(`body:${sampleRate}`, () => buildAcousticBodyIR(sampleRate));
+
+async function buildAcousticBodyIR(sampleRate) {
   return render(sampleRate, 0.35, (ctx, source, envelope) => {
     const bodyLow = ctx.createBiquadFilter();
     bodyLow.type = 'peaking'; bodyLow.frequency.value = 100; bodyLow.Q.value = 1.4; bodyLow.gain.value = 6; // low-end "boom"

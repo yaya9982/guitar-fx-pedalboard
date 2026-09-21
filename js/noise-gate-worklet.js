@@ -30,7 +30,7 @@ class NoiseGateProcessor extends AudioWorkletProcessor {
       return true;
     }
 
-    const thresholdDb = parameters.threshold[0];
+    const thresholdLin = Math.pow(10, parameters.threshold[0] / 20); // linear compare: no per-sample log10
     const releaseMs = parameters.release[0];
     const holdMs = parameters.holdMs[0];
 
@@ -53,9 +53,8 @@ class NoiseGateProcessor extends AudioWorkletProcessor {
           ? attackCoef * envelope + (1 - attackCoef) * abs
           : envReleaseCoef * envelope + (1 - envReleaseCoef) * abs;
 
-        const envDb = 20 * Math.log10(envelope + 1e-8);
         let target;
-        if (envDb > thresholdDb) {
+        if (envelope + 1e-8 > thresholdLin) {
           holdCounter = holdSamples;
           target = 1;
         } else if (holdCounter > 0) {

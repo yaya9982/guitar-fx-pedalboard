@@ -65,7 +65,7 @@ class DynamicsProcessor extends AudioWorkletProcessor {
       const coeff = targetReductionDb < this.envDb ? attackCoeff : releaseCoeff;
       this.envDb = targetReductionDb + coeff * (this.envDb - targetReductionDb);
 
-      const gainLin = Math.pow(10, this.envDb / 20);
+      const gainLin = Math.exp(this.envDb * 0.11512925464970229); // 10^(dB/20) == e^(dB*ln10/20)
       for (let ch = 0; ch < numCh; ch++) output[ch][i] = input[ch][i] * gainLin;
     }
     return true;
