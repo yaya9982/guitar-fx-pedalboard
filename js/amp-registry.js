@@ -1,5 +1,13 @@
 import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js';
-import { driveCurve } from './pedal-registry.js';
+import { driveCurve } from './pedal-registry.js?v=1';
+
+function makeBand(ctx, band) {
+  const f = ctx.createBiquadFilter();
+  f.type = band.type; f.frequency.value = band.freq;
+  if (band.Q !== undefined) f.Q.value = band.Q;
+  if (band.gain !== undefined) f.gain.value = band.gain;
+  return f;
+}
 
 // Shared amp factory: inputGain -> preEQ -> waveshaper(fixed curve) -> postEQ -> cab convolver -> outputLevel.
 // The "gain" knob drives inputGain (how hard the signal hits the fixed curve, like a real preamp),
@@ -8,34 +16,25 @@ async function createAmpNodes(ctx, cfg) {
   const inputGain = ctx.createGain();
   inputGain.gain.value = cfg.driveRange[0];
 
-  const preEQNodes = cfg.preEQ.map((band) => {
-    const f = ctx.createBiquadFilter();
-    f.type = band.type; f.frequency.value = band.freq;
-    if (band.Q !== undefined) f.Q.value = band.Q;
-    if (band.gain !== undefined) f.gain.value = band.gain;
-    return f;
-  });
+  const preEQNodes = cfg.preEQ.map((band) => makeBand(ctx, band));
 
   const shaper = ctx.createWaveShaper();
   shaper.curve = driveCurve(cfg.curveK, cfg.curveBias || 0);
   shaper.oversample = cfg.oversample || '2x';
 
-  const postEQNodes = cfg.postEQ.map((band) => {
-    const f = ctx.createBiquadFilter();
-    f.type = band.type; f.frequency.value = band.freq;
-    if (band.Q !== undefined) f.Q.value = band.Q;
-    if (band.gain !== undefined) f.gain.value = band.gain;
-    return f;
-  });
+  const postEQNodes = cfg.postEQ.map((band) => makeBand(ctx, band));
   const presenceNode = postEQNodes[cfg.presenceBandIndex];
 
   let dynamicsNode = null;
   if (cfg.builtInCompressor) {
-    dynamicsNode = ctx.createDynamicsCompressor();
-    dynamicsNode.ratio.value = cfg.builtInCompressor.ratio;
-    dynamicsNode.threshold.value = cfg.builtInCompressor.threshold;
-    dynamicsNode.attack.value = cfg.builtInCompressor.attack;
-    dynamicsNode.release.value = cfg.builtInCompressor.release;
+    // AudioWorklet-based (js/dynamics-worklet.js) — see the Compressor pedal in
+    // pedal-registry.js for why, in place of createDynamicsCompressor()'s fixed ~6ms
+    // look-ahead, which used to cost every player 6ms just for picking this amp model.
+    dynamicsNode = new AudioWorkletNode(ctx, 'dynamics-processor');
+    dynamicsNode.parameters.get('ratio').value = cfg.builtInCompressor.ratio;
+    dynamicsNode.parameters.get('threshold').value = cfg.builtInCompressor.threshold;
+    dynamicsNode.parameters.get('attack').value = cfg.builtInCompressor.attack;
+    dynamicsNode.parameters.get('release').value = cfg.builtInCompressor.release;
   }
 
   const cabConvolver = ctx.createConvolver();

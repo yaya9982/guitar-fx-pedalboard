@@ -1,8 +1,30 @@
-import { getPedalType } from './pedal-registry.js';
-import { getAmpType, createAcousticSimNodes } from './amp-registry.js';
+import { getPedalType } from './pedal-registry.js?v=1';
+import { getAmpType, createAcousticSimNodes } from './amp-registry.js?v=1';
+
+// Keep in sync with WORKLET_MODULES in wave-preview.js (same URLs, so both share one HTTP cache entry).
+const WORKLET_URLS = [
+  'js/noise-gate-worklet.js?v=2', 'js/bitcrusher-worklet.js?v=2', 'js/pitch-worklet.js?v=2',
+  'js/spectral-denoise-worklet.js?v=2', 'js/pluck-worklet.js?v=1', 'js/dynamics-worklet.js?v=1',
+];
 
 let idCounter = 0;
 function nextId() { return `inst-${++idCounter}-${Date.now().toString(36)}`; }
+
+// A memoryless soft-knee limiter curve for WaveShaperNode: linear (untouched) below
+// the threshold, compressed by `ratio` above it, hard-clamped to +/-1. Used in place
+// of DynamicsCompressorNode for the always-on output safety limiter — see the call
+// site in _buildStaticGraph for why.
+function buildLimiterCurve(thresholdDb, ratio, samples = 1024) {
+  const thresholdLin = Math.pow(10, thresholdDb / 20);
+  const curve = new Float32Array(samples);
+  for (let i = 0; i < samples; i++) {
+    const x = (i / (samples - 1)) * 2 - 1;
+    const absX = Math.abs(x);
+    const y = absX <= thresholdLin ? x : Math.sign(x) * (thresholdLin + (absX - thresholdLin) / ratio);
+    curve[i] = Math.max(-1, Math.min(1, y));
+  }
+  return curve;
+}
 
 export class AudioEngine {
   constructor() {
@@ -18,7 +40,6 @@ export class AudioEngine {
     this.noiseGateEnabled = true;
     this.denoiseEnabled = false; // opt-in: adds ~16-17ms latency, so off until asked for
     this.denoiseStrength = 50;
-    this.onMeter = null; // optional callback(rms) set by UI
   }
 
   get isReady() { return !!this.ctx; }
@@ -37,10 +58,10 @@ export class AudioEngine {
   }
 
   async _loadWorklets() {
-    await this.ctx.audioWorklet.addModule('js/noise-gate-worklet.js');
-    await this.ctx.audioWorklet.addModule('js/bitcrusher-worklet.js');
-    await this.ctx.audioWorklet.addModule('js/pitch-worklet.js');
-    await this.ctx.audioWorklet.addModule('js/spectral-denoise-worklet.js');
+    // Cache-busted: this dev server sends no cache-control headers, so an edited worklet
+    // can otherwise be served stale from HTTP cache. Loaded in parallel (independent
+    // files) so startup isn't six sequential fetch+compile round trips.
+    await Promise.all(WORKLET_URLS.map((url) => this.ctx.audioWorklet.addModule(url)));
   }
 
   _buildStaticGraph() {
@@ -48,8 +69,6 @@ export class AudioEngine {
     this.inputGain = ctx.createGain();
     this.inputGain.gain.value = this.inputGainPct / 100;
 
-    this.inputMeterAnalyser = ctx.createAnalyser();
-    this.inputMeterAnalyser.fftSize = 1024;
     this.scopeAnalyser = ctx.createAnalyser();
     this.scopeAnalyser.fftSize = 2048;
     this.tunerAnalyser = ctx.createAnalyser();
@@ -65,19 +84,22 @@ export class AudioEngine {
     // Always-on safety limiter: pedals/amps vary hugely in loudness (a saturated Fuzz or
     // high-gain amp can be many times louder than a filter-heavy pedal like Wah), so this
     // catches surprise peaks instead of letting them hit the speakers or clip the output.
-    this.outputLimiter = ctx.createDynamicsCompressor();
-    this.outputLimiter.threshold.value = -6;
-    this.outputLimiter.knee.value = 0;
-    this.outputLimiter.ratio.value = 20;
-    this.outputLimiter.attack.value = 0.003;
-    this.outputLimiter.release.value = 0.1;
-
-    this.outputAnalyser = ctx.createAnalyser();
-    this.outputAnalyser.fftSize = 1024;
+    // A WaveShaperNode, not createDynamicsCompressor(): every implementation of
+    // DynamicsCompressorNode carries a fixed ~6ms internal look-ahead (not exposed as a
+    // parameter, so it can't be dialed down) — and because this node sits unconditionally
+    // in every user's signal path, that's 6ms nobody could opt out of. A waveshaper is a
+    // memoryless per-sample transfer function, so it adds zero latency: linear (untouched)
+    // below -6dBFS, soft-knee compressed at a 20:1 ratio above it (matching the old
+    // settings), hard-clamped at full scale. The trade-off is character, not safety — a
+    // rare loud peak gets instant soft saturation instead of a real compressor's smooth,
+    // time-based gain reduction — but normal playing levels pass through exactly as before.
+    this.outputLimiter = ctx.createWaveShaper();
+    this.outputLimiter.curve = buildLimiterCurve(-6, 20);
+    // oversample stays 'none': the curve is linear below -6dBFS, so 2x/4x only adds
+    // resampling-filter delay to every user's path for aliasing on rare peaks.
 
     this.mediaStreamDest = ctx.createMediaStreamDestination();
 
-    this.inputGain.connect(this.inputMeterAnalyser);
     this.inputGain.connect(this.scopeAnalyser);
     this.inputGain.connect(this.tunerAnalyser);
     this.inputGain.connect(this.spectralDenoiseNode);
@@ -86,7 +108,6 @@ export class AudioEngine {
 
     this.masterGain.connect(this.outputLimiter);
     this.outputLimiter.connect(ctx.destination);
-    this.outputLimiter.connect(this.outputAnalyser);
     this.outputLimiter.connect(this.mediaStreamDest);
 
     this._rebuildChain();
@@ -102,6 +123,13 @@ export class AudioEngine {
         echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: false,
+        // Non-standard but Chrome-honored: hints the capture side toward the smallest
+        // buffer it can run, mirroring the AudioContext's own latencyHint: 0 on the
+        // output side. Harmless where unsupported — browsers ignore unknown constraints.
+        latency: { ideal: 0 },
+        // Asking the mic to capture at the same rate the AudioContext already runs at
+        // avoids an extra internal resampling step between capture and the graph.
+        sampleRate: { ideal: this.ctx.sampleRate },
         // Requesting mono here (channelCount: 1) makes some browser/driver combos
         // just grab channel 1 of a 2-channel interface instead of mixing both —
         // silently dropping anything plugged into channel 2. Ask for stereo and
@@ -140,6 +168,27 @@ export class AudioEngine {
     return (base + out) * 1000;
   }
 
+  // Plucked-string reference tone for the tuner's per-string "play" button — a
+  // Karplus-Strong synth (see pluck-worklet.js) rather than a plain sine oscillator, so
+  // it sounds like an acoustic guitar string instead of a lab tone, while staying
+  // exactly on pitch. Like the drum bus, it goes straight to destination, bypassing the
+  // pedal chain, since it's a pitch reference, not something meant to pick up effects.
+  playReferenceTone(freq, durationSec = 2.2) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const pluck = new AudioWorkletNode(ctx, 'pluck-processor', {
+      numberOfInputs: 0,
+      outputChannelCount: [1],
+      processorOptions: { frequency: freq },
+    });
+    const gain = ctx.createGain();
+    gain.gain.value = 0.3;
+    pluck.connect(gain).connect(ctx.destination);
+    // The processor stops itself once it's decayed to silence; this just detaches the
+    // now-idle node from the graph instead of leaving it connected indefinitely.
+    setTimeout(() => { try { pluck.disconnect(); gain.disconnect(); } catch { /* already gone */ } }, durationSec * 1000);
+  }
+
   async listInputDevices() {
     const devices = await navigator.mediaDevices.enumerateDevices();
     return devices.filter((d) => d.kind === 'audioinput');
@@ -147,6 +196,39 @@ export class AudioEngine {
 
   async switchInputDevice(deviceId) {
     await this._openInput(deviceId);
+  }
+
+  // ---- output device (setSinkId) ----
+  // Chrome 110+ only (feature-detected below); routes the context's output to a
+  // chosen device instead of the OS default. Picking the *same* interface used for
+  // input keeps the whole round-trip on one audio driver's buffering, rather than a
+  // pro interface for input handing off to generic laptop speakers on a separate,
+  // often higher-latency driver stack for output.
+  get supportsOutputDeviceSelection() {
+    return !!this.ctx && typeof this.ctx.setSinkId === 'function';
+  }
+
+  async listOutputDevices() {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.filter((d) => d.kind === 'audiooutput');
+  }
+
+  async setOutputDevice(deviceId) {
+    if (!this.supportsOutputDeviceSelection) return;
+    await this.ctx.setSinkId(deviceId || ''); // '' resets to the system default sink
+  }
+
+  // Finds the output paired with the current input via MediaDeviceInfo.groupId — a USB
+  // headset's mic and speaker/headphone driver share one groupId since they're the same
+  // physical hardware. Lets the output default to matching the input automatically
+  // instead of requiring the user to notice and pick it themselves from the dropdown.
+  async findMatchingOutputDeviceId() {
+    if (!this.currentDeviceId) return null;
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const input = devices.find((d) => d.kind === 'audioinput' && d.deviceId === this.currentDeviceId);
+    if (!input || !input.groupId) return null;
+    const match = devices.find((d) => d.kind === 'audiooutput' && d.groupId === input.groupId);
+    return match ? match.deviceId : null;
   }
 
   // ---- global controls ----
@@ -213,15 +295,24 @@ export class AudioEngine {
     return instance.instanceId;
   }
 
+  // Oscillators (LFOs, ring-mod carrier) are started at creation and never end on their
+  // own, so a removed pedal must stop them or they leak for the life of the page.
+  _dispose(inst) {
+    try { inst.output.disconnect(); } catch (e) { /* noop */ }
+    Object.values(inst.nodes).forEach((n) => {
+      if (n instanceof OscillatorNode) { try { n.stop(); } catch (e) { /* noop */ } }
+    });
+  }
+
   removeFromChain(instanceId) {
     const inst = this.chain.find((i) => i.instanceId === instanceId);
-    if (inst) { try { inst.output.disconnect(); } catch (e) { /* noop */ } }
+    if (inst) this._dispose(inst);
     this.chain = this.chain.filter((i) => i.instanceId !== instanceId);
     this._rebuildChain();
   }
 
   clearChain() {
-    this.chain.forEach((inst) => { try { inst.output.disconnect(); } catch (e) { /* noop */ } });
+    this.chain.forEach((inst) => this._dispose(inst));
     this.chain = [];
     this._rebuildChain();
   }

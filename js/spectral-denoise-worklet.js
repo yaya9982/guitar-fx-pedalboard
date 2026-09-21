@@ -122,6 +122,19 @@ class SpectralDenoiseProcessor extends AudioWorkletProcessor {
     const output = outputs[0];
     if (!input || input.length === 0) return true;
 
+    // This node sits permanently in the input path (see audio-engine.js), so when
+    // Denoise is off — the default — every user was paying for the full 512-point
+    // FFT/inverse-FFT on every render quantum just to throw the result away below.
+    // Skip it entirely instead: a plain copy costs nothing and carries zero latency
+    // either way. Trade-off: the noise-floor estimate stops adapting while off, so
+    // turning Denoise on starts a ~15-frame (~80ms) re-bootstrap instead of already
+    // having a warm profile — inaudible on its own, and far cheaper than spending
+    // CPU on FFTs nobody's hearing the whole time the effect is off.
+    if (!this.enabled) {
+      for (let ch = 0; ch < input.length; ch++) output[ch].set(input[ch]);
+      return true;
+    }
+
     const strength = parameters.strength[0] / 100;
     const oversub = 1.0 + 2.5 * strength;
     const floorVal = 0.35 - 0.28 * strength;
@@ -206,7 +219,6 @@ class SpectralDenoiseProcessor extends AudioWorkletProcessor {
         st.outAcc.fill(0, N - H, N);
       }
 
-      if (!this.enabled) outCh.set(inCh);
       st.phase = 1 - st.phase;
     }
     return true;

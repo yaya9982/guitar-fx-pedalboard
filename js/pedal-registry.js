@@ -20,9 +20,25 @@ export function driveCurve(k, bias = 0, samples = 4096) {
   return curve;
 }
 
-function rampParam(audioParam, ctx, targetValue, timeConstant = 0.03) {
-  audioParam.cancelScheduledValues(ctx.currentTime);
-  audioParam.setTargetAtTime(targetValue, ctx.currentTime, timeConstant);
+// Shared param appliers/nodes — these were copy-pasted per pedal.
+const setMix = (n, v) => { n.wet.gain.value = v / 100; n.dry.gain.value = 1 - v / 100; };
+const setLevel = (n, v) => (n.level.gain.value = v / 100);
+
+// Chorus and Flanger are the same topology (LFO-modulated delay + feedback + dry/wet), differing only in constants.
+function createModDelay(ctx, { maxDelay, delayTime, lfoHz, depth, feedback }) {
+  const delay = ctx.createDelay(maxDelay); delay.delayTime.value = delayTime;
+  const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = lfoHz;
+  const depthGain = ctx.createGain(); depthGain.gain.value = depth;
+  const feedbackGain = ctx.createGain(); feedbackGain.gain.value = feedback;
+  const dry = ctx.createGain(); const wet = ctx.createGain();
+  const inputNode = ctx.createGain(); const outputNode = ctx.createGain();
+  lfo.connect(depthGain).connect(delay.delayTime);
+  lfo.start();
+  inputNode.connect(dry).connect(outputNode);
+  inputNode.connect(delay);
+  delay.connect(feedbackGain).connect(delay);
+  delay.connect(wet).connect(outputNode);
+  return { input: inputNode, output: outputNode, nodes: { delay, lfo, depth: depthGain, feedback: feedbackGain, dry, wet } };
 }
 
 // ---------------------------------------------------------------------------
@@ -35,17 +51,21 @@ export const PEDAL_TYPES = [
     blurb: 'Evens out your dynamics — squashes loud notes and lifts quiet ones for a smoother, more consistent volume.',
     about: 'A compressor automatically reduces the volume of anything that crosses a threshold, then applies makeup gain to bring the overall level back up. The result is smoother, more consistent playing — quieter notes sustain longer and pick attacks feel less spiky. Classic for funk/country chicken-pickin\' and for tightening up a solo.',
     createNodes(ctx) {
-      const comp = ctx.createDynamicsCompressor();
-      comp.knee.value = 12;
+      // AudioWorklet-based (js/dynamics-worklet.js), not createDynamicsCompressor() —
+      // the native node's fixed ~6ms look-ahead isn't exposed as a parameter, so this
+      // pedal used to cost every player 6ms whether they cared or not. See the master
+      // output limiter's WaveShaper swap for the original version of this fix.
+      const comp = new AudioWorkletNode(ctx, 'dynamics-processor');
+      comp.parameters.get('knee').value = 12;
       const makeup = ctx.createGain();
       comp.connect(makeup);
       return { input: comp, output: makeup, nodes: { comp, makeup } };
     },
     params: [
-      { key: 'threshold', label: 'Threshold', min: -60, max: 0, default: -24, unit: 'dB', apply: (n, v) => (n.comp.threshold.value = v) },
-      { key: 'ratio', label: 'Ratio', min: 1, max: 20, default: 4, apply: (n, v) => (n.comp.ratio.value = v) },
-      { key: 'attack', label: 'Attack', min: 0, max: 50, default: 5, unit: 'ms', apply: (n, v) => (n.comp.attack.value = v / 1000) },
-      { key: 'release', label: 'Release', min: 10, max: 1000, default: 150, unit: 'ms', apply: (n, v) => (n.comp.release.value = v / 1000) },
+      { key: 'threshold', label: 'Threshold', min: -60, max: 0, default: -24, unit: 'dB', apply: (n, v) => (n.comp.parameters.get('threshold').value = v) },
+      { key: 'ratio', label: 'Ratio', min: 1, max: 20, default: 4, apply: (n, v) => (n.comp.parameters.get('ratio').value = v) },
+      { key: 'attack', label: 'Attack', min: 0, max: 50, default: 5, unit: 'ms', apply: (n, v) => (n.comp.parameters.get('attack').value = v / 1000) },
+      { key: 'release', label: 'Release', min: 10, max: 1000, default: 150, unit: 'ms', apply: (n, v) => (n.comp.parameters.get('release').value = v / 1000) },
       { key: 'level', label: 'Level', min: 0, max: 200, default: 100, unit: '%', apply: (n, v) => (n.makeup.gain.value = v / 100) },
     ],
   },
@@ -70,15 +90,23 @@ export const PEDAL_TYPES = [
     blurb: 'A safety net that caps sudden loud peaks so nothing spikes or clips.',
     about: 'A limiter is a hard-ratio compressor that puts a ceiling on peak level — anything above the Ceiling knob gets clamped down fast. It\'s mostly transparent at moderate settings and mainly there to catch surprise volume spikes rather than shape your tone.',
     createNodes(ctx) {
-      const comp = ctx.createDynamicsCompressor();
-      comp.ratio.value = 20; comp.knee.value = 2;
+      // AudioWorklet-based (js/dynamics-worklet.js) — see the Compressor pedal above
+      // for why, in place of createDynamicsCompressor()'s fixed ~6ms look-ahead. A fast
+      // fixed attack (not user-exposed, matching the original's default) since this is
+      // meant to catch peaks quickly; without look-ahead a very sharp transient can
+      // overshoot slightly before the gain catches up, the honest trade-off of zero
+      // added latency instead of the native node hiding a delay to avoid it.
+      const comp = new AudioWorkletNode(ctx, 'dynamics-processor');
+      comp.parameters.get('ratio').value = 20;
+      comp.parameters.get('knee').value = 2;
+      comp.parameters.get('attack').value = 0.001;
       const makeup = ctx.createGain();
       comp.connect(makeup);
       return { input: comp, output: makeup, nodes: { comp, makeup } };
     },
     params: [
-      { key: 'ceiling', label: 'Ceiling', min: -24, max: 0, default: -3, unit: 'dB', apply: (n, v) => (n.comp.threshold.value = v) },
-      { key: 'release', label: 'Release', min: 10, max: 500, default: 80, unit: 'ms', apply: (n, v) => (n.comp.release.value = v / 1000) },
+      { key: 'ceiling', label: 'Ceiling', min: -24, max: 0, default: -3, unit: 'dB', apply: (n, v) => (n.comp.parameters.get('threshold').value = v) },
+      { key: 'release', label: 'Release', min: 10, max: 500, default: 80, unit: 'ms', apply: (n, v) => (n.comp.parameters.get('release').value = v / 1000) },
       { key: 'level', label: 'Level', min: 0, max: 200, default: 100, unit: '%', apply: (n, v) => (n.makeup.gain.value = v / 100) },
     ],
   },
@@ -98,7 +126,7 @@ export const PEDAL_TYPES = [
     params: [
       { key: 'drive', label: 'Drive', min: 0, max: 100, default: 40, apply: (n, v) => (n.shaper.curve = driveCurve(1 + v * 0.14)) },
       { key: 'tone', label: 'Tone', min: 0, max: 100, default: 60, apply: (n, v) => (n.tone.frequency.value = 700 + v * 72) },
-      { key: 'level', label: 'Level', min: 0, max: 200, default: 100, unit: '%', apply: (n, v) => (n.level.gain.value = v / 100) },
+      { key: 'level', label: 'Level', min: 0, max: 200, default: 100, unit: '%', apply: setLevel },
     ],
   },
   {
@@ -117,7 +145,7 @@ export const PEDAL_TYPES = [
       { key: 'drive', label: 'Drive', min: 0, max: 100, default: 55, apply: (n, v) => (n.shaper.curve = driveCurve(4 + v * 0.4)) },
       { key: 'mid', label: 'Mid', min: -12, max: 12, default: 3, unit: 'dB', apply: (n, v) => (n.mid.gain.value = v) },
       { key: 'tone', label: 'Tone', min: 0, max: 100, default: 55, apply: (n, v) => (n.tone.frequency.value = 600 + v * 75) },
-      { key: 'level', label: 'Level', min: 0, max: 200, default: 90, unit: '%', apply: (n, v) => (n.level.gain.value = v / 100) },
+      { key: 'level', label: 'Level', min: 0, max: 200, default: 90, unit: '%', apply: setLevel },
     ],
   },
   {
@@ -134,7 +162,7 @@ export const PEDAL_TYPES = [
     params: [
       { key: 'fuzz', label: 'Fuzz', min: 0, max: 100, default: 65, apply: (n, v) => (n.shaper.curve = driveCurve(8 + v * 0.45, 0.18)) },
       { key: 'tone', label: 'Tone', min: 0, max: 100, default: 50, apply: (n, v) => (n.tone.frequency.value = 1200 + v * 60) },
-      { key: 'level', label: 'Level', min: 0, max: 200, default: 80, unit: '%', apply: (n, v) => (n.level.gain.value = v / 100) },
+      { key: 'level', label: 'Level', min: 0, max: 200, default: 80, unit: '%', apply: setLevel },
     ],
   },
   {
@@ -166,7 +194,7 @@ export const PEDAL_TYPES = [
     params: [
       { key: 'position', label: 'Treadle', min: 300, max: 2200, default: 900, unit: 'Hz', apply: (n, v) => (n.filter.frequency.value = v) },
       { key: 'q', label: 'Vocal Q', min: 1, max: 12, default: 5, apply: (n, v) => (n.filter.Q.value = v) },
-      { key: 'level', label: 'Level', min: 0, max: 300, default: 160, unit: '%', apply: (n, v) => (n.level.gain.value = v / 100) },
+      { key: 'level', label: 'Level', min: 0, max: 300, default: 160, unit: '%', apply: setLevel },
     ],
   },
   {
@@ -188,7 +216,7 @@ export const PEDAL_TYPES = [
       { key: 'depth', label: 'Depth', min: 0, max: 1000, default: 500, unit: 'Hz', apply: (n, v) => (n.depth.gain.value = v) },
       { key: 'base', label: 'Base Freq', min: 200, max: 2000, default: 700, unit: 'Hz', apply: (n, v) => (n.filter.frequency.value = v) },
       { key: 'q', label: 'Q', min: 1, max: 12, default: 5, apply: (n, v) => (n.filter.Q.value = v) },
-      { key: 'level', label: 'Level', min: 0, max: 300, default: 160, unit: '%', apply: (n, v) => (n.level.gain.value = v / 100) },
+      { key: 'level', label: 'Level', min: 0, max: 300, default: 160, unit: '%', apply: setLevel },
     ],
   },
   {
@@ -209,7 +237,7 @@ export const PEDAL_TYPES = [
       { key: 'depth', label: 'Depth', min: 500, max: 5000, default: 3000, unit: 'Hz', apply: (n, v) => (n.depth.gain.value = v) },
       { key: 'base', label: 'Base Freq', min: 150, max: 1200, default: 500, unit: 'Hz', apply: (n, v) => (n.filter.frequency.value = v) },
       { key: 'q', label: 'Q', min: 1, max: 12, default: 6, apply: (n, v) => (n.filter.Q.value = v) },
-      { key: 'level', label: 'Level', min: 0, max: 300, default: 160, unit: '%', apply: (n, v) => (n.level.gain.value = v / 100) },
+      { key: 'level', label: 'Level', min: 0, max: 300, default: 160, unit: '%', apply: setLevel },
     ],
   },
 
@@ -219,25 +247,13 @@ export const PEDAL_TYPES = [
     blurb: 'Thick, shimmery doubling — like two guitars playing slightly out of tune together.',
     about: 'Chorus splits your signal, delays and pitch-modulates one copy, and blends it back with the dry signal, creating a lush, shimmering, slightly detuned doubling effect. Classic for clean 80s rhythm tones and adding width/shimmer to a clean or lightly-driven sound.',
     createNodes(ctx) {
-      const delay = ctx.createDelay(0.05); delay.delayTime.value = 0.02;
-      const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 1;
-      const depth = ctx.createGain(); depth.gain.value = 0.004;
-      const feedback = ctx.createGain(); feedback.gain.value = 0.15;
-      const dry = ctx.createGain(); const wet = ctx.createGain();
-      const inputNode = ctx.createGain(); const outputNode = ctx.createGain();
-      lfo.connect(depth).connect(delay.delayTime);
-      lfo.start();
-      inputNode.connect(dry).connect(outputNode);
-      inputNode.connect(delay);
-      delay.connect(feedback).connect(delay);
-      delay.connect(wet).connect(outputNode);
-      return { input: inputNode, output: outputNode, nodes: { delay, lfo, depth, feedback, dry, wet } };
+      return createModDelay(ctx, { maxDelay: 0.05, delayTime: 0.02, lfoHz: 1, depth: 0.004, feedback: 0.15 });
     },
     params: [
       { key: 'rate', label: 'Rate', min: 0.1, max: 4, default: 1, unit: 'Hz', apply: (n, v) => (n.lfo.frequency.value = v) },
       { key: 'depth', label: 'Depth', min: 0, max: 10, default: 4, unit: 'ms', apply: (n, v) => (n.depth.gain.value = v / 1000) },
       { key: 'feedback', label: 'Feedback', min: 0, max: 50, default: 15, unit: '%', apply: (n, v) => (n.feedback.gain.value = v / 100) },
-      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 50, unit: '%', apply: (n, v) => { n.wet.gain.value = v / 100; n.dry.gain.value = 1 - v / 100; } },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 50, unit: '%', apply: setMix },
     ],
   },
   {
@@ -245,25 +261,13 @@ export const PEDAL_TYPES = [
     blurb: 'Swooshy, jet-plane-like sweeping — more intense and metallic than chorus.',
     about: 'Flanger mixes your signal with a very short, modulated delayed copy plus feedback, creating a sweeping, metallic, "jet engine" comb-filtering sound. More aggressive and resonant than chorus — a signature of psychedelic and 80s rock.',
     createNodes(ctx) {
-      const delay = ctx.createDelay(0.02); delay.delayTime.value = 0.003;
-      const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.3;
-      const depth = ctx.createGain(); depth.gain.value = 0.0025;
-      const feedback = ctx.createGain(); feedback.gain.value = 0.4;
-      const dry = ctx.createGain(); const wet = ctx.createGain();
-      const inputNode = ctx.createGain(); const outputNode = ctx.createGain();
-      lfo.connect(depth).connect(delay.delayTime);
-      lfo.start();
-      inputNode.connect(dry).connect(outputNode);
-      inputNode.connect(delay);
-      delay.connect(feedback).connect(delay);
-      delay.connect(wet).connect(outputNode);
-      return { input: inputNode, output: outputNode, nodes: { delay, lfo, depth, feedback, dry, wet } };
+      return createModDelay(ctx, { maxDelay: 0.02, delayTime: 0.003, lfoHz: 0.3, depth: 0.0025, feedback: 0.4 });
     },
     params: [
       { key: 'rate', label: 'Rate', min: 0.05, max: 3, default: 0.3, unit: 'Hz', apply: (n, v) => (n.lfo.frequency.value = v) },
       { key: 'depth', label: 'Depth', min: 0, max: 6, default: 2.5, unit: 'ms', apply: (n, v) => (n.depth.gain.value = v / 1000) },
       { key: 'feedback', label: 'Feedback', min: 0, max: 90, default: 40, unit: '%', apply: (n, v) => (n.feedback.gain.value = v / 100) },
-      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 50, unit: '%', apply: (n, v) => { n.wet.gain.value = v / 100; n.dry.gain.value = 1 - v / 100; } },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 50, unit: '%', apply: setMix },
     ],
   },
   {
@@ -294,7 +298,7 @@ export const PEDAL_TYPES = [
       { key: 'rate', label: 'Rate', min: 0.05, max: 3, default: 0.5, unit: 'Hz', apply: (n, v) => (n.lfo.frequency.value = v) },
       { key: 'depth', label: 'Depth', min: 200, max: 3000, default: 1200, unit: 'Hz', apply: (n, v) => (n.depth.gain.value = v) },
       { key: 'feedback', label: 'Feedback', min: 0, max: 90, default: 30, unit: '%', apply: (n, v) => (n.feedback.gain.value = v / 100) },
-      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 70, unit: '%', apply: (n, v) => { n.wet.gain.value = v / 100; n.dry.gain.value = 1 - v / 100; } },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 70, unit: '%', apply: setMix },
     ],
   },
   {
@@ -353,8 +357,8 @@ export const PEDAL_TYPES = [
     },
     params: [
       { key: 'frequency', label: 'Frequency', min: 20, max: 2000, default: 220, unit: 'Hz', apply: (n, v) => (n.carrier.frequency.value = v) },
-      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 100, unit: '%', apply: (n, v) => { n.wet.gain.value = v / 100; n.dry.gain.value = 1 - v / 100; } },
-      { key: 'level', label: 'Level', min: 0, max: 300, default: 150, unit: '%', apply: (n, v) => (n.level.gain.value = v / 100) },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 100, unit: '%', apply: setMix },
+      { key: 'level', label: 'Level', min: 0, max: 300, default: 150, unit: '%', apply: setLevel },
     ],
   },
   {
@@ -393,7 +397,7 @@ export const PEDAL_TYPES = [
         key: 'depth', label: 'Depth', min: 0, max: 100, default: 70, unit: '%',
         apply: (n, v) => { const d = v / 100; n.ampDepth.gain.value = 0.4 * d; n.delayDepth.gain.value = 0.003 * d; n.panDepth.gain.value = d; },
       },
-      { key: 'level', label: 'Level', min: 0, max: 300, default: 140, unit: '%', apply: (n, v) => (n.level.gain.value = v / 100) },
+      { key: 'level', label: 'Level', min: 0, max: 300, default: 140, unit: '%', apply: setLevel },
     ],
   },
 
@@ -446,7 +450,7 @@ export const PEDAL_TYPES = [
       { key: 'time', label: 'Time', min: 20, max: 2000, default: 350, unit: 'ms', apply: (n, v, ctx) => n.delay.delayTime.linearRampToValueAtTime(v / 1000, ctx.currentTime + 0.05) },
       { key: 'feedback', label: 'Feedback', min: 0, max: 90, default: 35, unit: '%', apply: (n, v) => (n.feedback.gain.value = v / 100) },
       { key: 'tone', label: 'Tone', min: 1000, max: 8000, default: 4000, unit: 'Hz', apply: (n, v) => (n.toneFilter.frequency.value = v) },
-      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 35, unit: '%', apply: (n, v) => { n.wet.gain.value = v / 100; n.dry.gain.value = 1 - v / 100; } },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 35, unit: '%', apply: setMix },
     ],
   },
   {
@@ -468,7 +472,7 @@ export const PEDAL_TYPES = [
         options: Object.keys(REVERB_TYPES).map((id) => ({ value: id, label: REVERB_TYPES[id].label })),
         apply: async (n, v, ctx) => { n.convolver.buffer = await generateReverbIR(ctx.sampleRate, v); n.currentType = v; },
       },
-      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 30, unit: '%', apply: (n, v) => { n.wet.gain.value = v / 100; n.dry.gain.value = 1 - v / 100; } },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 30, unit: '%', apply: setMix },
     ],
   },
 

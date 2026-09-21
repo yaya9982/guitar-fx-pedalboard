@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Guitar FX Pedalboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 
@@ -18,6 +18,9 @@
     <button id="enableAudioBtn" class="enable-btn"><span class="enable-led"></span>Click to Enable Audio</button>
     <select id="inputDeviceSelect" class="device-select" disabled>
       <option value="">Select input device&hellip;</option>
+    </select>
+    <select id="outputDeviceSelect" class="device-select" disabled title="Route output to the same interface as your input, where supported, to keep the whole round-trip on one low-latency audio driver">
+      <option value="">Select output device&hellip;</option>
     </select>
     <span id="latencyReadout" class="latency-readout"></span>
   </div>
@@ -99,6 +102,12 @@
         <label for="youtubeUrlInput">YouTube</label>
         <input type="text" id="youtubeUrlInput" placeholder="Paste a YouTube link…">
         <div id="youtubePlayerWrap" class="youtube-player-wrap"></div>
+        <div class="youtube-transport">
+          <button type="button" id="youtubeBackBtn" class="mute-btn" disabled title="Back 5 seconds">&#8634; 5s</button>
+          <button type="button" id="youtubePlayBtn" class="mute-btn" disabled title="Play/Pause">&#9654; Play</button>
+          <button type="button" id="youtubeForwardBtn" class="mute-btn" disabled title="Forward 5 seconds">5s &#8635;</button>
+          <input type="range" id="youtubeVolRange" class="youtube-vol" min="0" max="100" value="100" disabled title="Volume">
+        </div>
       </div>
       <div class="toolbar-right">
         <div class="control wave-preview">
@@ -121,14 +130,25 @@
   <section id="panel-tuner" class="panel">
     <div class="tuner-box">
       <div class="tuner-rack-label">Chromatic Tuner</div>
+      <div class="tuner-neck">
+        <div class="tuner-headstock" aria-hidden="true">
+          <span class="peg"></span><span class="peg"></span><span class="peg"></span>
+          <span class="peg"></span><span class="peg"></span><span class="peg"></span>
+        </div>
+        <div class="tuner-nut" aria-hidden="true"></div>
+        <div class="tuner-fretboard">
+          <div id="tunerStringRow" class="tuner-string-row"></div>
+        </div>
+      </div>
       <div id="tunerNote" class="tuner-note">&mdash;</div>
+      <div id="tunerDirection" class="tuner-direction"></div>
       <div class="tuner-meter">
         <div id="tunerNeedle" class="tuner-needle"></div>
         <div class="tuner-center-line"></div>
       </div>
       <div id="tunerCents" class="tuner-cents">0 cents</div>
       <div id="tunerFreq" class="tuner-freq">0.0 Hz</div>
-      <p class="hint">Play a single string. Tuner reads the raw, pre-effects signal.</p>
+      <p class="hint" id="tunerHint">Play a single string. Tuner reads the raw, pre-effects signal.</p>
     </div>
   </section>
 
@@ -137,13 +157,27 @@
       <div class="looper-rack-label">Looper</div>
       <div class="looper-transport">
         <button id="looperRecordBtn" class="looper-btn record">&#9679; Record</button>
-        <button id="looperPlayBtn" class="looper-btn" disabled>&#9654; Play</button>
-        <button id="looperStopBtn" class="looper-btn" disabled>&#9632; Stop</button>
+        <button id="looperPlayBtn" class="looper-btn" disabled title="Play/Pause">&#9654; Play</button>
+        <button id="looperStopBtn" class="looper-btn" disabled>&#9632; Stop Recording</button>
         <button id="looperLoopBtn" class="looper-btn toggle" disabled>&#8635; Loop: Off</button>
         <button id="looperClearBtn" class="looper-btn" disabled>Clear</button>
         <a id="looperDownloadBtn" class="looper-btn download disabled" href="#" download="loop.wav">&#8595; Download .wav</a>
       </div>
+      <div class="looper-options">
+        <span class="looper-screen-toggle" title="When you click Record, pick &quot;Entire Screen&quot; or a browser Tab and check &quot;Share audio&quot;/&quot;Share tab audio&quot; — sharing a single Window never includes audio, that's a browser limitation.">
+          <span class="mini-toggle">
+            <input type="checkbox" id="looperCaptureScreenAudio">
+            <label for="looperCaptureScreenAudio"></label>
+          </span>
+          <label for="looperCaptureScreenAudio">Also capture screen/tab audio</label>
+        </span>
+        <button type="button" id="looperSourceBtn" class="looper-btn toggle" disabled title="Choose what plays back: guitar only, or guitar + screen audio mixed together">Source: Guitar</button>
+      </div>
       <canvas id="looperWaveform" class="looper-waveform" width="640" height="90"></canvas>
+      <div class="looper-seek-row">
+        <input type="range" id="looperSeekRange" class="looper-seek" min="0" max="0" step="0.01" value="0" disabled>
+        <span id="looperTimeLabel" class="looper-time">0:00 / 0:00</span>
+      </div>
       <div id="looperStatus" class="looper-status">No recording yet.</div>
 
       <div class="drumkit-box">
@@ -222,8 +256,9 @@
       <h2>Latency expectations</h2>
       <p>This requests the smallest audio buffer your system can run without crackling, which
         typically lands in the 15&ndash;35ms round-trip range through a normal mic input, good
-        enough to play along to. The actual measured number for your machine shows next to
-        the device dropdown once audio is enabled (<code>Latency: __ms</code>). A dedicated USB
+        enough to play along to. A live, continuously-updating estimate shows next to the
+        device dropdown once audio is enabled (<code>Est. output: __ms</code>), like a ping
+        meter. A dedicated USB
         audio interface with ASIO drivers will still beat this (sub-10ms), since browsers can't
         access ASIO directly (that's a hardware/OS floor, not something this page can fix
         in software). Wired connections, closing other heavy apps/tabs, and a quiet system all
@@ -282,6 +317,6 @@
   </div>
 </template>
 
-<script type="module" src="js/main.js?v=13"></script>
+<script type="module" src="js/main.js?v=32"></script>
 </body>
 </html>

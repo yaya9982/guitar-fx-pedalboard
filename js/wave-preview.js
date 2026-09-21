@@ -4,7 +4,9 @@
 // typeDef.createNodes/params.apply DSP rather than faking the shape, consistent
 // with the "never claim more than the DSP actually does" product rule.
 
-const WORKLET_MODULES = ['js/noise-gate-worklet.js', 'js/bitcrusher-worklet.js', 'js/pitch-worklet.js'];
+// Same URLs as WORKLET_URLS in audio-engine.js. dynamics-worklet must be here: the Compressor,
+// Limiter and Dire Straits amp construct 'dynamics-processor', which throws if unregistered.
+const WORKLET_MODULES = ['js/noise-gate-worklet.js?v=2', 'js/bitcrusher-worklet.js?v=2', 'js/pitch-worklet.js?v=2', 'js/dynamics-worklet.js?v=1'];
 
 const TEST_TONE_HZ = 220;
 const BASE_SECONDS = 0.12;

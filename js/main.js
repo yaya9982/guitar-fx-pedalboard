@@ -1,9 +1,9 @@
-import { AudioEngine } from './audio-engine.js?v=3';
-import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, updateLevelMeter, drawScope, drawWaveform, drawStaticWave } from './ui.js';
+import { AudioEngine } from './audio-engine.js?v=12';
+import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=1';
 import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js';
-import { Tuner } from './tuner.js';
-import { Looper } from './looper.js';
+import { Tuner, GUITAR_STRINGS, centsFromTarget } from './tuner.js?v=3';
+import { Looper } from './looper.js?v=3';
 import { audioBufferToWavBlob } from './wav-encoder.js';
 import { DrumKit, DRUM_PADS } from './drum-kit.js';
 import { BEAT_PRESETS, PatternPlayer } from './beat-presets.js?v=2';
@@ -16,6 +16,7 @@ const $ = (id) => document.getElementById(id);
 
 const enableAudioBtn = $('enableAudioBtn');
 const inputDeviceSelect = $('inputDeviceSelect');
+const outputDeviceSelect = $('outputDeviceSelect');
 const latencyReadout = $('latencyReadout');
 const inputMeterBar = $('inputMeterBar');
 const scopeCanvas = $('scopeCanvas');
@@ -45,6 +46,9 @@ const tunerNote = $('tunerNote');
 const tunerNeedle = $('tunerNeedle');
 const tunerCents = $('tunerCents');
 const tunerFreq = $('tunerFreq');
+const tunerStringRow = $('tunerStringRow');
+const tunerDirection = $('tunerDirection');
+const tunerHint = $('tunerHint');
 
 const looperRecordBtn = $('looperRecordBtn');
 const looperPlayBtn = $('looperPlayBtn');
@@ -54,6 +58,10 @@ const looperClearBtn = $('looperClearBtn');
 const looperDownloadBtn = $('looperDownloadBtn');
 const looperStatus = $('looperStatus');
 const looperWaveform = $('looperWaveform');
+const looperCaptureScreenAudio = $('looperCaptureScreenAudio');
+const looperSourceBtn = $('looperSourceBtn');
+const looperSeekRange = $('looperSeekRange');
+const looperTimeLabel = $('looperTimeLabel');
 const drumKitSelect = $('drumKitSelect');
 const drumVolRange = $('drumVolRange');
 const drumPadGrid = $('drumPadGrid');
@@ -197,7 +205,12 @@ document.querySelectorAll('.tab-btn').forEach((btn) => {
 
 const youtubeUrlInput = $('youtubeUrlInput');
 const youtubePlayerWrap = $('youtubePlayerWrap');
+const youtubePlayBtn = $('youtubePlayBtn');
+const youtubeBackBtn = $('youtubeBackBtn');
+const youtubeForwardBtn = $('youtubeForwardBtn');
+const youtubeVolRange = $('youtubeVolRange');
 const YOUTUBE_URL_KEY = 'gfxYoutubeUrl';
+const YT_SEEK_SECONDS = 5;
 
 function extractYouTubeId(url) {
   let u;
@@ -212,21 +225,85 @@ function extractYouTubeId(url) {
   return null;
 }
 
+// Uses the YouTube IFrame Player API (not a plain <iframe src="...">) so the
+// play/stop, seek, and volume controls below can drive the video programmatically.
+let ytPlayer = null;
+let ytApiLoading = false;
+let pendingVideoId = null;
+
+function setYoutubeControlsEnabled(enabled) {
+  [youtubePlayBtn, youtubeBackBtn, youtubeForwardBtn, youtubeVolRange].forEach((el) => { el.disabled = !enabled; });
+}
+
+function updateYoutubePlayBtn() {
+  if (!ytPlayer || typeof ytPlayer.getPlayerState !== 'function') return;
+  // Pause, not Stop — stopVideo() resets playback to 0:00, which is surprising for a
+  // button whose only other state is "Play." Pausing keeps your place in the video.
+  youtubePlayBtn.innerHTML = ytPlayer.getPlayerState() === YT.PlayerState.PLAYING ? '&#10074;&#10074; Pause' : '&#9654; Play';
+}
+
+function createYtPlayer(id) {
+  youtubePlayerWrap.innerHTML = '';
+  const mount = document.createElement('div');
+  youtubePlayerWrap.appendChild(mount);
+  ytPlayer = new YT.Player(mount, {
+    videoId: id,
+    playerVars: { rel: 0, origin: window.location.origin },
+    events: {
+      onReady: () => {
+        ytPlayer.setVolume(parseInt(youtubeVolRange.value, 10));
+        setYoutubeControlsEnabled(true);
+        updateYoutubePlayBtn();
+      },
+      onStateChange: updateYoutubePlayBtn,
+    },
+  });
+}
+
+function ensureYouTubeApi() {
+  if (window.YT && window.YT.Player) return true;
+  if (!ytApiLoading) {
+    ytApiLoading = true;
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+    window.onYouTubeIframeAPIReady = () => { if (pendingVideoId) createYtPlayer(pendingVideoId); };
+  }
+  return false;
+}
+
 function loadYouTubeVideo(url) {
   const id = extractYouTubeId(url);
-  youtubePlayerWrap.innerHTML = '';
-  if (!id) return;
-  const iframe = document.createElement('iframe');
-  iframe.src = `https://www.youtube.com/embed/${id}`;
-  iframe.title = 'YouTube video player';
-  iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-  iframe.allowFullscreen = true;
-  youtubePlayerWrap.appendChild(iframe);
+  if (!id) {
+    youtubePlayerWrap.innerHTML = '';
+    ytPlayer = null;
+    setYoutubeControlsEnabled(false);
+    return;
+  }
   localStorage.setItem(YOUTUBE_URL_KEY, url);
+  pendingVideoId = id;
+  if (ensureYouTubeApi()) createYtPlayer(id);
 }
 
 youtubeUrlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadYouTubeVideo(youtubeUrlInput.value); });
 youtubeUrlInput.addEventListener('change', () => loadYouTubeVideo(youtubeUrlInput.value));
+
+youtubePlayBtn.addEventListener('click', () => {
+  if (!ytPlayer) return;
+  if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
+  else ytPlayer.playVideo();
+});
+youtubeBackBtn.addEventListener('click', () => {
+  if (!ytPlayer) return;
+  ytPlayer.seekTo(Math.max(0, ytPlayer.getCurrentTime() - YT_SEEK_SECONDS), true);
+});
+youtubeForwardBtn.addEventListener('click', () => {
+  if (!ytPlayer) return;
+  ytPlayer.seekTo(ytPlayer.getCurrentTime() + YT_SEEK_SECONDS, true);
+});
+youtubeVolRange.addEventListener('input', () => {
+  if (ytPlayer && typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(parseInt(youtubeVolRange.value, 10));
+});
 
 const savedYoutubeUrl = localStorage.getItem(YOUTUBE_URL_KEY);
 if (savedYoutubeUrl) {
@@ -243,17 +320,18 @@ enableAudioBtn.addEventListener('click', async () => {
   enableAudioBtn.textContent = 'Requesting microphone…';
   try {
     const devices = await engine.enableAudio();
-    populateDeviceSelect(devices, engine.currentDeviceId);
+    populateDeviceSelect(inputDeviceSelect, devices, engine.currentDeviceId, 'Input');
+    await refreshOutputDeviceSelect(true);
     enableAudioBtn.textContent = 'Audio Enabled';
     enableAudioBtn.classList.add('enabled');
     inputDeviceSelect.disabled = false;
-    const latencyMs = engine.getMeasuredLatencyMs();
-    if (latencyMs != null) latencyReadout.innerHTML = `Latency: <span class="latency-value">${latencyMs.toFixed(0)}ms</span>`;
+    startLiveLatencyLoop();
     addPedalBtn.disabled = false;
     demoSetupsBtn.disabled = false;
     clearSetupBtn.disabled = false;
     muteInputBtn.disabled = false;
     acousticSimEnabled.disabled = false;
+    tunerStringRow.querySelectorAll('.tuner-string-btn').forEach((b) => { b.disabled = false; });
 
     // Drum bus: a plain gain node feeding both the speakers and the looper's recording
     // tap, so pad hits are audible live and captured into whatever's being recorded —
@@ -286,14 +364,14 @@ enableAudioBtn.addEventListener('click', async () => {
   }
 });
 
-function populateDeviceSelect(devices, currentId) {
-  inputDeviceSelect.innerHTML = '';
+function populateDeviceSelect(selectEl, devices, currentId, fallbackLabel) {
+  selectEl.innerHTML = '';
   devices.forEach((d, i) => {
     const opt = document.createElement('option');
     opt.value = d.deviceId;
-    opt.textContent = d.label || `Input ${i + 1}`;
+    opt.textContent = d.label || `${fallbackLabel} ${i + 1}`;
     if (d.deviceId === currentId) opt.selected = true;
-    inputDeviceSelect.appendChild(opt);
+    selectEl.appendChild(opt);
   });
 }
 
@@ -301,13 +379,65 @@ inputDeviceSelect.addEventListener('change', async () => {
   await engine.switchInputDevice(inputDeviceSelect.value);
 });
 
+// Output routing (AudioContext.setSinkId) — Chrome 110+ only, feature-detected.
+// Picking the same interface used for input keeps the round-trip on one driver's
+// buffering instead of handing off to a separate, often higher-latency output path.
+// autoMatch (only passed true right after enabling audio, never on a later device
+// hotplug refresh) tries to default the output to whatever's paired with the current
+// input — e.g. USB headphones with a built-in mic — instead of leaving it on whatever
+// the OS happens to call the system default, which the user would otherwise have to
+// notice and fix themselves.
+async function refreshOutputDeviceSelect(autoMatch = false) {
+  if (!engine.supportsOutputDeviceSelection) {
+    outputDeviceSelect.disabled = true;
+    outputDeviceSelect.title = 'Output device selection is not supported in this browser';
+    return;
+  }
+  if (autoMatch) {
+    const matchId = await engine.findMatchingOutputDeviceId();
+    if (matchId) await engine.setOutputDevice(matchId);
+  }
+  const outputs = await engine.listOutputDevices();
+  const withDefault = [{ deviceId: '', label: 'System Default' }, ...outputs];
+  populateDeviceSelect(outputDeviceSelect, withDefault, engine.ctx.sinkId ?? '', 'Output');
+  outputDeviceSelect.disabled = false;
+}
+
+outputDeviceSelect.addEventListener('change', async () => {
+  try {
+    await engine.setOutputDevice(outputDeviceSelect.value);
+  } catch (err) {
+    alert('Could not switch output device: ' + err.message);
+  }
+});
+
+// Live "ping meter" — like a shooter HUD's latency indicator, this polls continuously
+// once audio is on rather than requiring a manual re-check. It shows the silent output
+// estimate (baseLatency + outputLatency).
+function latencyClass(ms) {
+  if (ms <= 20) return 'lat-good';
+  if (ms <= 40) return 'lat-warn';
+  return 'lat-bad';
+}
+
+function startLiveLatencyLoop() {
+  const tick = () => {
+    const ms = engine.getMeasuredLatencyMs();
+    if (ms == null) return;
+    latencyReadout.innerHTML = `<span class="live-dot"></span>Est. output: <span class="latency-value ${latencyClass(ms)}">${ms.toFixed(0)}ms</span>`;
+  };
+  tick();
+  setInterval(tick, 500);
+}
+
 // The device list is otherwise only captured once, at Enable Audio — plugging in
 // an interface afterward (e.g. a UMC 22) would never show up without this, since
 // the browser never re-scans devices on its own.
 navigator.mediaDevices.addEventListener('devicechange', async () => {
   if (!engine.isReady) return;
   const devices = await engine.listInputDevices();
-  populateDeviceSelect(devices, engine.currentDeviceId);
+  populateDeviceSelect(inputDeviceSelect, devices, engine.currentDeviceId, 'Input');
+  await refreshOutputDeviceSelect();
 });
 
 // ---------------------------------------------------------------------------
@@ -397,7 +527,7 @@ function refreshChainUI() {
 let wavePreviewTimer = null;
 function scheduleWavePreview() {
   clearTimeout(wavePreviewTimer);
-  wavePreviewTimer = setTimeout(updateWavePreview, 120);
+  wavePreviewTimer = setTimeout(updateWavePreview, 250); // each run builds a full offline graph, so coalesce knob drags harder
 }
 
 async function updateWavePreview() {
@@ -430,8 +560,8 @@ async function loadDefaultChain() {
 
 function meterLoop() {
   if (engine.isReady) {
-    updateLevelMeter(engine.inputMeterAnalyser, inputMeterBar);
-    drawScope(engine.scopeAnalyser, scopeCanvas);
+    const peak = drawScope(engine.scopeAnalyser, scopeCanvas);
+    inputMeterBar.style.transform = `scaleX(${Math.min(1, peak * 1.3)})`;
   }
   requestAnimationFrame(meterLoop);
 }
@@ -439,6 +569,53 @@ function meterLoop() {
 // ---------------------------------------------------------------------------
 // Tuner
 // ---------------------------------------------------------------------------
+
+// Per-string "focused" mode: null means plain chromatic auto-detect (original
+// behavior); set to a GUITAR_STRINGS entry to lock the display onto that string's
+// exact target frequency, however far off the detected pitch actually is, instead
+// of snapping to whatever chromatic note happens to be nearest.
+let focusedString = null;
+const CHROMATIC_HINT = 'Play a single string. Tuner reads the raw, pre-effects signal.';
+
+function buildTunerStringRow() {
+  GUITAR_STRINGS.forEach((str) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tuner-string-btn';
+    btn.disabled = true;
+    btn.title = `${str.label}${str.octave} · ${str.freq.toFixed(2)} Hz — click to hear it and focus the tuner on this string`;
+    const letter = document.createElement('span');
+    letter.className = 'string-letter';
+    letter.textContent = str.label;
+    const octave = document.createElement('span');
+    octave.className = 'string-octave';
+    octave.textContent = str.octave;
+    btn.append(letter, octave);
+    btn.addEventListener('click', () => {
+      if (!engine.isReady) return;
+      if (focusedString?.id === str.id) {
+        focusedString = null;
+        btn.classList.remove('active');
+        tunerHint.textContent = CHROMATIC_HINT;
+        return;
+      }
+      focusedString = str;
+      tunerStringRow.querySelectorAll('.tuner-string-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      tunerHint.textContent = `Focused on ${str.label}${str.octave} (${str.freq.toFixed(2)} Hz) — click the string again to go back to auto chromatic mode.`;
+      engine.playReferenceTone(str.freq);
+    });
+
+    const row = document.createElement('div');
+    row.className = 'tuner-string';
+    const line = document.createElement('span');
+    line.className = 'string-line';
+    line.style.height = `${(str.gaugeIn * 100).toFixed(1)}px`; // real gauge inches x100 -> px, keeps the ~4.6:1 low-to-high ratio
+    row.append(line, btn);
+    tunerStringRow.appendChild(row);
+  });
+}
+buildTunerStringRow();
 
 function startTuner() {
   if (!engine.isReady) return;
@@ -448,14 +625,28 @@ function startTuner() {
       tunerNote.textContent = '—'; tunerNote.style.color = 'var(--text)';
       tunerCents.textContent = '0 cents'; tunerFreq.textContent = '0.0 Hz';
       tunerNeedle.style.transform = 'translateX(-50%) rotate(0deg)';
+      tunerDirection.textContent = ''; tunerDirection.className = 'tuner-direction';
       return;
     }
-    tunerNote.textContent = note.name + note.octave;
-    tunerCents.textContent = `${note.cents > 0 ? '+' : ''}${note.cents} cents`;
     tunerFreq.textContent = `${note.frequency.toFixed(1)} Hz`;
-    const clamped = Math.max(-50, Math.min(50, note.cents));
+
+    const cents = focusedString ? centsFromTarget(note.frequency, focusedString.freq) : note.cents;
+    tunerNote.textContent = focusedString ? focusedString.label + focusedString.octave : note.name + note.octave;
+    tunerCents.textContent = `${cents > 0 ? '+' : ''}${cents} cents`;
+    const clamped = Math.max(-50, Math.min(50, cents));
     tunerNeedle.style.transform = `translateX(-50%) rotate(${clamped * 0.8}deg)`;
-    tunerNote.style.color = Math.abs(note.cents) < 5 ? 'var(--ok)' : 'var(--text)';
+    const inTune = Math.abs(cents) < 5;
+    tunerNote.style.color = inTune ? 'var(--ok)' : 'var(--text)';
+
+    if (!focusedString) {
+      tunerDirection.textContent = ''; tunerDirection.className = 'tuner-direction';
+    } else if (inTune) {
+      tunerDirection.textContent = '✓ In Tune'; tunerDirection.className = 'tuner-direction in-tune';
+    } else if (cents < 0) {
+      tunerDirection.textContent = '▲ Tune Up'; tunerDirection.className = 'tuner-direction tune-up';
+    } else {
+      tunerDirection.textContent = '▼ Tune Down'; tunerDirection.className = 'tuner-direction tune-down';
+    }
   });
 }
 
@@ -468,13 +659,36 @@ function stopTuner() { if (tuner) tuner.stop(); }
 // isStopping guards against a double-click firing stopRecording() twice concurrently —
 // the second call would hit an already-inactive MediaRecorder and throw.
 let isStopping = false;
+let seekRafId = null;
+let isScrubbing = false; // true while the user is actively dragging the seek range
+
+function formatTime(seconds) {
+  const s = Math.max(0, Math.floor(seconds || 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function updateSeekDisplay() {
+  if (!looper || isScrubbing) return;
+  const current = looper.getCurrentTime();
+  looperSeekRange.value = current;
+  looperTimeLabel.textContent = `${formatTime(current)} / ${formatTime(looper.duration)}`;
+}
+
+function startSeekLoop() {
+  cancelAnimationFrame(seekRafId);
+  const tick = () => {
+    updateSeekDisplay();
+    if (looper && looper.isPlaying) seekRafId = requestAnimationFrame(tick);
+  };
+  tick();
+}
 
 function resetLooperControlsIdle() {
   isRecording = false;
   looperRecordBtn.disabled = false;
   looperRecordBtn.textContent = '● Record';
-  looperStopBtn.textContent = '■ Stop';
-  [looperPlayBtn, looperStopBtn, looperLoopBtn, looperClearBtn].forEach((b) => (b.disabled = false));
+  looperStopBtn.disabled = true; // Stop Recording only ever makes sense while actually recording
+  [looperPlayBtn, looperLoopBtn, looperClearBtn].forEach((b) => (b.disabled = false));
 }
 
 async function finishRecording() {
@@ -482,13 +696,22 @@ async function finishRecording() {
   isStopping = true;
   looperStopBtn.disabled = true; // prevent a second click while the async stop is in flight
   try {
-    const buffer = await looper.stopRecording();
+    const { guitarBuffer, screenBuffer } = await looper.stopRecording();
     resetLooperControlsIdle();
-    looperStatus.textContent = `Recorded ${buffer.duration.toFixed(1)}s`;
-    drawWaveform(buffer, looperWaveform);
-    const blob = audioBufferToWavBlob(buffer);
+    looperStatus.textContent = `Recorded ${guitarBuffer.duration.toFixed(1)}s` + (screenBuffer ? ' (+ screen audio)' : '');
+    drawWaveform(guitarBuffer, looperWaveform);
+    const blob = audioBufferToWavBlob(guitarBuffer);
     looperDownloadBtn.href = URL.createObjectURL(blob);
     looperDownloadBtn.classList.remove('disabled');
+
+    looperSeekRange.max = looper.duration;
+    looperSeekRange.value = 0;
+    looperSeekRange.disabled = false;
+    looperTimeLabel.textContent = `0:00 / ${formatTime(looper.duration)}`;
+
+    looperSourceBtn.disabled = !screenBuffer;
+    looperSourceBtn.textContent = 'Source: Guitar';
+    looperSourceBtn.classList.remove('active');
   } catch (err) {
     // A failed stop (e.g. nothing captured) must not leave the UI stuck showing
     // "Stop Recording" with no way to escape it — always fall back to a clean idle state.
@@ -501,29 +724,45 @@ async function finishRecording() {
 
 looperRecordBtn.addEventListener('click', async () => {
   if (!engine.isReady) { alert('Click "Enable Audio" first.'); return; }
-  if (!looper) looper = new Looper(engine.ctx, engine.mediaStreamDest);
+  if (!looper) {
+    looper = new Looper(engine.ctx, engine.mediaStreamDest);
+    // Reaching the end without looping stops playback on its own (see Looper._handleEnded) —
+    // this just keeps the toggle button's label in sync with that.
+    looper.onEnded = () => { looperPlayBtn.innerHTML = '&#9654; Play'; };
+  }
 
-  looper.startRecording();
-  isRecording = true;
-  looperStatus.textContent = 'Recording…';
-  // The Record button itself never changes role or label — it just disables while a
-  // recording is in progress. The one button that reads "Stop Recording" is the only
-  // control that can end it, so there's never two differently-behaving buttons that
-  // both say "Stop" at the same time.
+  const captureScreen = looperCaptureScreenAudio.checked;
   looperRecordBtn.disabled = true;
-  looperStopBtn.textContent = '■ Stop Recording';
+  if (captureScreen) looperStatus.textContent = 'Choose a screen/tab to share…';
+  await looper.startRecording(captureScreen);
+  isRecording = true;
+  looperStatus.textContent = looper.hasScreenAudio || !captureScreen
+    ? 'Recording…'
+    : 'Recording (no screen audio track — pick "Entire Screen" or a browser Tab and check "Share audio"; sharing a single Window never includes audio)…';
   looperStopBtn.disabled = false;
-  [looperPlayBtn, looperLoopBtn, looperClearBtn].forEach((b) => (b.disabled = true));
+  [looperPlayBtn, looperLoopBtn, looperClearBtn, looperSourceBtn].forEach((b) => (b.disabled = true));
   looperDownloadBtn.classList.add('disabled');
+  looperSeekRange.disabled = true;
 });
 
-looperPlayBtn.addEventListener('click', () => looper && looper.play());
-// Stop does double duty by design, but never by ambiguous labeling: its text is
-// "Stop Recording" only while a recording is actually in progress, and plain "Stop"
-// (halting loop playback) otherwise.
+// A single toggle, same idea as the YouTube player's Play/Pause: shows Play while
+// idle, Pause while playing, and pressing Play again resumes from wherever it was
+// left rather than restarting from the beginning.
+looperPlayBtn.addEventListener('click', () => {
+  if (!looper) return;
+  if (looper.isPlaying) {
+    looper.pause();
+    cancelAnimationFrame(seekRafId);
+    updateSeekDisplay();
+    looperPlayBtn.innerHTML = '&#9654; Play';
+  } else {
+    looper.play();
+    startSeekLoop();
+    looperPlayBtn.innerHTML = '&#10074;&#10074; Pause';
+  }
+});
 looperStopBtn.addEventListener('click', () => {
   if (isRecording) finishRecording();
-  else if (looper) looper.stopPlayback();
 });
 looperLoopBtn.addEventListener('click', () => {
   if (!looper) return;
@@ -532,14 +771,40 @@ looperLoopBtn.addEventListener('click', () => {
   looperLoopBtn.textContent = `↻ Loop: ${newLoop ? 'On' : 'Off'}`;
   looperLoopBtn.classList.toggle('active', newLoop);
 });
+looperSourceBtn.addEventListener('click', () => {
+  if (!looper || !looper.hasScreenAudio) return;
+  const newSource = looper.source === 'guitar' ? 'both' : 'guitar';
+  looper.setSource(newSource);
+  looperSourceBtn.textContent = `Source: ${newSource === 'both' ? 'Both' : 'Guitar'}`;
+  looperSourceBtn.classList.toggle('active', newSource === 'both');
+});
 looperClearBtn.addEventListener('click', () => {
   if (!looper) return;
   looper.clear();
+  cancelAnimationFrame(seekRafId);
   looperStatus.textContent = 'No recording yet.';
   drawWaveform(null, looperWaveform);
+  looperPlayBtn.innerHTML = '&#9654; Play';
   [looperPlayBtn, looperStopBtn, looperLoopBtn, looperClearBtn].forEach((b) => (b.disabled = true));
   looperDownloadBtn.classList.add('disabled');
+  looperSourceBtn.disabled = true;
+  looperSourceBtn.textContent = 'Source: Guitar';
+  looperSourceBtn.classList.remove('active');
+  looperSeekRange.max = 0;
+  looperSeekRange.value = 0;
+  looperSeekRange.disabled = true;
+  looperTimeLabel.textContent = '0:00 / 0:00';
 });
+
+// Dragging the scrubber seeks live while playing, or just sets where the next Play
+// will start from while idle — either way it suppresses the rAF display loop's own
+// updates for the duration of the drag so it doesn't fight the user's finger/cursor.
+looperSeekRange.addEventListener('pointerdown', () => { isScrubbing = true; });
+looperSeekRange.addEventListener('input', () => {
+  looperTimeLabel.textContent = `${formatTime(parseFloat(looperSeekRange.value))} / ${formatTime(looper ? looper.duration : 0)}`;
+  if (looper) looper.seekTo(parseFloat(looperSeekRange.value));
+});
+['pointerup', 'change'].forEach((evt) => looperSeekRange.addEventListener(evt, () => { isScrubbing = false; }));
 
 // ---------------------------------------------------------------------------
 // Presets

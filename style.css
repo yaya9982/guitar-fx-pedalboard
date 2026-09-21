@@ -32,6 +32,16 @@
   --ok: oklch(72% 0.17 145);
   --danger: oklch(60% 0.19 25);
 
+  /* Guitar wood/bone, tuner headstock illustration only — quantized from a real 6-in-line
+     headstock reference photo (Extracted-Not-Reproduced Rule), not used elsewhere. */
+  --wood-hi: oklch(34% 0.045 55);
+  --wood-mid: oklch(24% 0.04 50);
+  --wood-lo: oklch(18% 0.035 48);
+  --bone-hi: oklch(90% 0.02 90);
+  --bone-lo: oklch(78% 0.02 85);
+  --fretboard-hi: oklch(15% 0.03 50);
+  --fretboard-lo: oklch(10% 0.025 45);
+
   --space-xs: 4px; --space-sm: 8px; --space-md: 14px; --space-lg: 22px; --space-xl: 34px;
   --radius: 10px;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -141,11 +151,25 @@ h1, h2, h3 { font-family: inherit; }
 .device-select:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
 
 .latency-readout {
+  display: inline-flex; align-items: center; gap: 5px;
   font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums;
   font-family: var(--font-mono);
   letter-spacing: 0.3px;
 }
 .latency-readout .latency-value { color: var(--ok); font-weight: 700; }
+/* Ping-meter thresholds, tuned to the "15-35ms is normal, sub-10ms is a dedicated
+   interface" expectations documented in Setup/Help. */
+.latency-readout .latency-value.lat-good { color: var(--ok); }
+.latency-readout .latency-value.lat-warn { color: var(--brass); }
+.latency-readout .latency-value.lat-bad { color: var(--danger); }
+.latency-readout .live-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--ok); flex-shrink: 0;
+  animation: latency-pulse 1.6s ease-in-out infinite;
+}
+@keyframes latency-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.7); }
+}
 
 .topbar-right { display: flex; align-items: center; gap: 14px; }
 .meter-block { display: flex; flex-direction: column; gap: 3px; width: 90px; }
@@ -251,6 +275,9 @@ main { flex: 1; padding: var(--space-lg); }
   text-align: center; padding: 0 10px;
 }
 .youtube-player-wrap iframe { width: 100%; height: 100%; border: 0; display: block; }
+.youtube-transport { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+.youtube-transport .mute-btn { margin-left: 0; flex-shrink: 0; }
+.youtube-transport .youtube-vol { flex: 1; min-width: 0; margin-left: 4px; }
 
 .mute-btn {
   background: var(--panel-2); color: var(--text-dim); border: 1px solid var(--border);
@@ -896,8 +923,74 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 
 /* ---------- tuner ---------- */
 
-.tuner-box { max-width: 360px; margin: 0 auto; text-align: center; padding: 34px 0; }
+.tuner-box { max-width: 480px; margin: 0 auto; text-align: center; padding: 34px 0; }
+
+/* Headstock (6-in-line, e.g. Fender-style) + nut + fretboard, referenced against a real
+   6-in-line headstock photo for paddle taper and peg layout. Each string's tune button
+   sits directly over its string line, positioned near where a player would pluck. */
+.tuner-neck {
+  display: flex; align-items: stretch;
+  height: 268px;
+  margin-bottom: 22px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 10px 24px -14px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+.tuner-headstock {
+  width: 60px; flex-shrink: 0;
+  display: flex; flex-direction: column; justify-content: space-around; align-items: flex-end;
+  padding: 10px 9px;
+  background: linear-gradient(115deg, var(--wood-hi) 0%, var(--wood-mid) 55%, var(--wood-lo) 100%);
+  clip-path: polygon(0 8%, 76% 0, 100% 18%, 100% 82%, 76% 100%, 0 92%);
+}
+.tuner-headstock .peg {
+  width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(155deg, var(--chrome-hi), var(--chrome-lo));
+  box-shadow: 0 0 0 2px var(--wood-lo), 1px 1px 2px rgba(0, 0, 0, 0.6);
+}
+.tuner-nut {
+  width: 5px; flex-shrink: 0;
+  background: linear-gradient(180deg, var(--bone-hi), var(--bone-lo));
+  box-shadow: 1px 0 2px rgba(0, 0, 0, 0.5);
+}
+.tuner-fretboard {
+  position: relative; flex: 1; min-width: 0;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 41px, color-mix(in oklch, var(--chrome-lo) 32%, transparent) 41px 42px),
+    linear-gradient(180deg, var(--fretboard-hi), var(--fretboard-lo));
+}
+.tuner-string-row { display: flex; flex-direction: column; justify-content: space-around; height: 100%; }
+.tuner-string { position: relative; display: flex; align-items: center; height: 40px; padding: 0 16px 0 6px; }
+.tuner-string .string-line {
+  position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+  background: linear-gradient(180deg, var(--chrome-hi), var(--chrome-lo) 55%, color-mix(in oklch, var(--chrome-lo) 70%, black 30%));
+  border-radius: 2px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+.tuner-string-btn {
+  position: relative; z-index: 2; margin-left: auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  cursor: pointer; font-family: var(--font-display);
+}
+.tuner-string-btn .string-letter { font-size: 14px; line-height: 1; text-transform: uppercase; }
+.tuner-string-btn .string-octave { font-family: var(--font-mono); font-size: 7px; color: var(--text-dim); }
+.tuner-string-btn:hover { border-color: color-mix(in oklch, var(--brass) 50%, var(--border) 50%); }
+.tuner-string-btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.tuner-string-btn.active {
+  border-color: var(--brass); color: var(--brass);
+  background: linear-gradient(180deg, color-mix(in oklch, var(--brass) 30%, var(--panel-2) 70%), var(--panel-2));
+}
+.tuner-string-btn.active .string-octave { color: color-mix(in oklch, var(--brass) 70%, var(--text-dim) 30%); }
 .tuner-note { font-family: var(--font-display); font-size: 64px; font-weight: 400; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
+/* Only populated in focused (per-string) mode — chromatic auto mode leaves it empty. */
+.tuner-direction {
+  font-family: var(--font-display); font-size: 20px; text-transform: uppercase; letter-spacing: 1.5px;
+  min-height: 26px; margin-top: 2px;
+}
+.tuner-direction.tune-up, .tuner-direction.tune-down { color: var(--brass); }
+.tuner-direction.in-tune { color: var(--ok); }
 .tuner-meter { position: relative; height: 60px; margin: 14px 0 6px; }
 .tuner-center-line { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--ok); transform: translateX(-1px); }
 .tuner-needle {
@@ -923,12 +1016,17 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 .looper-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .looper-btn.disabled { opacity: 0.4; pointer-events: none; }
 .looper-btn.toggle.active { background: linear-gradient(180deg, oklch(80% 0.13 85), oklch(62% 0.13 80)); color: oklch(18% 0.04 85); border-color: transparent; }
+.looper-options { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+.looper-screen-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); }
 .looper-waveform {
   display: block; width: 100%; height: 90px; margin-top: 14px;
   background: oklch(8% 0.008 260);
   border: 1px solid var(--border); border-radius: 6px;
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.7);
 }
+.looper-seek-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.looper-seek { flex: 1; min-width: 0; }
+.looper-time { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); white-space: nowrap; }
 .looper-status { margin-top: 12px; font-size: 12px; color: var(--text-dim); font-family: var(--font-mono); }
 
 /* ---------- drum pads ---------- */
