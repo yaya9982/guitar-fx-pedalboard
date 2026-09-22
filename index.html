@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Guitar FX Pedalboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 
@@ -97,7 +97,7 @@
           Master
           <button type="button" id="masterInfoBtn" class="hint-tag" title="What does this do?">?</button>
         </label>
-        <input type="range" id="masterVolRange" min="0" max="150" value="100">
+        <input type="range" id="masterVolRange" min="0" max="300" value="100">
       </div>
       <div class="control youtube-embed">
         <label for="youtubeUrlInput">YouTube</label>
@@ -149,6 +149,12 @@
       </div>
       <div id="tunerCents" class="tuner-cents">0 cents</div>
       <div id="tunerFreq" class="tuner-freq">0.0 Hz</div>
+      <div class="tuner-volume">
+        <label for="tunerVolRange">Reference Tone</label>
+        <input type="range" id="tunerVolRange" min="0" max="100" value="30"
+               title="Volume of the plucked reference tone played when you click a string. Does not affect your guitar signal.">
+        <output id="tunerVolValue" for="tunerVolRange">30%</output>
+      </div>
       <p class="hint" id="tunerHint">Play a single string. Tuner reads the raw, pre-effects signal.</p>
     </div>
   </section>
@@ -453,6 +459,6 @@
   </div>
 </template>
 
-<script type="module" src="js/main.js?v=32"></script>
+<script type="module" src="js/main.js?v=33"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-import { AudioEngine } from './audio-engine.js?v=12';
+import { AudioEngine } from './audio-engine.js?v=13';
 import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=1';
 import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js';
@@ -10,7 +10,7 @@ import { BEAT_PRESETS, PatternPlayer } from './beat-presets.js?v=2';
 import {
   buildStateObject, loadPresetList, savePreset, deletePreset,
   saveAutosave, loadAutosave, exportStateAsFile, importStateFromFile,
-} from './presets.js';
+} from './presets.js?v=2';
 
 const $ = (id) => document.getElementById(id);
 
@@ -49,6 +49,8 @@ const tunerFreq = $('tunerFreq');
 const tunerStringRow = $('tunerStringRow');
 const tunerDirection = $('tunerDirection');
 const tunerHint = $('tunerHint');
+const tunerVolRange = $('tunerVolRange');
+const tunerVolValue = $('tunerVolValue');
 
 const looperRecordBtn = $('looperRecordBtn');
 const looperPlayBtn = $('looperPlayBtn');
@@ -460,6 +462,12 @@ muteInputBtn.addEventListener('click', () => {
   autosave();
 });
 masterVolRange.addEventListener('input', () => { engine.setMasterVolumePct(parseFloat(masterVolRange.value)); autosave(); });
+function applyTunerVolume(pct) {
+  tunerVolRange.value = pct;
+  tunerVolValue.textContent = `${Math.round(pct)}%`;
+  engine.setTunerVolumePct(pct);
+}
+tunerVolRange.addEventListener('input', () => { applyTunerVolume(parseFloat(tunerVolRange.value)); autosave(); });
 masterInfoBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   showInfoPopover(masterInfoBtn, 'Master', 'The final output volume after every pedal/amp in your chain — turn it down if the board as a whole is too loud or clipping, up if it\'s too quiet.');
@@ -834,6 +842,7 @@ async function restoreState(state) {
   const denoiseAmt = state.denoise?.strength ?? 50;
   denoiseEnabled.checked = denoiseOn; engine.setDenoiseEnabled(denoiseOn);
   denoiseStrength.value = denoiseAmt; engine.setDenoiseStrength(denoiseAmt);
+  applyTunerVolume(state.tunerVolumePct ?? 30);
   acousticSimEnabled.checked = state.acousticSim.enabled;
   await engine.setAcousticSimEnabled(state.acousticSim.enabled);
 

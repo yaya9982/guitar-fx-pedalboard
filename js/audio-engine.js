@@ -38,6 +38,7 @@ export class AudioEngine {
     this.inputGainPct = 100;
     this.inputMuted = false;
     this.noiseGateEnabled = true;
+    this.tunerVolumePct = 30; // level of the tuner's plucked reference tone, not the guitar signal
     this.denoiseEnabled = false; // opt-in: adds ~16-17ms latency, so off until asked for
     this.denoiseStrength = 50;
   }
@@ -182,7 +183,7 @@ export class AudioEngine {
       processorOptions: { frequency: freq },
     });
     const gain = ctx.createGain();
-    gain.gain.value = 0.3;
+    gain.gain.value = this.tunerVolumePct / 100;
     pluck.connect(gain).connect(ctx.destination);
     // The processor stops itself once it's decayed to silence; this just detaches the
     // now-idle node from the graph instead of leaving it connected indefinitely.
@@ -243,6 +244,10 @@ export class AudioEngine {
     if (!this.inputGain) return;
     const target = muted ? 0 : this.inputGainPct / 100;
     this.inputGain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.01);
+  }
+
+  setTunerVolumePct(pct) {
+    this.tunerVolumePct = pct;
   }
 
   setMasterVolumePct(pct) {

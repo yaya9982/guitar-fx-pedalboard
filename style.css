@@ -1002,6 +1002,17 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 .tuner-freq { font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); margin-top: 2px; }
 .hint { font-size: 12px; color: var(--text-dim); margin-top: 18px; }
 
+.tuner-volume {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin-top: 20px; font-family: var(--font-mono); font-size: 11px;
+  color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.8px;
+}
+.tuner-volume input[type="range"] { width: 150px; }
+.tuner-volume output {
+  min-width: 34px; text-align: left; color: var(--text);
+  font-variant-numeric: tabular-nums; text-transform: none; letter-spacing: 0;
+}
+
 /* ---------- looper ---------- */
 
 .looper-box { max-width: 520px; }
