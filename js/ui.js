@@ -354,6 +354,108 @@ export function renderChain(engine, container, template, callbacks) {
   updateChainWires(container);
 }
 
+// Custom amp logo badges — archived for now (not removed): the feature works, but is
+// switched off pending further review. Flip this back to true to re-enable; everything
+// below (downscaleToDataUrl, the upload/reset wiring in renderAmp, main.js's
+// loadAmpLogos/saveAmpLogos/onLogoChange, and the CSS) is left fully intact.
+const AMP_LOGO_CUSTOMIZATION_ENABLED = false;
+
+// Single amp slot, rendered separately from the pedal chain — no drag/reorder, no wires,
+// just the one amp (if any) filling its own big unit below the pedalboard.
+// Reads an image file, downscales it to fit within maxW x maxH (preserving aspect
+// ratio, never upscaling) via an offscreen canvas, and resolves a PNG data URL —
+// keeps a phone-camera-sized upload from bloating the localStorage-backed logo store.
+function downscaleToDataUrl(file, maxW, maxH) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const scale = Math.min(1, maxW / img.width, maxH / img.height);
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('image load failed')); };
+    img.src = objectUrl;
+  });
+}
+
+export function renderAmp(engine, container, template, callbacks, ampLogos = {}) {
+  container.innerHTML = '';
+  const inst = engine.amp.instance;
+  if (!inst) return;
+
+  const frag = template.content.cloneNode(true);
+  const unit = frag.querySelector('.amp-unit');
+  unit.dataset.instanceId = inst.instanceId;
+  unit.dataset.ampType = inst.typeId; // targeted by the per-signature-amp plate colors in style.css
+  unit.style.setProperty('--pedal-color', pedalColor(inst.typeDef));
+  if (inst.typeDef.accent) unit.style.setProperty('--pedal-accent', inst.typeDef.accent);
+  if (inst.typeDef.trim) unit.style.setProperty('--pedal-trim', inst.typeDef.trim);
+  if (!inst.enabled) unit.classList.add('disabled-pedal');
+
+  const labelEl = unit.querySelector('.pedal-label');
+  labelEl.textContent = inst.typeDef.label;
+
+  const knobsHost = unit.querySelector('.amp-knobs');
+  inst.typeDef.params.forEach((paramDef) => {
+    const row = buildParamRow(paramDef, inst.params[paramDef.key], (v) => callbacks.onParamChange(inst.instanceId, paramDef.key, v));
+    knobsHost.appendChild(row);
+  });
+
+  unit.querySelector('.amp-header .pedal-remove').addEventListener('click', (e) => { e.stopPropagation(); callbacks.onRemove(inst.instanceId); });
+  const infoBtn = unit.querySelector('.pedal-info');
+  infoBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showInfoPopover(infoBtn, inst.typeDef.label, inst.typeDef.about || 'No description available.');
+  });
+
+  // Custom logo badge, signature (band-inspired) amps only — the plate becomes a click
+  // target that swaps in a user-supplied PNG in place of the amp's name, stored per
+  // amp type (see loadAmpLogos/saveAmpLogos in main.js), not per chain instance.
+  if (AMP_LOGO_CUSTOMIZATION_ENABLED && inst.typeDef.group === 'signature') {
+    const plate = unit.querySelector('.amp-plate');
+    const logoImg = unit.querySelector('.amp-logo-img');
+    const logoInput = unit.querySelector('.amp-logo-input');
+    const resetBtn = unit.querySelector('.amp-logo-reset');
+    plate.classList.add('logo-editable');
+    plate.title = "Click to use your own PNG for this amp's badge";
+
+    const existing = ampLogos[inst.typeId];
+    if (existing) {
+      logoImg.src = existing;
+      logoImg.hidden = false;
+      labelEl.hidden = true;
+      resetBtn.hidden = false;
+    }
+
+    plate.addEventListener('click', () => logoInput.click());
+    // Stops the input's own (synthetic, from .click() above) click bubbling back up
+    // to the plate's listener, which would otherwise reopen the picker in a loop.
+    logoInput.addEventListener('click', (e) => e.stopPropagation());
+    logoInput.addEventListener('change', () => {
+      const file = logoInput.files && logoInput.files[0];
+      logoInput.value = '';
+      if (!file) return;
+      if (file.type !== 'image/png') { alert('Please choose a PNG image.'); return; }
+      if (file.size > 4 * 1024 * 1024) { alert('That image is too large (max 4MB) — try a smaller PNG.'); return; }
+      downscaleToDataUrl(file, 600, 220)
+        .then((dataUrl) => callbacks.onLogoChange(inst.typeId, dataUrl))
+        .catch(() => alert('Could not read that image.'));
+    });
+    resetBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      callbacks.onLogoChange(inst.typeId, null);
+    });
+  }
+
+  container.appendChild(frag);
+}
+
 function getDragAfterElement(container, x) {
   const cards = [...container.querySelectorAll('.pedal-stompbox:not(.dragging)')];
   return cards.reduce((closest, child) => {
@@ -434,6 +536,10 @@ export function buildAddMenu(onPick) {
     { title: 'Amps', items: AMP_TYPES.filter((a) => a.group === 'standard'), color: 'oklch(70% 0.08 80)' },
     { title: 'Signature', items: AMP_TYPES.filter((a) => a.group === 'signature'), color: 'oklch(75% 0.13 85)' },
   ];
+  const ampNote = document.createElement('div');
+  ampNote.className = 'add-menu-note';
+  ampNote.textContent = 'Only one amp at a time — picking one replaces your current amp.';
+  menu.appendChild(ampNote);
   ampGroups.forEach((group) => {
     const heading = document.createElement('div');
     heading.className = 'add-menu-heading';

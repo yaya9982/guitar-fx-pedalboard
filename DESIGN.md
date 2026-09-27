@@ -28,18 +28,22 @@ colors:
   amp-clean: "oklch(85% 0.02 90)"
   amp-crunch: "oklch(45% 0.08 75)"
   amp-lead: "oklch(50% 0.20 25)"
-  acdc-body: "#874b4b"
-  acdc-panel: "#fd5714"
-  acdc-trim: "#e7e3c0"
+  acdc-body: "#fe0100"
+  acdc-panel: "#0d0503"
+  acdc-trim: "#ac9e72"
   ledzeppelin-body: "#a7a195"
   ledzeppelin-panel: "#030207"
   ledzeppelin-trim: "#fdf7e7"
   oasis-body: "#dec182"
   oasis-panel: "#3e7474"
   oasis-trim: "#a3b49a"
-  direstraits-body: "#3e6390"
-  direstraits-panel: "#9d2a2f"
-  direstraits-trim: "#dbdee6"
+  direstraits-body: "#6c90f9"
+  direstraits-panel: "#91838e"
+  direstraits-trim: "#dcddee"
+  acdc-logo-bg: "oklch(87% 0.06 25)"
+  ledzeppelin-logo-bg: "oklch(88% 0.006 260)"
+  oasis-logo-bg: "oklch(98% 0.003 90)"
+  direstraits-logo-bg: "oklch(88% 0.05 250)"
 typography:
   display:
     fontFamily: "Anton, Arial Narrow, sans-serif"
@@ -166,19 +170,31 @@ Each of the four signature amps carries a three-tone palette (`body` / `panel` /
 numerically extracted (dominant-color quantization, plain hex values only — never the
 artwork itself) from that band's real album cover, so the four signature amps read as
 genuinely distinct hardware rather than sharing one brushed-aluminum skin:
-- **AC/DC**: body `#874b4b` (dusty rose-brick, from *Highway to Hell*), panel `#fd5714`
-  (vivid orange, extracted from a reference the user pointed to as "the AC/DC orange" —
-  numeric value only), trim `#e7e3c0` (warm cream).
+- **AC/DC** (from the band's red lightning-bolt wordmark logo): body `#fe0100` (the
+  logo's dominant red), panel `#0d0503` (the logo's black background, lifted a hair off
+  pure black so it reads as dark paint rather than an unset value), trim `#ac9e72` (the
+  logo's gold outline).
 - **Led Zeppelin** (from the band's own reference image): body `#a7a195` (warm gray),
   panel `#030207` (near-black), trim `#fdf7e7` (warm parchment).
 - **Oasis** (from *Definitely Maybe*): body `#dec182` (warm gold), panel `#3e7474`
   (teal), trim `#a3b49a` (sage).
-- **Dire Straits** (from the album's newer cover art): body `#3e6390` (steel blue),
-  panel `#9d2a2f` (brick red), trim `#dbdee6` (pale blue-gray).
+- **Dire Straits** (from the *Brothers in Arms* cover): body `#6c90f9` (the cover's
+  dominant sky/border blue), panel `#91838e` (a dusty mauve pulled from the cover's thin
+  pink border line), trim `#dcddee` (the pale cloud-highlight tone).
 
 `body` drives the enclosure paint gradient (`--pedal-color`), `panel` tints the recessed
 control-panel strip behind the knobs (`--pedal-accent`), and `trim` sets the piping
 outline and label color (`--pedal-trim`) — see Components → Signature-amp construction.
+
+A fourth, independent color — `logo-bg` — sets the background of the amp's name/logo
+plate specifically (a light, flat tone rather than a tolex/panel/trim-family value, since
+this plate is also the click target for a user-uploaded custom PNG badge — see Components
+→ Brand plate). AC/DC `oklch(87% 0.06 25)` (light red), Led Zeppelin
+`oklch(88% 0.006 260)` (light gray), Oasis `oklch(98% 0.003 90)` (near-white), Dire
+Straits `oklch(88% 0.05 250)` (light blue). Because the plate switches from the default
+near-black background to a light one, its label text switches from the trim-tinted light
+color used everywhere else to a fixed dark neutral (`oklch(20% 0.015 260)`) for contrast —
+see Components → Brand plate.
 
 ### Named Rules
 **The Extracted-Not-Reproduced Rule.** Real-world reference material (album covers,
@@ -332,6 +348,17 @@ of the thin-border/wide-shadow default).
   control-panel strip behind the knob row (`inset` shadow, darker fill), and a `trim`-
   toned 2px piping outline plus label color. See Colors → Signature amp palettes for
   the four bands' extracted three-tone values and their source album covers.
+- **Brand plate:** a fixed-size window (the center third of the grille, in both width and
+  height — not a content-sized label-with-background) holding the amp's name. On
+  standard amps it stays a plain near-black plate with trim-tinted text. On signature
+  amps it additionally becomes a click target: clicking it opens a PNG file picker, and
+  a chosen image (downscaled client-side before storing) replaces the name entirely,
+  filling the plate via `object-fit: contain`; a small reset control appears in its
+  corner to revert to the plain name. Custom images are stored per amp *type* (so they
+  follow "the AC/DC amp" wherever it's loaded, not one specific chain instance) in their
+  own localStorage entry, kept separate from the main preset/autosave payload. Each
+  signature amp's plate uses its own light `logo-bg` color (see Colors → Signature amp
+  palettes) with a fixed dark label color, rather than the default near-black plate.
 
 ### Knob (signature component)
 A knurled black-plastic dial (34px, radial + repeating-conic knurl texture) with a white

@@ -1,5 +1,5 @@
 import { AudioEngine } from './audio-engine.js?v=13';
-import { renderChain, showAddMenu, showDemoMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=1';
+import { renderChain, renderAmp, showAddMenu, showDemoMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=1';
 import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js';
 import { Tuner, GUITAR_STRINGS, centsFromTarget } from './tuner.js?v=3';
@@ -10,6 +10,7 @@ import { BEAT_PRESETS, PatternPlayer } from './beat-presets.js?v=2';
 import {
   buildStateObject, loadPresetList, savePreset, deletePreset,
   saveAutosave, loadAutosave, exportStateAsFile, importStateFromFile,
+  loadAmpLogos, saveAmpLogos,
 } from './presets.js?v=2';
 
 const $ = (id) => document.getElementById(id);
@@ -41,6 +42,9 @@ const demoSetupsBtn = $('demoSetupsBtn');
 const clearSetupBtn = $('clearSetupBtn');
 const pedalChain = $('pedalChain');
 const pedalCardTemplate = $('pedalCardTemplate');
+const ampSlot = $('ampSlot');
+const ampCardTemplate = $('ampCardTemplate');
+let ampLogos = loadAmpLogos();
 
 const tunerNote = $('tunerNote');
 const tunerNeedle = $('tunerNeedle');
@@ -520,12 +524,19 @@ clearSetupBtn.addEventListener('click', () => {
 // ---------------------------------------------------------------------------
 
 function refreshChainUI() {
-  renderChain(engine, pedalChain, pedalCardTemplate, {
+  const chainCallbacks = {
     onParamChange: async (instanceId, key, value) => { await engine.setParam(instanceId, key, value); autosave(); scheduleWavePreview(); },
     onToggle: (instanceId) => { engine.toggleEnabled(instanceId); refreshChainUI(); autosave(); },
     onRemove: (instanceId) => { engine.removeFromChain(instanceId); refreshChainUI(); autosave(); },
     onReorder: (newOrder) => { engine.reorderChain(newOrder); autosave(); scheduleWavePreview(); },
-  });
+    onLogoChange: (typeId, dataUrl) => {
+      if (dataUrl) ampLogos[typeId] = dataUrl; else delete ampLogos[typeId];
+      saveAmpLogos(ampLogos);
+      refreshChainUI();
+    },
+  };
+  renderChain(engine, pedalChain, pedalCardTemplate, chainCallbacks);
+  renderAmp(engine, ampSlot, ampCardTemplate, chainCallbacks, ampLogos);
   scheduleWavePreview();
 }
 
@@ -833,7 +844,9 @@ async function restoreState(state) {
   muteInputBtn.classList.toggle('active', muted);
   muteInputBtn.textContent = muted ? 'Muted' : 'Mute';
   masterVolRange.value = state.masterVolumePct; engine.setMasterVolumePct(state.masterVolumePct);
-  noiseGateEnabled.checked = state.noiseGate.enabled; engine.setNoiseGateEnabled(state.noiseGate.enabled);
+  // Always loads OFF, regardless of what a preset/demo/autosave saved — the user wants
+  // the gate to only ever come on from their own manual toggle, never automatically.
+  noiseGateEnabled.checked = false; engine.setNoiseGateEnabled(false);
   gateThreshold.value = state.noiseGate.threshold;
   engine.setNoiseGateParam('threshold', state.noiseGate.threshold);
   engine.setNoiseGateParam('holdMs', state.noiseGate.holdMs);

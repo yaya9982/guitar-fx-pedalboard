@@ -61,7 +61,7 @@
           <button type="button" id="noiseGateInfoBtn" class="hint-tag" title="What does this do?">?</button>
         </label>
         <span class="mini-toggle">
-          <input type="checkbox" id="noiseGateEnabled" checked>
+          <input type="checkbox" id="noiseGateEnabled">
           <label for="noiseGateEnabled"></label>
         </span>
         <label for="gateThreshold" class="mini-label">
@@ -118,7 +118,7 @@
         <div class="toolbar-actions">
           <button id="demoSetupsBtn" class="add-pedal-btn demo-btn" disabled title="Load a hand-tuned full pedalboard setup">&#9835; Demo Setups</button>
           <button id="clearSetupBtn" class="add-pedal-btn clear-btn" disabled title="Remove every pedal and amp from the board">&#10005; Clear Setup</button>
-          <button id="addPedalBtn" class="add-pedal-btn" disabled>+ Add Pedal</button>
+          <button id="addPedalBtn" class="add-pedal-btn" disabled>+ Add</button>
         </div>
       </div>
     </div>
@@ -126,6 +126,8 @@
     <div class="board-surface">
       <div id="pedalChain" class="pedal-chain"></div>
     </div>
+
+    <div id="ampSlot" class="amp-slot"></div>
   </section>
 
   <section id="panel-tuner" class="panel">
@@ -455,6 +457,37 @@
 
     <div class="stompbox-foot-row">
       <button class="pedal-footswitch" title="Bypass"><span class="led"></span></button>
+    </div>
+  </div>
+</template>
+
+<template id="ampCardTemplate">
+  <div class="amp-unit">
+    <span class="amp-corner amp-corner-tl" aria-hidden="true"></span>
+    <span class="amp-corner amp-corner-tr" aria-hidden="true"></span>
+    <span class="amp-corner amp-corner-bl" aria-hidden="true"></span>
+    <span class="amp-corner amp-corner-br" aria-hidden="true"></span>
+    <span class="amp-handle" aria-hidden="true"></span>
+
+    <div class="amp-header">
+      <span class="amp-power-switch" aria-hidden="true"></span>
+      <span class="pedal-header-actions">
+        <button class="pedal-info" title="What does this amp do?">?</button>
+        <button class="pedal-remove" title="Remove">&times;</button>
+      </span>
+    </div>
+
+    <div class="amp-control-panel">
+      <div class="pedal-knobs amp-knobs"></div>
+    </div>
+
+    <div class="amp-grille">
+      <div class="amp-plate">
+        <span class="pedal-label"></span>
+        <img class="amp-logo-img" alt="Custom amp logo" hidden>
+        <button class="amp-logo-reset pedal-remove" title="Remove custom logo" hidden>&times;</button>
+        <input type="file" accept="image/png" class="amp-logo-input" hidden>
+      </div>
     </div>
   </div>
 </template>

@@ -32,12 +32,15 @@ export class AudioEngine {
     this.stream = null;
     this.sourceNode = null;
     this.currentDeviceId = null;
-    this.chain = []; // [{ instanceId, kind, typeId, enabled, params, nodes, typeDef }]
+    this.chain = []; // pedals only: [{ instanceId, kind: 'pedal', typeId, enabled, params, nodes, typeDef }]
+    this.amp = { instance: null }; // single slot, always after the pedal chain — see setAmp()
     this.acousticSim = { enabled: false, instance: null };
     this.masterVolumePct = 100;
     this.inputGainPct = 100;
     this.inputMuted = false;
-    this.noiseGateEnabled = true;
+    // Off by default no matter what (never auto-enabled by a preset/demo/autosave load,
+    // see restoreState in main.js) — only the user's own manual toggle turns it on.
+    this.noiseGateEnabled = false;
     this.tunerVolumePct = 30; // level of the tuner's plucked reference tone, not the guitar signal
     this.denoiseEnabled = false; // opt-in: adds ~16-17ms latency, so off until asked for
     this.denoiseStrength = 50;
@@ -77,6 +80,9 @@ export class AudioEngine {
 
     this.spectralDenoiseNode = new AudioWorkletNode(ctx, 'spectral-denoise-processor');
     this.noiseGateNode = new AudioWorkletNode(ctx, 'noise-gate-processor');
+    // The worklet's own constructor defaults to enabled — sync it to the JS-side
+    // (off-by-default) flag immediately, so the two can't briefly disagree.
+    this.noiseGateNode.port.postMessage({ enabled: this.noiseGateEnabled });
     this.preChainTap = ctx.createGain(); // stable tap point for side-chain (envelope filter etc.)
 
     this.masterGain = ctx.createGain();
@@ -283,6 +289,8 @@ export class AudioEngine {
   }
 
   async addToChain(kind, typeId, presetParams) {
+    if (kind === 'amp') return this.setAmp(typeId, presetParams);
+
     const typeDef = this._getTypeDef(kind, typeId);
     if (!typeDef) throw new Error(`Unknown ${kind} type: ${typeId}`);
     const built = await Promise.resolve(typeDef.createNodes(this.ctx));
@@ -300,6 +308,28 @@ export class AudioEngine {
     return instance.instanceId;
   }
 
+  // Only one amp at a time, always after the whole pedal chain (see _rebuildChain) — a
+  // separate slot rather than a chain entry, same shape as the acousticSim slot below.
+  // Loading a new amp replaces whatever was there.
+  async setAmp(typeId, presetParams) {
+    const typeDef = getAmpType(typeId);
+    if (!typeDef) throw new Error(`Unknown amp type: ${typeId}`);
+    const built = await Promise.resolve(typeDef.createNodes(this.ctx));
+    const params = {};
+    typeDef.params.forEach((p) => { params[p.key] = presetParams && presetParams[p.key] !== undefined ? presetParams[p.key] : p.default; });
+
+    const instance = {
+      instanceId: nextId(), kind: 'amp', typeId, enabled: true, params,
+      nodes: built.nodes, input: built.input, output: built.output, typeDef,
+    };
+    for (const p of typeDef.params) await Promise.resolve(p.apply(instance.nodes, instance.params[p.key], this.ctx));
+
+    if (this.amp.instance) this._dispose(this.amp.instance);
+    this.amp.instance = instance;
+    this._rebuildChain();
+    return instance.instanceId;
+  }
+
   // Oscillators (LFOs, ring-mod carrier) are started at creation and never end on their
   // own, so a removed pedal must stop them or they leak for the life of the page.
   _dispose(inst) {
@@ -310,6 +340,12 @@ export class AudioEngine {
   }
 
   removeFromChain(instanceId) {
+    if (this.amp.instance?.instanceId === instanceId) {
+      this._dispose(this.amp.instance);
+      this.amp.instance = null;
+      this._rebuildChain();
+      return;
+    }
     const inst = this.chain.find((i) => i.instanceId === instanceId);
     if (inst) this._dispose(inst);
     this.chain = this.chain.filter((i) => i.instanceId !== instanceId);
@@ -319,11 +355,12 @@ export class AudioEngine {
   clearChain() {
     this.chain.forEach((inst) => this._dispose(inst));
     this.chain = [];
+    if (this.amp.instance) { this._dispose(this.amp.instance); this.amp.instance = null; }
     this._rebuildChain();
   }
 
   toggleEnabled(instanceId) {
-    const inst = this.chain.find((i) => i.instanceId === instanceId);
+    const inst = this.chain.find((i) => i.instanceId === instanceId) || (this.amp.instance?.instanceId === instanceId ? this.amp.instance : null);
     if (!inst) return;
     inst.enabled = !inst.enabled;
     this._rebuildChain();
@@ -331,7 +368,9 @@ export class AudioEngine {
   }
 
   async setParam(instanceId, key, value) {
-    const inst = this.chain.find((i) => i.instanceId === instanceId) || (this.acousticSim.instance?.instanceId === instanceId ? this.acousticSim.instance : null);
+    const inst = this.chain.find((i) => i.instanceId === instanceId)
+      || (this.amp.instance?.instanceId === instanceId ? this.amp.instance : null)
+      || (this.acousticSim.instance?.instanceId === instanceId ? this.acousticSim.instance : null);
     if (!inst) return;
     inst.params[key] = value;
     const paramDef = inst.typeDef.params.find((p) => p.key === key);
@@ -365,6 +404,7 @@ export class AudioEngine {
     // disconnect everything downstream of the stable tap point
     this.preChainTap.disconnect();
     this.chain.forEach((inst) => { try { inst.output.disconnect(); } catch (e) { /* already disconnected */ } });
+    if (this.amp.instance) { try { this.amp.instance.output.disconnect(); } catch (e) { /* noop */ } }
     if (this.acousticSim.instance) { try { this.acousticSim.instance.output.disconnect(); } catch (e) { /* noop */ } }
 
     const active = this.chain.filter((i) => i.enabled);
@@ -373,6 +413,11 @@ export class AudioEngine {
       node.connect(inst.input);
       node = inst.output;
       if (inst.sideChainInput) this.preChainTap.connect(inst.sideChainInput);
+    }
+
+    if (this.amp.instance && this.amp.instance.enabled) {
+      node.connect(this.amp.instance.input);
+      node = this.amp.instance.output;
     }
 
     if (this.acousticSim.enabled && this.acousticSim.instance) {
@@ -386,6 +431,11 @@ export class AudioEngine {
   }
 
   getChainSnapshot() {
-    return this.chain.map((i) => ({ instanceId: i.instanceId, kind: i.kind, typeId: i.typeId, enabled: i.enabled, params: { ...i.params } }));
+    const entries = this.chain.map((i) => ({ instanceId: i.instanceId, kind: i.kind, typeId: i.typeId, enabled: i.enabled, params: { ...i.params } }));
+    if (this.amp.instance) {
+      const a = this.amp.instance;
+      entries.push({ instanceId: a.instanceId, kind: a.kind, typeId: a.typeId, enabled: a.enabled, params: { ...a.params } });
+    }
+    return entries;
   }
 }
