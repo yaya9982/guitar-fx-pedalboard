@@ -1,5 +1,6 @@
 const PRESETS_KEY = 'guitarfx.presets.v1';
 const AUTOSAVE_KEY = 'guitarfx.autosave.v1';
+const AMP_LOGOS_KEY = 'guitarfx.ampLogos.v1';
 
 export function buildStateObject(engine) {
   return {
@@ -52,6 +53,19 @@ export function saveAutosave(state) {
 export function loadAutosave() {
   try { return JSON.parse(localStorage.getItem(AUTOSAVE_KEY)); }
   catch (e) { return null; }
+}
+
+// Custom amp logo badges (signature amps only, see renderAmp in ui.js) — keyed by amp
+// typeId, not by chain instance, and kept separate from the main preset/autosave blob
+// since a PNG data URL is far bigger than the rest of that state combined.
+export function loadAmpLogos() {
+  try { return JSON.parse(localStorage.getItem(AMP_LOGOS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+
+export function saveAmpLogos(logos) {
+  try { localStorage.setItem(AMP_LOGOS_KEY, JSON.stringify(logos)); }
+  catch (e) { alert('Could not save that image — your browser storage may be full.'); }
 }
 
 export function exportStateAsFile(state, filename = 'guitar-fx-preset.json') {

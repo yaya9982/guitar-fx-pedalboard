@@ -14,7 +14,7 @@ class NoiseGateProcessor extends AudioWorkletProcessor {
     this.envelope = 0;
     this.gain = 1;
     this.holdCounter = 0;
-    this.enabled = true;
+    this.enabled = false; // audio-engine.js posts the real initial value right after creating this node
     this.port.onmessage = (e) => {
       if (e.data && typeof e.data.enabled === 'boolean') this.enabled = e.data.enabled;
     };

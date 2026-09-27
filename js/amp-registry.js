@@ -37,6 +37,13 @@ async function createAmpNodes(ctx, cfg) {
     dynamicsNode.parameters.get('release').value = cfg.builtInCompressor.release;
   }
 
+  // User-adjustable tone stack, on top of each amp's own fixed pre/post voicing bands above —
+  // one shared frequency set across every amp (Bass/Middle/Treble knobs on a real amp panel
+  // don't vary the underlying circuit's tuning per model either).
+  const bassNode = ctx.createBiquadFilter(); bassNode.type = 'lowshelf'; bassNode.frequency.value = 120;
+  const midNode = ctx.createBiquadFilter(); midNode.type = 'peaking'; midNode.frequency.value = 700; midNode.Q.value = 1;
+  const trebleNode = ctx.createBiquadFilter(); trebleNode.type = 'highshelf'; trebleNode.frequency.value = 3000;
+
   const cabConvolver = ctx.createConvolver();
   cabConvolver.buffer = await generateCabIR(ctx.sampleRate, cfg.cab);
 
@@ -49,19 +56,27 @@ async function createAmpNodes(ctx, cfg) {
   preEQNodes.forEach((n) => { node.connect(n); node = n; });
   node.connect(shaper); node = shaper;
   postEQNodes.forEach((n) => { node.connect(n); node = n; });
+  node.connect(bassNode); node = bassNode;
+  node.connect(midNode); node = midNode;
+  node.connect(trebleNode); node = trebleNode;
   node.connect(cabConvolver);
   cabConvolver.connect(outputLevel);
 
   return {
     input: inputGain,
     output: outputLevel,
-    nodes: { inputGain, preEQNodes, shaper, postEQNodes, presenceNode, cabConvolver, outputLevel, driveRange: cfg.driveRange, presenceMaxDb: cfg.presenceMaxDb },
+    nodes: { inputGain, preEQNodes, shaper, postEQNodes, presenceNode, bassNode, midNode, trebleNode, cabConvolver, outputLevel, driveRange: cfg.driveRange, presenceMaxDb: cfg.presenceMaxDb },
   };
 }
 
 function ampParams() {
   return [
     { key: 'gain', label: 'Gain', min: 0, max: 100, default: 55, apply: (n, v) => { const [lo, hi] = n.driveRange; n.inputGain.gain.value = lo + (hi - lo) * (v / 100); } },
+    // 50 = noon/flat (0dB); left of noon cuts, right boosts — standard amp tone-knob feel,
+    // unlike Presence/Level below which are unidirectional 0..max/0..150% knobs.
+    { key: 'bass', label: 'Bass', min: 0, max: 100, default: 50, apply: (n, v) => (n.bassNode.gain.value = (v - 50) / 50 * 12) },
+    { key: 'mid', label: 'Middle', min: 0, max: 100, default: 50, apply: (n, v) => (n.midNode.gain.value = (v - 50) / 50 * 10) },
+    { key: 'treble', label: 'Treble', min: 0, max: 100, default: 50, apply: (n, v) => (n.trebleNode.gain.value = (v - 50) / 50 * 12) },
     { key: 'presence', label: 'Presence', min: 0, max: 100, default: 55, apply: (n, v) => { n.presenceNode.gain.value = (v / 100) * n.presenceMaxDb; } },
     { key: 'level', label: 'Level', min: 0, max: 150, default: 100, unit: '%', apply: (n, v) => (n.outputLevel.gain.value = v / 100) },
   ];
@@ -128,7 +143,7 @@ export const AMP_TYPES = [
   // Signature extras — band-inspired voicings, layered on top of the standard library.
   // ---------------------------------------------------------------------
   {
-    id: 'acdc', label: 'AC/DC', group: 'signature', color: '#874b4b', accent: '#fd5714', trim: '#e7e3c0',
+    id: 'acdc', label: 'AC/DC', group: 'signature', color: '#fe0100', accent: '#0d0503', trim: '#ac9e72',
     blurb: 'Tight, aggressive Marshall-plexi-style crunch — the sound of classic hard rock rhythm.',
     about: 'Signal hits a tight, fairly symmetric clipping curve with a highpassed low end and a boosted upper-mid peak, keeping each note of a chord distinct instead of smearing together under gain. AC/DC-inspired voicing evokes a tight, aggressive Marshall plexi-style crunch — punchy mids, controlled low end, and just enough grit for driving hard-rock rhythm without turning to mush on chords.',
     createNodes: (ctx) => createAmpNodes(ctx, {
@@ -174,24 +189,34 @@ export const AMP_TYPES = [
   },
   {
     id: 'oasis', label: 'Oasis', group: 'signature', color: '#dec182', accent: '#3e7474', trim: '#a3b49a',
-    blurb: 'Big, dense, wall-of-sound crunch — thick and bright, built for layered rhythm.',
-    about: 'Signal hits the hottest gain stage of the four signature amps, driving deep into saturation for thick harmonic density, while a scooped-mid, boosted-treble-and-presence EQ curve keeps that saturation from collapsing into mush when several guitar layers stack up. Oasis-inspired voicing goes for a dense, heavily-driven Marshall JCM "wall of sound" — the highest gain and brightest presence of the four signature amps, built to feel massive, especially with layered rhythm parts.',
+    blurb: 'Big, bright Britpop crunch — driven enough to feel massive, tuned to keep chords readable.',
+    about: 'Signal is driven hot into saturation for a thick, bright rhythm crunch, but the gain ceiling and EQ are deliberately reined in from a full "wall of sound" so strummed chords stay legible rather than turning into a wash — a lot of gain on several simultaneous notes creates intermodulation mush, and cutting mids (the classic scooped-metal move) removes the band chord-tone separation actually lives in. Oasis-inspired voicing goes for a bright, driven Marshall JCM rhythm tone built for chord-heavy Britpop strumming (Wonderwall, Don\'t Look Back in Anger, Champagne Supernova) rather than layered lead-guitar walls.',
     createNodes: (ctx) => createAmpNodes(ctx, {
-      driveRange: [8, 30], curveK: 12, oversample: '4x',
-      preEQ: [{ type: 'highpass', freq: 70 }, { type: 'peaking', freq: 1000, Q: 1, gain: 3 }],
+      // driveRange/curveK pulled back from an earlier [8,30]/k=12 (the hottest, most
+      // scooped config of the four signature amps) specifically because that combo
+      // shredded chord clarity — great for single-note riffs, mud on strummed chords.
+      driveRange: [6, 20], curveK: 9, oversample: '4x',
+      // tighter highpass (75Hz, was 70) keeps low strings from smearing into the clipper
+      preEQ: [{ type: 'highpass', freq: 75 }, { type: 'peaking', freq: 1000, Q: 1, gain: 3 }],
       postEQ: [
-        { type: 'peaking', freq: 3800, Q: 1, gain: 6 },
-        { type: 'peaking', freq: 500, Q: 1, gain: -3 },
+        // presence peak eased (was +6dB) — the old setting sat right on top of chord
+        // overtones and read as harsh/undefined once several notes were ringing together
+        { type: 'peaking', freq: 3800, Q: 1, gain: 4 },
+        // mid scoop nearly removed (was -3dB) — mids are where chord-tone separation
+        // lives; scooping them is what made strummed chords unreadable
+        { type: 'peaking', freq: 500, Q: 1, gain: -1 },
         { type: 'lowshelf', freq: 90, gain: 2 },
         { type: 'highshelf', freq: 6500, gain: 2 },
       ],
-      presenceBandIndex: 0, presenceMaxDb: 7,
-      cab: { resonanceHz: 3200, resonanceQ: 2.4, lowpassHz: 5200, highpassHz: 100, decayMs: 20, reflections: 3 },
+      presenceBandIndex: 0, presenceMaxDb: 5,
+      // tighter cab response (Q 2.4->2.0, decay 20ms->16ms) — a longer resonant ring
+      // blurs the onset of several simultaneous notes into each other
+      cab: { resonanceHz: 3200, resonanceQ: 2, lowpassHz: 5200, highpassHz: 100, decayMs: 16, reflections: 3 },
     }),
     params: ampParams(),
   },
   {
-    id: 'direstraits', label: 'Dire Straits', group: 'signature', color: '#3e6390', accent: '#9d2a2f', trim: '#dbdee6',
+    id: 'direstraits', label: 'Dire Straits', group: 'signature', color: '#6c90f9', accent: '#91838e', trim: '#dcddee',
     blurb: 'Glassy, clean, compressed Strat tone with a distinctive "quack."',
     about: 'Signal barely reaches the clipping threshold at all — the input gain stage is set very low, so almost no distortion harmonics are added. Instead a built-in compressor evens out picking dynamics and a scooped-mid, boosted-treble EQ curve produces the glassy "quack." Dire Straits-inspired voicing is a near-clean, subtly compressed tone with a glassy top end and the scooped-mid "quack" character associated with a single-coil Strat played clean. Barely any distortion — the character comes from the EQ shape and built-in compression, not grit.',
     createNodes: (ctx) => createAmpNodes(ctx, {

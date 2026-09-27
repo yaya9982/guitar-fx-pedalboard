@@ -819,40 +819,222 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 }
 .pedal-stompbox:not(.disabled-pedal) .pedal-footswitch .led::after { opacity: 0.9; }
 
-/* Signature amps carry a real head-amp construction: a tolex body in --pedal-color, a
-   contrasting control-panel strip in --pedal-accent behind the knobs, and a thin piping/
-   welt trim line in --pedal-trim around the edge — each amp's three tones come from a
-   palette extracted (as plain numbers, not the artwork itself) from that band's actual
-   album cover, so the four signature amps read as distinct hardware, not one shared skin. */
-.pedal-stompbox.amp-card {
+/* ---------- amp unit: its own big element below the board, not a stompbox ---------- */
+/* Real head-amp construction: a tolex body in --pedal-color, a contrasting control-panel
+   strip in --pedal-accent behind the knobs, cloth grille below, and a chrome brand plate
+   showing the amp's own name — each signature amp's three tones come from a palette
+   extracted (as plain numbers, not the artwork itself) from that band's actual album
+   cover, so the four signature amps read as distinct hardware, not one shared skin.
+   Referenced from sources/photos/amp.PNG, amp_fender.jpg, amp_marshall.webp. */
+
+.amp-slot { width: 100%; margin-top: var(--space-lg); }
+.amp-slot:empty::before {
+  content: "No amp loaded — add one from + Add";
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; min-height: 90px;
+  border: 2px dashed color-mix(in oklch, var(--brass) 35%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in oklch, var(--brass) 6%, transparent);
+  color: var(--text-dim); font-size: 12.5px; letter-spacing: 0.3px;
+}
+
+.amp-unit {
+  --pedal-color: oklch(60% 0.1 250);
   --pedal-accent: color-mix(in oklch, var(--pedal-color) 30%, #202226 70%);
   --pedal-trim: color-mix(in oklch, var(--pedal-color) 60%, white 40%);
-  min-width: 196px;
+  position: relative;
+  width: 100%;
+  /* Wide head-unit proportion (see amp_marshall.webp) so full board width doesn't turn
+     into an absurdly tall panel — one variable, tune here if the shape needs adjusting. */
+  aspect-ratio: var(--amp-aspect, 2.6 / 1);
+  display: flex; flex-direction: column;
+  border-radius: 18px; /* the doc's largest documented radius step (4xl), matching a much-bigger-than-pedal unit */
+  padding: 16px 24px 0;
+  color: oklch(98% 0.01 90);
   background:
-    radial-gradient(ellipse 90% 40% at 50% 6%, rgba(255,255,255,0.15) 0%, transparent 60%),
-    repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 3px),
-    linear-gradient(180deg, color-mix(in oklch, var(--pedal-color) 70%, #4a4d52 30%) 0%, color-mix(in oklch, var(--pedal-color) 46%, #202226 54%) 100%);
-  border-color: color-mix(in oklch, var(--pedal-color) 35%, black 65%);
-  box-shadow: 0 20px 30px -14px rgba(0, 0, 0, 0.75), 0 6px 12px -4px rgba(0, 0, 0, 0.55);
-  outline: 2px solid color-mix(in oklch, var(--pedal-trim) 70%, transparent);
-  outline-offset: -2px;
+    radial-gradient(ellipse 90% 35% at 50% 4%, rgba(255,255,255,0.16) 0%, transparent 55%),
+    repeating-linear-gradient(100deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 3px),
+    linear-gradient(175deg,
+      color-mix(in oklch, var(--pedal-color) 68%, #3a3d43 32%) 0%,
+      color-mix(in oklch, var(--pedal-color) 46%, #17191d 54%) 55%,
+      color-mix(in oklch, var(--pedal-color) 30%, #0a0b0d 70%) 100%);
+  border: 3px solid color-mix(in oklch, var(--pedal-color) 35%, black 65%);
+  box-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.18) inset,
+    0 -8px 20px rgba(0, 0, 0, 0.4) inset,
+    0 26px 40px -18px rgba(0, 0, 0, 0.8),
+    0 10px 18px -6px rgba(0, 0, 0, 0.6);
 }
-.pedal-stompbox.amp-card .pedal-label {
+.amp-unit.disabled-pedal { filter: saturate(0.35) brightness(0.72); }
+
+/* chrome corner protectors, same metal-stays-metal language as pedal screws/jacks */
+.amp-corner {
+  position: absolute; width: 24px; height: 24px; z-index: 2;
+  background: radial-gradient(circle at 30% 25%, var(--chrome-hi), var(--chrome-lo) 60%, #2b2d31 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+.amp-corner-tl { top: 0; left: 0; clip-path: polygon(0 0, 100% 0, 0 100%); }
+.amp-corner-tr { top: 0; right: 0; clip-path: polygon(0 0, 100% 0, 100% 100%); }
+.amp-corner-bl { bottom: 0; left: 0; clip-path: polygon(0 0, 100% 100%, 0 100%); }
+.amp-corner-br { bottom: 0; right: 0; clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+
+/* top carrying handle */
+.amp-handle {
+  position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+  width: 16%; min-width: 90px; max-width: 170px; height: 16px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #2e2e2e, #0c0c0c);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 -2px 3px rgba(0, 0, 0, 0.6);
+  z-index: 1;
+}
+
+.amp-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 2px 2px 8px;
+  position: relative; z-index: 2;
+}
+/* decorative power/standby rocker, like the Marshall/Fender panels' own switches */
+.amp-power-switch {
+  width: 20px; height: 11px; border-radius: 3px; position: relative;
+  background: linear-gradient(180deg, #3a3c40, #1b1c1e);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7), 0 1px 1px rgba(255, 255, 255, 0.08);
+}
+.amp-power-switch::after {
+  content: ""; position: absolute; left: 2px; top: 2px; width: 6px; height: 7px; border-radius: 2px;
+  background: linear-gradient(180deg, var(--chrome-hi), var(--chrome-lo));
+}
+/* recessed metal control-panel strip — sized to fit its content (not flex-grow), so the
+   grille below gets the rest of the unit's height. On a real combo (see amp_fender.jpg)
+   the control strip is a thin band and the grille dominates the front face; see .amp-grille. */
+.amp-control-panel {
+  position: relative; z-index: 2;
+  flex: 0 0 auto;
+  display: flex; align-items: center;
+  border-radius: 8px;
+  margin: 0 -4px 10px;
+  padding: 10px 16px 6px;
+  background: color-mix(in oklch, var(--pedal-accent) 88%, black 12%);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.amp-knobs {
+  width: 100%;
+  display: flex; flex-direction: row; flex-wrap: wrap;
+  align-items: center; justify-content: space-evenly;
+  gap: 4px 12px;
+}
+/* Reuses the exact knob-dial component from buildParamRow() in js/ui.js (same markup,
+   same JS-driven --knob-angle) — zoom scales only the dial itself as one unit (layout
+   included, unlike transform: scale()), so the amp's knobs read as bigger real-amp pots
+   while the label/value text stays the same size as a pedal's, for consistency across
+   the board. The row widens to fit the now-bigger dial; text size is untouched. */
+.amp-knobs .knob-row { width: 110px; }
+.amp-knobs .knob-dial-wrap { zoom: 1.55; }
+.amp-knobs .knob-row label { color: color-mix(in oklch, var(--pedal-trim) 80%, white 20%); }
+/* AC/DC and Led Zeppelin both have a near-black --pedal-accent (their control-panel
+   fill), so the range slider's own near-black track (see input[type="range"] above)
+   disappeared into it — the thumb stayed visible, but the bar it moves along didn't.
+   Recolor the track to each amp's own trim tone, already chosen to read against a dark body. */
+.amp-unit[data-amp-type="acdc"] .amp-knobs input[type="range"]::-webkit-slider-runnable-track,
+.amp-unit[data-amp-type="ledzeppelin"] .amp-knobs input[type="range"]::-webkit-slider-runnable-track {
+  background: var(--pedal-trim);
+}
+.amp-unit[data-amp-type="acdc"] .amp-knobs input[type="range"]::-moz-range-track,
+.amp-unit[data-amp-type="ledzeppelin"] .amp-knobs input[type="range"]::-moz-range-track {
+  background: var(--pedal-trim);
+}
+
+/* cloth grille: a plain CSS crosshatch reads as woven fabric without the overhead of
+   the dynamic SVG weave pattern ui.js builds for patch cables (that one only exists
+   because it's drawn per-frame inside an SVG; a static background needs none of that). */
+.amp-grille {
+  position: relative; z-index: 1;
+  flex: 1 1 auto; /* absorbs all height left over from the fixed-size control panel above */
+  margin: 0 -24px;
+  padding: 14px 24px;
+  border-radius: 0 0 18px 18px;
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.35) 0 1px, transparent 1px 5px),
+    linear-gradient(180deg,
+      color-mix(in oklch, var(--pedal-color) 20%, #0c0d0f 80%),
+      color-mix(in oklch, var(--pedal-color) 10%, #050506 90%));
+  box-shadow: inset 0 6px 14px rgba(0, 0, 0, 0.65), inset 0 -2px 0 rgba(255, 255, 255, 0.03);
+  display: flex; align-items: center; justify-content: center;
+}
+/* brand plate: the amp's own name (e.g. "AC/DC", "Lead / High-Gain"), never a borrowed
+   wordmark — same rule the signature amps' palette-only borrowing already follows.
+   Sized to the center third of the grille in both axes (not content-sized) so it reads
+   as a real fixed badge/window rather than a text label that happens to have a background. */
+.amp-plate {
+  position: relative;
+  width: 33.34%;
+  height: 33.34%;
+  min-width: 96px;
+  min-height: 40px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  text-align: center;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.35));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+/* Per-signature-amp plate color, requested independently of the tolex/panel/trim
+   palette above — light badge colors distinct enough to need their own dark label
+   color (see the .pedal-label overrides below), not the trim-tinted light text that
+   works on the plate's default near-black background. */
+.amp-unit[data-amp-type="acdc"] .amp-plate { background: oklch(87% 0.06 25); }
+.amp-unit[data-amp-type="ledzeppelin"] .amp-plate { background: oklch(88% 0.006 260); }
+.amp-unit[data-amp-type="oasis"] .amp-plate { background: oklch(98% 0.003 90); }
+.amp-unit[data-amp-type="direstraits"] .amp-plate { background: oklch(88% 0.05 250); }
+.amp-unit[data-amp-type="acdc"] .amp-plate .pedal-label,
+.amp-unit[data-amp-type="ledzeppelin"] .amp-plate .pedal-label,
+.amp-unit[data-amp-type="oasis"] .amp-plate .pedal-label,
+.amp-unit[data-amp-type="direstraits"] .amp-plate .pedal-label {
+  color: oklch(20% 0.015 260);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+/* Signature amps only (see renderAmp in js/ui.js): the plate becomes a click target for
+   swapping in a custom logo PNG, stored per amp type in localStorage. */
+.amp-plate.logo-editable {
+  cursor: pointer;
+  outline: 1.5px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color 0.12s var(--ease-out);
+}
+.amp-plate.logo-editable:hover {
+  outline-color: color-mix(in oklch, var(--pedal-trim) 60%, transparent);
+}
+/* :not([hidden]) rather than a bare .amp-logo-img rule — an unconditional display:block
+   here would override the browser's default [hidden] { display: none }, since an author
+   rule beats a User-Agent rule regardless of selector specificity, defeating the
+   img.hidden = true toggle in renderAmp (js/ui.js). */
+.amp-logo-img:not([hidden]) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.amp-logo-reset {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+}
+.amp-plate .pedal-label {
+  font-family: var(--font-display);
+  font-size: clamp(14px, 2.4vw, 22px);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding-right: 0;
+  /* solid trim color + shadow, same treatment .pedal-label already gets on a pedal card —
+     chrome/metal in this system is always a literal gradient shape (screws, jack, dial),
+     never gradient-filled text. */
   color: color-mix(in oklch, var(--pedal-trim) 85%, white 15%);
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
 }
-.pedal-stompbox.amp-card .pedal-label::after {
-  content: "AMP"; display: block; font-family: var(--font-mono); font-size: 8px; font-weight: 700;
-  letter-spacing: 1.6px; color: color-mix(in oklch, var(--pedal-trim) 70%, transparent 30%); opacity: 0.9;
-  margin-top: 2px;
-}
-.pedal-stompbox.amp-card .pedal-knobs {
-  padding: 12px 10px 8px; margin: 0 -2px;
-  border-radius: 6px;
-  background: color-mix(in oklch, var(--pedal-accent) 88%, black 12%);
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.35);
-}
-.pedal-stompbox.amp-card .knob-row label { color: color-mix(in oklch, var(--pedal-trim) 80%, white 20%); }
 
 .pedal-select {
   width: 88%;
@@ -882,6 +1064,13 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   flex-wrap: wrap;
   gap: 3px 8px;
   align-content: flex-start;
+}
+.add-menu-note {
+  flex-basis: 100%;
+  font-size: 11px; /* the project's documented 11px floor — no functional label goes smaller */
+  line-height: 1.4;
+  color: var(--text-dim);
+  margin: 2px 4px 6px;
 }
 .add-menu-heading {
   flex-basis: 100%;
@@ -1177,4 +1366,7 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   .topbar { flex-direction: column; align-items: stretch; }
   .topbar-right { justify-content: space-between; }
   .pedal-stompbox { width: 100%; max-width: 220px; }
+  /* taller/squarer on narrow screens so the control panel has room and knobs don't crush */
+  .amp-unit { --amp-aspect: 1.5 / 1; }
+  .amp-knobs { zoom: 1.15; }
 }
