@@ -1,5 +1,5 @@
 import { AudioEngine } from './audio-engine.js?v=13';
-import { renderChain, renderAmp, showAddMenu, showDemoMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=1';
+import { renderChain, renderAmp, showAddMenu, showDemoMenu, showSavePresetPopover, showPresetMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=1';
 import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js';
 import { Tuner, GUITAR_STRINGS, centsFromTarget } from './tuner.js?v=3';
@@ -75,11 +75,8 @@ const beatPresetRow = $('beatPresetRow');
 const beatTempoRange = $('beatTempoRange');
 const beatTempoInput = $('beatTempoInput');
 
-const presetName = $('presetName');
 const presetSaveBtn = $('presetSaveBtn');
-const presetList = $('presetList');
-const presetExportBtn = $('presetExportBtn');
-const presetImportInput = $('presetImportInput');
+const presetBrowseBtn = $('presetBrowseBtn');
 
 const engine = new AudioEngine();
 window.engine = engine; // exposed for console-driven testing (inject synthetic notes, inspect chain state)
@@ -336,6 +333,8 @@ enableAudioBtn.addEventListener('click', async () => {
     inputDeviceSelect.disabled = false;
     startLiveLatencyLoop();
     addPedalBtn.disabled = false;
+    presetSaveBtn.disabled = false;
+    presetBrowseBtn.disabled = false;
     demoSetupsBtn.disabled = false;
     clearSetupBtn.disabled = false;
     muteInputBtn.disabled = false;
@@ -364,7 +363,6 @@ enableAudioBtn.addEventListener('click', async () => {
     if (autosaved) await restoreState(autosaved);
     else await loadDefaultChain();
 
-    refreshPresetList();
     requestAnimationFrame(meterLoop);
   } catch (err) {
     enableAudioBtn.disabled = false;
@@ -867,49 +865,26 @@ async function restoreState(state) {
   refreshChainUI();
 }
 
-function refreshPresetList() {
-  presetList.innerHTML = '';
-  loadPresetList().forEach((p) => {
-    const li = document.createElement('li');
-    const nameSpan = document.createElement('span');
-    nameSpan.textContent = p.name;
-    const actions = document.createElement('span');
-    actions.className = 'preset-actions';
-    const loadBtn = document.createElement('button');
-    loadBtn.textContent = 'Load';
-    loadBtn.addEventListener('click', async () => { await restoreState(p.state); autosave(); });
-    const delBtn = document.createElement('button');
-    delBtn.textContent = 'Delete';
-    delBtn.addEventListener('click', () => { deletePreset(p.name); refreshPresetList(); });
-    actions.appendChild(loadBtn); actions.appendChild(delBtn);
-    li.appendChild(nameSpan); li.appendChild(actions);
-    presetList.appendChild(li);
-  });
-}
-
 presetSaveBtn.addEventListener('click', () => {
   if (!engine.isReady) return;
-  const name = presetName.value.trim();
-  if (!name) return;
-  savePreset(name, buildStateObject(engine));
-  presetName.value = '';
-  refreshPresetList();
+  showSavePresetPopover(presetSaveBtn, (name) => {
+    savePreset(name, buildStateObject(engine));
+  });
 });
 
-presetExportBtn.addEventListener('click', () => {
-  if (!engine.isReady) return;
-  exportStateAsFile(buildStateObject(engine));
-});
-
-presetImportInput.addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  try {
-    const state = await importStateFromFile(file);
-    await restoreState(state);
-    autosave();
-  } catch (err) {
-    alert('Could not read that preset file: ' + err.message);
-  }
-  e.target.value = '';
+presetBrowseBtn.addEventListener('click', () => {
+  showPresetMenu(presetBrowseBtn, loadPresetList(), {
+    onLoad: async (preset) => { await restoreState(preset.state); autosave(); },
+    onDelete: (name) => deletePreset(name),
+    onExport: () => { if (engine.isReady) exportStateAsFile(buildStateObject(engine)); },
+    onImport: async (file) => {
+      try {
+        const state = await importStateFromFile(file);
+        await restoreState(state);
+        autosave();
+      } catch (err) {
+        alert('Could not read that preset file: ' + err.message);
+      }
+    },
+  });
 });

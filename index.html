@@ -39,7 +39,6 @@
   <button class="tab-btn active" data-tab="board"><span class="tab-led"></span>Pedalboard</button>
   <button class="tab-btn" data-tab="tuner"><span class="tab-led"></span>Tuner</button>
   <button class="tab-btn" data-tab="looper"><span class="tab-led"></span>Looper</button>
-  <button class="tab-btn" data-tab="presets"><span class="tab-led"></span>Presets</button>
   <button class="tab-btn" data-tab="info"><span class="tab-led"></span>Information</button>
 </nav>
 
@@ -116,6 +115,8 @@
           <canvas id="waveCanvas" width="320" height="52" class="scope" title="How a plain sine wave would hypothetically look after your current pedal chain"></canvas>
         </div>
         <div class="toolbar-actions">
+          <button id="presetSaveBtn" class="add-pedal-btn" disabled title="Save your current setup as a named preset">Save Preset</button>
+          <button id="presetBrowseBtn" class="add-pedal-btn" disabled title="Load, delete, export or import your saved presets">Browse Presets</button>
           <button id="demoSetupsBtn" class="add-pedal-btn demo-btn" disabled title="Load a hand-tuned full pedalboard setup">&#9835; Demo Setups</button>
           <button id="clearSetupBtn" class="add-pedal-btn clear-btn" disabled title="Remove every pedal and amp from the board">&#10005; Clear Setup</button>
           <button id="addPedalBtn" class="add-pedal-btn" disabled>+ Add</button>
@@ -220,21 +221,6 @@
           </div>
           <div id="beatPresetRow" class="beat-preset-row"></div>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <section id="panel-presets" class="panel">
-    <div class="presets-box">
-      <div class="presets-rack-label">Presets</div>
-      <div class="presets-row">
-        <input type="text" id="presetName" placeholder="Preset name" />
-        <button id="presetSaveBtn">Save Preset</button>
-      </div>
-      <ul id="presetList" class="preset-list"></ul>
-      <div class="presets-row">
-        <button id="presetExportBtn">Export JSON</button>
-        <label class="file-btn">Import JSON<input type="file" id="presetImportInput" accept="application/json" hidden></label>
       </div>
     </div>
   </section>

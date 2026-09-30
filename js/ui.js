@@ -627,6 +627,116 @@ export function showDemoMenu(anchorEl, demos, onPick) {
   setTimeout(() => document.addEventListener('click', closeOnOutside, true), 0);
 }
 
+// Small popover anchored under the "Save Preset" toolbar button — a name field plus a
+// confirm button, replacing the old dedicated Presets tab's always-visible input row.
+export function showSavePresetPopover(anchorEl, onSave) {
+  document.querySelectorAll('.save-preset-popover').forEach((m) => m.remove());
+  const popover = document.createElement('div');
+  popover.className = 'save-preset-popover';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'Preset name';
+  const saveBtn = document.createElement('button');
+  saveBtn.textContent = 'Save';
+  popover.appendChild(input);
+  popover.appendChild(saveBtn);
+  document.body.appendChild(popover);
+
+  const rect = anchorEl.getBoundingClientRect();
+  popover.style.top = `${rect.bottom + window.scrollY + 6}px`;
+  popover.style.left = `${Math.min(rect.left + window.scrollX, window.innerWidth - popover.offsetWidth - 16)}px`;
+
+  const commit = () => {
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    onSave(name);
+    popover.remove();
+  };
+  saveBtn.addEventListener('click', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); popover.remove(); }
+  });
+
+  const closeOnOutside = (e) => {
+    if (!popover.contains(e.target) && e.target !== anchorEl) {
+      popover.remove();
+      document.removeEventListener('click', closeOnOutside, true);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', closeOnOutside, true), 0);
+  input.focus();
+}
+
+// Scrollable popover anchored under the "Browse Presets" toolbar button — the saved-
+// preset list (with per-row Load/Delete) plus Export/Import, replacing the old
+// dedicated Presets tab. callbacks: { onLoad(preset), onDelete(name), onExport(), onImport(file) }.
+export function showPresetMenu(anchorEl, presets, callbacks) {
+  document.querySelectorAll('.preset-menu').forEach((m) => m.remove());
+  const menu = document.createElement('div');
+  menu.className = 'preset-menu';
+
+  const list = document.createElement('div');
+  list.className = 'preset-menu-list';
+  if (presets.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'preset-menu-empty';
+    empty.textContent = 'No saved presets yet.';
+    list.appendChild(empty);
+  }
+  presets.forEach((p) => {
+    const row = document.createElement('div');
+    row.className = 'preset-menu-item';
+    const name = document.createElement('span');
+    name.className = 'preset-menu-name';
+    name.textContent = p.name;
+    const actions = document.createElement('span');
+    actions.className = 'preset-menu-actions';
+    const loadBtn = document.createElement('button');
+    loadBtn.textContent = 'Load';
+    loadBtn.addEventListener('click', () => { callbacks.onLoad(p); menu.remove(); });
+    const delBtn = document.createElement('button');
+    delBtn.textContent = 'Delete';
+    delBtn.addEventListener('click', () => { callbacks.onDelete(p.name); row.remove(); });
+    actions.appendChild(loadBtn); actions.appendChild(delBtn);
+    row.appendChild(name); row.appendChild(actions);
+    list.appendChild(row);
+  });
+  menu.appendChild(list);
+
+  const ioRow = document.createElement('div');
+  ioRow.className = 'preset-menu-io';
+  const exportBtn = document.createElement('button');
+  exportBtn.textContent = 'Export JSON';
+  exportBtn.addEventListener('click', () => callbacks.onExport());
+  const importLabel = document.createElement('label');
+  importLabel.className = 'file-btn';
+  importLabel.textContent = 'Import JSON';
+  const importInput = document.createElement('input');
+  importInput.type = 'file'; importInput.accept = 'application/json'; importInput.hidden = true;
+  importInput.addEventListener('change', () => {
+    const file = importInput.files && importInput.files[0];
+    if (file) callbacks.onImport(file);
+    menu.remove();
+  });
+  importLabel.appendChild(importInput);
+  ioRow.appendChild(exportBtn); ioRow.appendChild(importLabel);
+  menu.appendChild(ioRow);
+
+  document.body.appendChild(menu);
+  const rect = anchorEl.getBoundingClientRect();
+  menu.style.top = `${rect.bottom + window.scrollY + 6}px`;
+  menu.style.left = `${Math.min(rect.left + window.scrollX, window.innerWidth - menu.offsetWidth - 16)}px`;
+
+  const closeOnOutside = (e) => {
+    if (!menu.contains(e.target) && e.target !== anchorEl) {
+      menu.remove();
+      document.removeEventListener('click', closeOnOutside, true);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', closeOnOutside, true), 0);
+}
+
 export function drawWaveform(buffer, canvas) {
   const ctx2d = canvas.getContext('2d');
   const { width, height } = canvas;
