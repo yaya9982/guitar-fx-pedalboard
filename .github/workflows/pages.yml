@@ -1,9 +1,14 @@
 name: Deploy Pages
 
-# Publishes master at the site root. Runs on pushes to master, and can be re-run manually.
+# Publishes master at the site root, and the pedal-realistic-ui branch at
+# /pedal-realistic-ui/ as a persistent preview. Both are checked out into
+# every build regardless of which ref triggered it, so a push to master
+# doesn't wipe out the branch preview subfolder (the official Pages deploy
+# action replaces the whole site on every run, so both must be rebuilt
+# together each time rather than updated incrementally).
 on:
   push:
-    branches: [master]
+    branches: [master, pedal-realistic-ui]
   workflow_dispatch:
 
 permissions:
@@ -25,9 +30,17 @@ jobs:
           ref: master
           path: site
 
+      - name: Checkout pedal-realistic-ui preview branch
+        uses: actions/checkout@v4
+        continue-on-error: true # don't break master's deploy if this branch is later deleted
+        with:
+          ref: pedal-realistic-ui
+          path: site/pedal-realistic-ui
+
       - name: Strip git metadata, disable Jekyll processing
         run: |
           rm -rf site/.git
+          rm -rf site/pedal-realistic-ui/.git
           touch site/.nojekyll
 
       - name: Upload Pages artifact
