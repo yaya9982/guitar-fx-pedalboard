@@ -1,0 +1,447 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Dynamics/EQ/Wah pedal fidelity tests</title>
+<style>
+  body { font: 14px/1.5 monospace; background: #111; color: #ddd; padding: 20px; }
+  .pass { color: #4caf50; } .fail { color: #f44336; } h2 { margin-top: 28px; }
+</style>
+</head>
+<body>
+<h1>Dynamics/EQ/Wah pedal fidelity tests</h1>
+<div id="out">running...</div>
+<script type="module">
+  import { getPedalType } from './js/pedal-registry.js';
+
+  const out = document.getElementById('out');
+  const lines = [];
+  const log = (ok, msg) => lines.push(`<div class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'} — ${msg}</div>`);
+  const close = (a, b, tol) => Math.abs(a - b) <= tol;
+
+  // Same pattern as test-pedals.html: worklet modules must be registered per-OfflineAudioContext.
+  async function freshCtx(length = 1, sampleRate = 44100) {
+    const ctx = new OfflineAudioContext(1, length, sampleRate);
+    await ctx.audioWorklet.addModule('./js/dynamics-worklet.js');
+    await ctx.audioWorklet.addModule('./js/noise-gate-worklet.js');
+    await ctx.audioWorklet.addModule('./js/pitch-worklet.js');
+    return ctx;
+  }
+
+  async function render(pedal, paramOverrides, seconds = 1, toneHz = 220) {
+    const ctx = await freshCtx(44100 * seconds, 44100);
+    const src = ctx.createOscillator(); src.frequency.value = toneHz; src.type = 'sine';
+    const nodes = await pedal.createNodes(ctx);
+    src.connect(nodes.input);
+    nodes.output.connect(ctx.destination);
+    for (const p of pedal.params) {
+      const v = paramOverrides[p.key] ?? p.default;
+      p.apply(nodes.nodes, v, ctx);
+    }
+    src.start();
+    return ctx.startRendering();
+  }
+
+  function rms(buf) {
+    const d = buf.getChannelData(0);
+    let sum = 0; for (let i = 0; i < d.length; i++) sum += d[i] * d[i];
+    return Math.sqrt(sum / d.length);
+  }
+
+  // --- Shared dynamics-processor helpers (used for both Vintage Comp and CS-3, since
+  // both are thin configurations of the same js/dynamics-worklet.js core) ---
+
+  // Mirrors the worklet's own knee-computer formula exactly, so we can check the real
+  // audio render's steady-state gain reduction against the documented math, not just
+  // trust the worklet blindly.
+  function expectedReductionDb(levelDb, threshold, ratio, knee) {
+    const over = levelDb - threshold;
+    const halfKnee = knee / 2;
+    if (knee > 0 && over > -halfKnee && over < halfKnee) {
+      const kneeOver = over + halfKnee;
+      return ((1 / ratio - 1) * kneeOver * kneeOver) / (2 * knee);
+    } else if (over >= halfKnee) {
+      return (1 / ratio - 1) * over;
+    }
+    return 0;
+  }
+
+  // Feeds a constant (DC) level into a directly-configured dynamics-processor node
+  // (bypassing the pedal wrapper) rather than an oscillating tone. This is deliberate,
+  // not a simplification of convenience: the worklet's level detector reads the raw
+  // instantaneous |sample| every sample (no peak-hold/rectifier-style detector), so an
+  // oscillating sine's level swings from full amplitude down to ~0 at every zero
+  // crossing, and the gain-computer's *target* rides along with it — the true settled
+  // "steady state" for a sine input isn't the same as the constant-level target formula
+  // predicts (confirmed separately, see the step-response tests below). A constant-level
+  // input has no such ripple, so this measures the pure knee/ratio/threshold formula in
+  // isolation from that (real, separately-flagged) detector behavior. Attack/release are
+  // set short only so it settles quickly; with a constant level they don't affect the
+  // final settled value at all.
+  async function measureSteadyReductionDb(threshold, ratio, knee, levelDb, seconds = 0.3) {
+    const len = Math.floor(44100 * seconds);
+    const ctx = await freshCtx(len, 44100);
+    const comp = new AudioWorkletNode(ctx, 'dynamics-processor');
+    comp.parameters.get('threshold').value = threshold;
+    comp.parameters.get('ratio').value = ratio;
+    comp.parameters.get('knee').value = knee;
+    comp.parameters.get('attack').value = 0.005;
+    comp.parameters.get('release').value = 0.02;
+    const amp = Math.pow(10, levelDb / 20);
+    const buf = ctx.createBuffer(1, len, 44100);
+    buf.getChannelData(0).fill(amp);
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    src.connect(comp).connect(ctx.destination);
+    src.start();
+    const outBuf = await ctx.startRendering();
+    const d = outBuf.getChannelData(0);
+    const out = Math.abs(d[d.length - 1]);
+    const outDb = out > 1e-9 ? 20 * Math.log10(out) : -200;
+    return outDb - levelDb;
+  }
+
+  // Builds a step input (quiet, well below threshold -> loud, constant DC level) and runs
+  // it through a directly-configured dynamics-processor node with the REAL attack/release
+  // values a pedal uses, so we can trace the actual gain-vs-time trajectory. DC (not a
+  // tone) so the target is truly constant post-step, matching the classic single-pole
+  // step-response math used to check the ~1.5s time constant claim.
+  async function stepResponse(threshold, ratio, knee, attack, release, levelDb, seconds) {
+    const len = Math.floor(44100 * seconds);
+    const ctx = await freshCtx(len, 44100);
+    const comp = new AudioWorkletNode(ctx, 'dynamics-processor');
+    comp.parameters.get('threshold').value = threshold;
+    comp.parameters.get('ratio').value = ratio;
+    comp.parameters.get('knee').value = knee;
+    comp.parameters.get('attack').value = attack;
+    comp.parameters.get('release').value = release;
+    const quietAmp = Math.pow(10, (threshold - 40) / 20);
+    const loudAmp = Math.pow(10, levelDb / 20);
+    const halfway = Math.floor(len / 2);
+    const buf = ctx.createBuffer(1, len, 44100);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = i < halfway ? quietAmp : loudAmp;
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    src.connect(comp).connect(ctx.destination);
+    src.start();
+    const outBuf = await ctx.startRendering();
+    return { output: outBuf.getChannelData(0), halfway, loudAmp, quietAmp, sampleRate: 44100 };
+  }
+
+  // Gain-in-dB at a given sample offset from `halfway`. With a DC step input the output
+  // is a smooth, non-oscillating envelope, so a single sample is exact (no need to hunt
+  // for a peak).
+  function gainDbAt({ output, halfway, loudAmp }, offsetSamples) {
+    const idx = Math.min(output.length - 1, Math.max(0, halfway + offsetSamples));
+    const v = Math.abs(output[idx]);
+    const outDb = v > 1e-9 ? 20 * Math.log10(v) : -200;
+    return outDb - 20 * Math.log10(loudAmp);
+  }
+
+  // =========================================================================
+  // Vintage Comp
+  // =========================================================================
+  {
+    const vc = getPedalType('vintagecomp');
+    const built = vc.createNodes(await freshCtx());
+    const p = vc.params;
+
+    log(p.length === 1 && p[0].key === 'sensitivity', 'Vintage Comp exposes exactly one knob: Sensitivity');
+    log(p[0].min === 0 && p[0].max === 100 && p[0].default === 50, `Vintage Comp Sensitivity range is 0-100, default 50 (found min=${p[0].min}, max=${p[0].max}, default=${p[0].default})`);
+
+    log(built.nodes.comp.parameters.get('attack').value === 1.5 && built.nodes.comp.parameters.get('release').value === 1.5,
+        'Vintage Comp attack and release are both fixed at 1.5s');
+
+    // Knee=6 / ratio=8 are internal engineering choices, not values PEDAL-RESEARCH.md's
+    // §3 row specifies (it only documents the ~1.5s time constant and "no exposed
+    // ratio/knee knobs"). Not a bug — just recording the actual fixed values so a future
+    // change to them is caught here.
+    log(built.nodes.comp.parameters.get('knee').value === 6, `Vintage Comp fixed knee is 6dB (soft-ish, undocumented-by-research internal choice)`);
+    log(built.nodes.comp.parameters.get('ratio').value === 8, `Vintage Comp fixed ratio is 8:1 (undocumented-by-research internal choice)`);
+
+    // Sensitivity -> threshold mapping, at min/default/max.
+    const nodesLo = vc.createNodes(await freshCtx()); p[0].apply(nodesLo.nodes, 0);
+    const nodesDef = vc.createNodes(await freshCtx()); p[0].apply(nodesDef.nodes, 50);
+    const nodesHi = vc.createNodes(await freshCtx()); p[0].apply(nodesHi.nodes, 100);
+    log(close(nodesLo.nodes.comp.parameters.get('threshold').value, -10, 1e-6), `Vintage Comp Sensitivity=0 -> threshold -10dB (got ${nodesLo.nodes.comp.parameters.get('threshold').value})`);
+    log(close(nodesDef.nodes.comp.parameters.get('threshold').value, -25, 1e-6), `Vintage Comp Sensitivity=50 -> threshold -25dB (got ${nodesDef.nodes.comp.parameters.get('threshold').value})`);
+    log(close(nodesHi.nodes.comp.parameters.get('threshold').value, -40, 1e-6), `Vintage Comp Sensitivity=100 -> threshold -40dB (got ${nodesHi.nodes.comp.parameters.get('threshold').value})`);
+
+    // GainNode.gain is a float32 AudioParam, so 1.8 round-trips as ~1.7999999523...;
+    // strict === would spuriously fail here — this is a test-precision issue, not a bug.
+    log(close(built.nodes.makeup.gain.value, 1.8, 1e-4), `Vintage Comp has a fixed 1.8x makeup gain (not user-adjustable, matching single-knob design; got ${built.nodes.makeup.gain.value})`);
+
+    // Knee-formula sanity: the shared worklet's quadratic knee should hold for Vintage
+    // Comp's own knee/ratio too, not just CS-3's.
+    const threshold = -25; // Sensitivity=50
+    for (const over of [-10, -3, 0, 3, 10]) {
+      const levelDb = threshold + over;
+      const measured = await measureSteadyReductionDb(threshold, 8, 6, levelDb);
+      const expected = expectedReductionDb(levelDb, threshold, 8, 6);
+      log(close(measured, expected, 1.0), `Vintage Comp knee formula holds at over=${over}dB (measured ${measured.toFixed(2)}dB, expected ${expected.toFixed(2)}dB)`);
+    }
+
+    // Step response (DC, see stepResponse's comment for why): real Dyna Comp settles
+    // over "several seconds" per research; confirm the attack trajectory follows the
+    // textbook single-pole time-constant curve (tau=1.5s) implied by the fixed 1.5s
+    // attack parameter: at t=tau, ~63% of the way to target; at t=3*tau, >90% of the way.
+    // Buffer is 10s (halfway at 5s) so the 4.5s-post-step checkpoint has headroom.
+    const levelDb = -10; // over = 15dB with threshold=-25
+    const target = expectedReductionDb(levelDb, threshold, 8, 6);
+    const resp = await stepResponse(threshold, 8, 6, 1.5, 1.5, levelDb, 10);
+    const at1tau = gainDbAt(resp, Math.round(1.5 * 44100));
+    const at3tau = gainDbAt(resp, Math.round(4.5 * 44100));
+    const frac1 = at1tau / target, frac3 = at3tau / target;
+    log(close(frac1, 1 - Math.exp(-1), 0.05), `Vintage Comp attack follows a single-pole curve: reaches ${(frac1 * 100).toFixed(0)}% of target reduction after 1 tau=1.5s (ideal is 63%; target ${target.toFixed(2)}dB, at1tau ${at1tau.toFixed(2)}dB)`);
+    log(frac3 > 0.9, `Vintage Comp attack reaches >90% of target reduction after 3 tau=4.5s (measured fraction ${frac3.toFixed(2)})`);
+
+    // Release: loud->quiet step (roles reversed), confirm slow ~1.5s release, not fast.
+    // stepResponse always ramps quiet->loud; build the loud->quiet mirror image directly
+    // for the release direction.
+    async function stepDown(seconds) {
+      const len = Math.floor(44100 * seconds);
+      const ctx = await freshCtx(len, 44100);
+      const comp = new AudioWorkletNode(ctx, 'dynamics-processor');
+      comp.parameters.get('threshold').value = threshold;
+      comp.parameters.get('ratio').value = 8;
+      comp.parameters.get('knee').value = 6;
+      comp.parameters.get('attack').value = 1.5;
+      comp.parameters.get('release').value = 1.5;
+      const loudAmp = Math.pow(10, levelDb / 20);
+      const quietAmp = Math.pow(10, (threshold - 40) / 20);
+      const halfway = Math.floor(len / 2);
+      const buf = ctx.createBuffer(1, len, 44100);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = i < halfway ? loudAmp : quietAmp;
+      const src = ctx.createBufferSource(); src.buffer = buf;
+      src.connect(comp).connect(ctx.destination);
+      src.start();
+      const outBuf = await ctx.startRendering();
+      return { output: outBuf.getChannelData(0), halfway, loudAmp, quietAmp };
+    }
+    const rel = await stepDown(10);
+    // Post-halfway the input is quietAmp, not loudAmp — gainDbAt normalizes by whatever
+    // `loudAmp` field it's given, so pass a view with the correct reference level to
+    // recover the true gain-reduction-in-dB during the quiet (release) phase.
+    const relView = { ...rel, loudAmp: rel.quietAmp };
+    const relAt1tau = gainDbAt(relView, Math.round(1.5 * 44100));
+    const relFrac1 = relAt1tau / target; // target is negative; fraction REMAINING of the way back to 0
+    log(close(relFrac1, Math.exp(-1), 0.05), `Vintage Comp release follows a single-pole curve: still at ${(relFrac1 * 100).toFixed(0)}% of the original reduction after 1 tau=1.5s (ideal is 37% remaining, i.e. 63% recovered; started at ${target.toFixed(2)}dB, now ${relAt1tau.toFixed(2)}dB)`);
+    const relAt3tau = gainDbAt(relView, Math.round(4.5 * 44100));
+    log(Math.abs(relAt3tau) < Math.abs(target) * 0.1, `Vintage Comp release mostly recovered (>90%) by 3 tau=4.5s after the level drop (${relAt3tau.toFixed(2)}dB, started at ${target.toFixed(2)}dB)`);
+  }
+
+  // =========================================================================
+  // CS-3
+  // =========================================================================
+  {
+    const cs3 = getPedalType('cs3');
+    const built = cs3.createNodes(await freshCtx());
+    const threshP = cs3.params.find((p) => p.key === 'threshold');
+    const arP = cs3.params.find((p) => p.key === 'attackRelease');
+    const levelP = cs3.params.find((p) => p.key === 'level');
+
+    log(built.nodes.comp.parameters.get('knee').value === 2, `CS-3 hard knee is exactly 2dB (got ${built.nodes.comp.parameters.get('knee').value})`);
+    log(built.nodes.comp.parameters.get('ratio').value === 10, `CS-3 fixed ratio is 10:1, higher than generic Compressor's default 4:1 (got ${built.nodes.comp.parameters.get('ratio').value})`);
+
+    log(threshP.min === -60 && threshP.max === 0 && threshP.default === -24, `CS-3 Threshold range/default matches generic Compressor's (-60..0, default -24)`);
+    log(levelP.min === 0 && levelP.max === 200 && levelP.default === 100, 'CS-3 Level range/default matches generic Compressor\'s (0-200%, default 100%)');
+    log(!!arP, 'CS-3 has a combined Attack/Release knob (not two separate knobs)');
+    log(arP.min === 0 && arP.max === 100 && arP.default === 50, `CS-3 Attack/Release knob range 0-100, default 50 (found min=${arP.min}, max=${arP.max}, default=${arP.default})`);
+
+    // Coupling direction across the full sweep, not just endpoints.
+    const sweepNodes = cs3.createNodes(await freshCtx());
+    const samples = [0, 25, 50, 75, 100].map((v) => {
+      arP.apply(sweepNodes.nodes, v);
+      return { v, attack: sweepNodes.nodes.comp.parameters.get('attack').value, release: sweepNodes.nodes.comp.parameters.get('release').value };
+    });
+    let monotonic = true;
+    for (let i = 1; i < samples.length; i++) {
+      if (!(samples[i].attack > samples[i - 1].attack) || !(samples[i].release < samples[i - 1].release)) monotonic = false;
+    }
+    log(monotonic, `CS-3 Attack/Release knob is monotonically coupled across its full range: ${JSON.stringify(samples.map((s) => `${s.v}:a=${s.attack.toFixed(3)},r=${s.release.toFixed(3)}`))}`);
+
+    // Exact formula check.
+    const at0 = samples[0], at50 = samples[2], at100 = samples[4];
+    log(close(at0.attack, 0.001, 1e-6) && close(at0.release, 0.5, 1e-6), `CS-3 Attack/Release=0 -> attack=0.001s, release=0.5s (got a=${at0.attack}, r=${at0.release})`);
+    log(close(at50.attack, 0.026, 1e-6) && close(at50.release, 0.275, 1e-6), `CS-3 Attack/Release=50 (default) -> attack=0.026s, release=0.275s (got a=${at50.attack}, r=${at50.release})`);
+    log(close(at100.attack, 0.051, 1e-6) && close(at100.release, 0.05, 1e-6), `CS-3 Attack/Release=100 -> attack=0.051s, release=0.05s (got a=${at100.attack}, r=${at100.release})`);
+
+    // Knee-hardness, part 1: at over=5dB (outside CS-3's own +-1dB half-knee window but
+    // well inside the generic Compressor's +-6dB one), CS-3 should already be in its
+    // full-ratio zone and match the linear formula exactly.
+    const threshold = -24;
+    const cs3MeasuredAt5 = await measureSteadyReductionDb(threshold, 10, 2, threshold + 5);
+    const cs3ExpectedAt5 = expectedReductionDb(threshold + 5, threshold, 10, 2);
+    log(close(cs3MeasuredAt5, cs3ExpectedAt5, 0.1), `CS-3 hard knee: measured reduction at over=5dB (${cs3MeasuredAt5.toFixed(2)}dB) matches the full-ratio formula (${cs3ExpectedAt5.toFixed(2)}dB) since 5dB is outside its 1dB half-knee`);
+
+    // Knee-hardness, part 2: the defining difference between a hard and a soft knee is
+    // WHERE compression starts, not how hard it bites at a fixed over-level (a soft
+    // knee's quadratic ramp can regionally be similar magnitude to a hard knee's linear
+    // ramp — comparing raw dB at one point doesn't reliably show "softness"). At
+    // over=-3dB (3dB below nominal threshold): CS-3's +-1dB half-knee window doesn't
+    // reach that far, so it applies zero reduction; the generic Compressor's +-6dB
+    // window already covers it, so it's already measurably compressing before the
+    // signal even reaches its nominal threshold — the real signature of a soft knee.
+    const overBelow = -3;
+    const cs3MeasuredBelow = await measureSteadyReductionDb(threshold, 10, 2, threshold + overBelow);
+    const compMeasuredBelow = await measureSteadyReductionDb(threshold, 4, 12, threshold + overBelow);
+    log(close(cs3MeasuredBelow, 0, 0.05), `CS-3 hard knee: zero reduction at over=-3dB, still outside its narrow +-1dB knee window (measured ${cs3MeasuredBelow.toFixed(3)}dB)`);
+    log(compMeasuredBelow < -0.1, `Generic Compressor's soft knee (+-6dB window) is already measurably compressing at over=-3dB, before reaching its nominal threshold (measured ${compMeasuredBelow.toFixed(3)}dB) — this is the real hard-vs-soft-knee signature, unlike CS-3 above`);
+
+    // Step response: CS-3's default attack (0.026s) should settle far faster than
+    // Vintage Comp's fixed 1.5s, and follow the same single-pole shape.
+    const csResp = await stepResponse(threshold, 10, 2, 0.026, 0.275, -4, 1); // over = 20dB
+    const csTarget = expectedReductionDb(-4, threshold, 10, 2);
+    const csAt1tau = gainDbAt(csResp, Math.round(0.026 * 44100));
+    const csFrac = csAt1tau / csTarget;
+    log(close(csFrac, 1 - Math.exp(-1), 0.05), `CS-3 attack follows a single-pole curve: reaches ${(csFrac * 100).toFixed(0)}% of target reduction after its own 1 tau=26ms (ideal 63%; target ${csTarget.toFixed(2)}dB)`);
+    log(Math.abs(gainDbAt(csResp, Math.round(0.2 * 44100))) > Math.abs(csTarget) * 0.9, 'CS-3 is essentially fully settled by 200ms (several attack-tau later)');
+  }
+
+  // =========================================================================
+  // Compressor (original — confirm untouched)
+  // =========================================================================
+  {
+    const comp = getPedalType('compressor');
+    const built = comp.createNodes(await freshCtx());
+    log(built.nodes.comp.parameters.get('knee').value === 12, `Compressor (original) untouched: still soft 12dB knee (got ${built.nodes.comp.parameters.get('knee').value})`);
+    const th = comp.params.find((p) => p.key === 'threshold');
+    const ra = comp.params.find((p) => p.key === 'ratio');
+    const at = comp.params.find((p) => p.key === 'attack');
+    const re = comp.params.find((p) => p.key === 'release');
+    const lv = comp.params.find((p) => p.key === 'level');
+    log(th.min === -60 && th.max === 0 && th.default === -24, 'Compressor (original) untouched: Threshold -60..0, default -24');
+    log(ra.min === 1 && ra.max === 20 && ra.default === 4, 'Compressor (original) untouched: Ratio 1..20, default 4');
+    log(at.min === 0 && at.max === 50 && at.default === 5, 'Compressor (original) untouched: Attack 0..50ms, default 5ms');
+    log(re.min === 10 && re.max === 1000 && re.default === 150, 'Compressor (original) untouched: Release 10..1000ms, default 150ms');
+    log(lv.min === 0 && lv.max === 200 && lv.default === 100, 'Compressor (original) untouched: Level 0..200%, default 100%');
+    log(!comp.params.find((p) => p.key === 'sensitivity') && !comp.params.find((p) => p.key === 'attackRelease'),
+        'Compressor (original) untouched: no Sensitivity or coupled Attack/Release knob (those belong to the new pedals)');
+  }
+
+  // =========================================================================
+  // Cry Baby
+  // =========================================================================
+  {
+    const cb = getPedalType('crybaby');
+    const posP = cb.params.find((p) => p.key === 'position');
+    const lvlP = cb.params.find((p) => p.key === 'level');
+    log(posP.min === 450 && posP.max === 1600 && posP.default === 750, `Cry Baby Treadle range 450-1600Hz, default 750Hz (found min=${posP.min}, max=${posP.max}, default=${posP.default})`);
+    log(!cb.params.find((p) => p.key === 'q'), 'Cry Baby has no exposed Q knob (real pedal has none)');
+    log(lvlP.min === 0 && lvlP.max === 300 && lvlP.default === 160, 'Cry Baby Level range 0-300%, default 160%');
+
+    const built = cb.createNodes(new OfflineAudioContext(1, 1, 44100));
+    log(built.nodes.filter.Q.value === 5, `Cry Baby has a fixed internal Q of 5 (got ${built.nodes.filter.Q.value})`);
+    log(built.nodes.filter.frequency.value === 750, 'Cry Baby default filter frequency (750Hz) matches the Treadle knob default');
+
+    // Sweep loudness-constancy at finer granularity across the full range, including
+    // both hard boundary positions.
+    const positions = [450, 600, 750, 900, 1050, 1200, 1350, 1600];
+    const levels = [];
+    for (const pos of positions) {
+      const buf = await render(cb, { position: pos }, 0.5, pos);
+      levels.push(rms(buf));
+    }
+    const maxDev = (Math.max(...levels) - Math.min(...levels)) / Math.max(...levels);
+    log(maxDev < 0.3, `Cry Baby peak-gain stays roughly constant across the full sweep incl. boundaries (max relative deviation ${(maxDev * 100).toFixed(0)}%): ${JSON.stringify(levels.map((v) => +v.toFixed(4)))}`);
+    log(levels.every((v) => v > 0.01), 'Cry Baby produces a real resonant peak (non-negligible output) at every sweep position tested, including both boundaries');
+
+    // A tone well outside the sweep range (way below 450Hz) should be attenuated much
+    // more than an on-peak tone at the same Treadle position, confirming the filter is
+    // actually selective (this is the wah effect, distinct from the flat-loudness claim
+    // above which only concerns on-peak tones).
+    const onPeak = await render(cb, { position: 750 }, 0.5, 750);
+    const offPeak = await render(cb, { position: 750 }, 0.5, 100);
+    log(rms(onPeak) > rms(offPeak) * 3, `Cry Baby attenuates a 100Hz tone well below its resonant peak relative to an on-peak 750Hz tone (on-peak RMS ${rms(onPeak).toFixed(4)}, off-peak RMS ${rms(offPeak).toFixed(4)})`);
+  }
+
+  // =========================================================================
+  // Wah (original — confirm untouched)
+  // =========================================================================
+  {
+    const wah = getPedalType('wah');
+    const posP = wah.params.find((p) => p.key === 'position');
+    const qP = wah.params.find((p) => p.key === 'q');
+    const lvlP = wah.params.find((p) => p.key === 'level');
+    log(posP.min === 300 && posP.max === 2200 && posP.default === 900, `Wah (original) untouched: Treadle range 300-2200Hz, default 900Hz`);
+    log(!!qP && qP.min === 1 && qP.max === 12 && qP.default === 5, 'Wah (original) untouched: still has its Q knob, range 1-12, default 5');
+    log(lvlP.min === 0 && lvlP.max === 300 && lvlP.default === 160, 'Wah (original) untouched: Level 0-300%, default 160%');
+    const built = wah.createNodes(new OfflineAudioContext(1, 1, 44100));
+    log(built.nodes.filter.frequency.value === 800 && built.nodes.filter.Q.value === 5, 'Wah (original) untouched: default filter frequency 800Hz, Q 5');
+  }
+
+  // =========================================================================
+  // Graphic EQ (original — confirm untouched)
+  // =========================================================================
+  {
+    const geq = getPedalType('graphiceq');
+    const ctx = new OfflineAudioContext(1, 1, 44100);
+    const built = geq.createNodes(ctx);
+    const freqs = built.nodes.bands.map((b) => b.frequency.value);
+    log(JSON.stringify(freqs) === JSON.stringify([100, 250, 630, 1600, 4000, 10000]), `Graphic EQ (original) untouched: bands are ${JSON.stringify(freqs)}`);
+    log(geq.params.length === 6, `Graphic EQ (original) untouched: 6 bands (found ${geq.params.length})`);
+    log(geq.params.every((p) => p.min === -20 && p.max === 20 && p.default === 0), 'Graphic EQ (original) untouched: all bands ±20dB, default 0');
+    log(built.nodes.bands.every((b) => close(b.Q.value, 1.4, 1e-4)), 'Graphic EQ (original) untouched: all bands Q=1.4');
+    // Functional: apply() actually moves the right band's gain, not some other band.
+    geq.params[2].apply(built.nodes, 7.5);
+    log(built.nodes.bands[2].gain.value === 7.5 && built.nodes.bands.every((b, i) => i === 2 || b.gain.value === 0),
+        'Graphic EQ (original) untouched: band apply() sets only its own band\'s gain');
+  }
+
+  // =========================================================================
+  // GE-7
+  // =========================================================================
+  {
+    const ge7 = getPedalType('ge7');
+    const ctx = new OfflineAudioContext(1, 1, 44100);
+    const built = ge7.createNodes(ctx);
+    const freqs = built.nodes.bands.map((b) => b.frequency.value);
+    const expectedFreqs = [100, 200, 400, 800, 1600, 3200, 6400];
+    log(JSON.stringify(freqs) === JSON.stringify(expectedFreqs), `GE-7 bands are ${JSON.stringify(freqs)} (expected ${JSON.stringify(expectedFreqs)})`);
+    log(ge7.params.length === 7, `GE-7 has 7 bands (found ${ge7.params.length})`);
+    log(ge7.params.every((p) => p.min === -15 && p.max === 15 && p.default === 0), 'GE-7 all bands are ±15dB range, default 0');
+    log(built.nodes.bands.every((b) => close(b.Q.value, 1.4, 1e-4)), 'GE-7 all bands Q=1.4');
+
+    // Functional: apply() at min/max/default for a couple of representative bands.
+    for (const i of [0, 3, 6]) {
+      const n = ge7.createNodes(new OfflineAudioContext(1, 1, 44100)).nodes;
+      ge7.params[i].apply(n, 15);
+      ge7.params.forEach((p, j) => { if (j !== i) p.apply(n, 0); });
+      log(n.bands[i].gain.value === 15 && n.bands.every((b, j) => j === i || b.gain.value === 0),
+          `GE-7 band ${i} (${expectedFreqs[i]}Hz) apply() sets only its own band's gain to +15`);
+    }
+
+    log(JSON.stringify(freqs) !== JSON.stringify([100, 250, 630, 1600, 4000, 10000]), 'GE-7 frequencies are genuinely distinct from Graphic EQ\'s (not accidentally identical)');
+  }
+
+  // =========================================================================
+  // Distortion (original — confirm untouched by anything in this group)
+  // =========================================================================
+  {
+    const dist = getPedalType('distortion');
+    const drive = dist.params.find((p) => p.key === 'drive');
+    const mid = dist.params.find((p) => p.key === 'mid');
+    const tone = dist.params.find((p) => p.key === 'tone');
+    const level = dist.params.find((p) => p.key === 'level');
+    log(!!mid && mid.min === -12 && mid.max === 12 && mid.default === 3, 'Distortion (original) untouched: still has a Mid knob, -12..12dB, default 3dB');
+    log(drive.min === 0 && drive.max === 100 && drive.default === 55, 'Distortion (original) untouched: Drive 0-100, default 55');
+    log(tone.min === 0 && tone.max === 100 && tone.default === 55, 'Distortion (original) untouched: Tone 0-100, default 55');
+    log(level.min === 0 && level.max === 200 && level.default === 90, 'Distortion (original) untouched: Level 0-200%, default 90%');
+
+    const built = dist.createNodes(new OfflineAudioContext(1, 1, 44100));
+    log(built.nodes.mid.frequency.value === 900 && close(built.nodes.mid.Q.value, 0.8, 1e-4), 'Distortion (original) untouched: mid peaking filter at 900Hz, Q=0.8');
+    drive.apply(built.nodes, 55);
+    const curve = built.nodes.shaper.curve;
+    // Curve should be odd-symmetric (no bias) since Distortion's driveCurve call has no bias arg.
+    let maxAsym = 0;
+    for (let i = 0; i < curve.length; i++) {
+      const mirrored = curve[curve.length - 1 - i];
+      maxAsym = Math.max(maxAsym, Math.abs(curve[i] + mirrored));
+    }
+    log(maxAsym < 1e-6, `Distortion (original) untouched: drive curve is still perfectly odd-symmetric / unbiased (max asymmetry ${maxAsym.toExponential(2)})`);
+  }
+
+  out.innerHTML = lines.join('');
+  const failed = lines.filter((l) => l.includes('FAIL')).length;
+  out.innerHTML += `<h2>${failed === 0 ? 'ALL PASS' : failed + ' FAILED'} (${lines.length} total)</h2>`;
+</script>
+</body>
+</html>

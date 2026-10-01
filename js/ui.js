@@ -311,17 +311,25 @@ export function renderChain(engine, container, template, callbacks) {
     const frag = template.content.cloneNode(true);
     const card = frag.querySelector('.pedal-stompbox');
     card.dataset.instanceId = inst.instanceId;
+    card.dataset.pedalType = inst.typeDef.id;
     card.style.setProperty('--pedal-color', pedalColor(inst.typeDef));
+    // accent/trim were amp-only at first (signature-amp palettes); any pedal can use them
+    // now too, to match a real pedal's knob-cap/label tone when it differs from pure black.
+    if (inst.typeDef.accent) card.style.setProperty('--pedal-accent', inst.typeDef.accent);
+    if (inst.typeDef.trim) card.style.setProperty('--pedal-trim', inst.typeDef.trim);
+    if (inst.typeDef.shape) card.classList.add(`pedal-stompbox--${inst.typeDef.shape}`);
     if (inst.kind === 'amp') {
       card.classList.add('amp-card');
-      if (inst.typeDef.accent) card.style.setProperty('--pedal-accent', inst.typeDef.accent);
-      if (inst.typeDef.trim) card.style.setProperty('--pedal-trim', inst.typeDef.trim);
     } else if (inst.typeDef.category) {
       card.dataset.category = inst.typeDef.category;
     }
     if (!inst.enabled) card.classList.add('disabled-pedal');
 
     card.querySelector('.pedal-label').textContent = inst.typeDef.label;
+    if (inst.typeDef.brand) {
+      card.dataset.brand = inst.typeDef.brand;
+      card.querySelector('.pedal-brand').textContent = inst.typeDef.brandLabel || inst.typeDef.brand;
+    }
 
     const knobsHost = card.querySelector('.pedal-knobs');
     inst.typeDef.params.forEach((paramDef) => {

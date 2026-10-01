@@ -636,13 +636,50 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 1px;
   background: rgba(255, 255, 255, 0.12);
 }
+.pedal-title-stack { display: flex; flex-direction: column; padding-right: 14px; }
 .pedal-label {
   font-family: var(--font-display);
   font-size: 15px; font-weight: 400; text-transform: uppercase; letter-spacing: 0.4px;
   color: oklch(98% 0.01 90);
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
   line-height: 1.05;
-  padding-right: 14px;
+}
+/* Real manufacturer wordmark, shown above the model name — styled to evoke each brand's
+   actual logo character (font/weight/casing), hand-built in CSS rather than a copied
+   logo image/vector, same "no borrowed artwork" rule the signature amps already follow. */
+.pedal-brand {
+  font-size: 11px; line-height: 1.3; margin-bottom: 1px;
+  color: oklch(98% 0.01 90); text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+.pedal-brand:empty { display: none; }
+.pedal-stompbox[data-brand="boss"] .pedal-brand {
+  font-family: Arial, Helvetica, sans-serif; font-weight: 900; font-style: italic;
+  letter-spacing: 0.5px;
+}
+.pedal-stompbox[data-brand="ibanez"] .pedal-brand {
+  font-family: 'Brush Script MT', 'Segoe Script', cursive; font-size: 16px; font-style: italic;
+}
+.pedal-stompbox[data-brand="mxr"] .pedal-brand {
+  font-family: Arial, Helvetica, sans-serif; font-weight: 800; font-size: 10px;
+  display: inline-block; border: 1.5px solid currentColor; border-radius: 7px;
+  padding: 0 5px; letter-spacing: 0.5px;
+}
+.pedal-stompbox[data-brand="ehx"] .pedal-brand {
+  font-family: 'Brush Script MT', 'Segoe Script', cursive; font-size: 13px;
+}
+.pedal-stompbox[data-brand="arbiter"] .pedal-brand {
+  font-family: Georgia, serif; font-size: 8.5px; letter-spacing: 1.5px; text-transform: uppercase;
+}
+/* Model-name wordmark stylings for the pedals whose own real nameplate font is distinctive */
+.pedal-stompbox[data-pedal-type="fuzzface"] .pedal-label {
+  font-family: 'Comic Sans MS', 'Brush Script MT', cursive; text-transform: none; font-size: 17px;
+}
+.pedal-stompbox[data-pedal-type="rat2"] .pedal-label {
+  font-weight: 800; letter-spacing: 2px;
+  border: 1.5px solid currentColor; border-radius: 3px; padding: 1px 8px; display: inline-block;
+}
+.pedal-stompbox[data-pedal-type="crybaby"] .pedal-label {
+  font-family: 'Arial Narrow', Arial, sans-serif; text-transform: lowercase; font-weight: 700; font-size: 18px;
 }
 .pedal-header-actions { display: flex; gap: 5px; flex-shrink: 0; }
 
@@ -773,6 +810,14 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   background: radial-gradient(circle at 40% 32%, #2c2e33, #08090a 75%);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7);
 }
+/* When a pedal sets --pedal-accent (its real knob-cap tone, e.g. BD-2/TR-2's gold or Klon's
+   maroon) tint the knob cap toward it. Scoped off .amp-card so this never touches the
+   already-tuned amp knobs, which also happen to set --pedal-accent for their own control panel. */
+.pedal-stompbox:not(.amp-card) .knob-dial::after {
+  background: radial-gradient(circle at 40% 32%,
+    color-mix(in oklch, var(--pedal-accent, #2c2e33) 75%, white 10%),
+    color-mix(in oklch, var(--pedal-accent, #08090a) 60%, black 40%) 75%);
+}
 .knob-pointer {
   position: absolute; left: 50%; top: 50%;
   /* A short radial stripe, centered on the same 13px-radius band the dot used — between
@@ -818,6 +863,60 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   box-shadow: inset 0 0 2px rgba(255, 255, 255, 0.6);
 }
 .pedal-stompbox:not(.disabled-pedal) .pedal-footswitch .led::after { opacity: 0.9; }
+
+/* ---------- 3 real-enclosure shape variants (Fuzz Face / Cry Baby / Klon) ----------
+   All reuse the exact same .pedal-stompbox markup (screws, plate, knobs, footswitch) —
+   just reshaped/repositioned per real pedal, no new elements. */
+
+/* Fuzz Face: round aluminum enclosure, no corner screws, triangular footswitch pad. */
+.pedal-stompbox--round {
+  width: 190px; height: 190px; min-width: 0;
+  border-radius: 50%;
+  padding: 20px 18px 14px;
+  justify-content: flex-start;
+}
+.pedal-stompbox--round .screw { display: none; }
+.pedal-stompbox--round .stompbox-grip-row { display: none; }
+.pedal-stompbox--round .stompbox-plate {
+  flex-direction: column; align-items: center; gap: 2px;
+  border-bottom: none; margin-bottom: 0; padding-bottom: 0; width: auto;
+}
+.pedal-stompbox--round .stompbox-plate::after { display: none; }
+.pedal-stompbox--round .pedal-header-actions { order: 2; }
+.pedal-stompbox--round .pedal-knobs { flex-direction: row; gap: 18px; margin: 10px 0 10px; }
+.pedal-stompbox--round .stompbox-foot-row { margin-top: auto; }
+.pedal-stompbox--round .pedal-footswitch {
+  width: 76px; height: 58px; border-radius: 10% 10% 50% 50% / 10% 10% 40% 40%;
+  clip-path: polygon(28% 0%, 72% 0%, 100% 100%, 0% 100%);
+  background: repeating-linear-gradient(115deg, #d6d9dc 0 3px, #9a9ea5 3px 6px);
+}
+
+/* Cry Baby: wide flat treadle top tapering into a narrower lower body (black wrinkle
+   finish, no corner screws) — full width stays available where the plate/knobs sit, only
+   the area below them (where the real footswitch area/base narrows) is clipped. */
+.pedal-stompbox--wedge {
+  min-width: 190px;
+  clip-path: polygon(0% 0%, 100% 0%, 100% 58%, 82% 100%, 18% 100%);
+  border-radius: 4px;
+  padding: 16px 20px 20px;
+}
+.pedal-stompbox--wedge .screw { display: none; }
+.pedal-stompbox--wedge .pedal-knobs { margin-top: 6px; }
+.pedal-stompbox--wedge .stompbox-foot-row { margin-top: 10px; justify-content: center; }
+
+/* Klon: wide/flat tan enclosure (and the two MXR units' knob proportions can stay on the
+   default box — their real body is the same tall-box shape, just a different color). */
+.pedal-stompbox--lowbox {
+  min-width: 260px;
+  padding: 14px 20px 16px;
+  background-image:
+    radial-gradient(ellipse 90% 60% at 50% 10%, rgba(255,255,255,0.18) 0%, transparent 65%),
+    linear-gradient(175deg,
+      color-mix(in oklch, var(--pedal-color) 80%, #fff 20%) 0%,
+      color-mix(in oklch, var(--pedal-color) 70%, #2a2520 30%) 100%);
+}
+.pedal-stompbox--lowbox .pedal-knobs { flex-direction: row; gap: 14px; }
+.pedal-stompbox--lowbox .pedal-label { font-family: Georgia, 'Times New Roman', serif; letter-spacing: 1px; }
 
 /* ---------- amp unit: its own big element below the board, not a stompbox ---------- */
 /* Real head-amp construction: a tolex body in --pedal-color, a contrasting control-panel
@@ -1396,6 +1495,9 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   .topbar { flex-direction: column; align-items: stretch; }
   .topbar-right { justify-content: space-between; }
   .pedal-stompbox { width: 100%; max-width: 220px; }
+  .pedal-stompbox--round { width: 160px; height: 160px; max-width: 160px; }
+  .pedal-stompbox--wedge { max-width: 160px; }
+  .pedal-stompbox--lowbox { max-width: 240px; }
   /* taller/squarer on narrow screens so the control panel has room and knobs don't crush */
   .amp-unit { --amp-aspect: 1.5 / 1; }
   .amp-knobs { zoom: 1.15; }

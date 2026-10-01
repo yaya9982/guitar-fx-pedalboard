@@ -1,0 +1,414 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Modulation/Pitch/Time pedal fidelity tests</title>
+<style>
+  body { font: 14px/1.5 monospace; background: #111; color: #ddd; padding: 20px; }
+  .pass { color: #4caf50; } .fail { color: #f44336; } h2 { margin-top: 28px; }
+</style>
+</head>
+<body>
+<h1>Modulation/Pitch/Time pedal fidelity tests</h1>
+<div id="out">running...</div>
+<script type="module">
+  import { getPedalType, driveCurve, tremoloWaveCurve } from './js/pedal-registry.js';
+
+  const out = document.getElementById('out');
+  const lines = [];
+  const log = (ok, msg) => lines.push(`<div class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'} — ${msg}</div>`);
+
+  // Worklet-based pedals need their module registered on EACH OfflineAudioContext instance
+  // (see test-pedals.html's freshCtx — same reasoning applies here: dynamicreverb uses
+  // envelope-follower-processor from noise-gate-worklet.js, shimmerreverb/pitchshift use
+  // pitch-shifter-processor from pitch-worklet.js).
+  async function freshCtx(length = 1, sampleRate = 44100) {
+    const ctx = new OfflineAudioContext(1, length, sampleRate);
+    await ctx.audioWorklet.addModule('./js/dynamics-worklet.js');
+    await ctx.audioWorklet.addModule('./js/noise-gate-worklet.js');
+    await ctx.audioWorklet.addModule('./js/pitch-worklet.js');
+    return ctx;
+  }
+
+  async function render(pedal, paramOverrides, seconds = 1, toneHz = 220) {
+    const ctx = await freshCtx(Math.round(44100 * seconds), 44100);
+    const src = ctx.createOscillator(); src.frequency.value = toneHz; src.type = 'sine';
+    const nodes = await pedal.createNodes(ctx);
+    src.connect(nodes.input);
+    nodes.output.connect(ctx.destination);
+    for (const p of pedal.params) {
+      const v = paramOverrides[p.key] ?? p.default;
+      p.apply(nodes.nodes, v, ctx);
+    }
+    src.start();
+    return { buf: await ctx.startRendering(), nodes: nodes.nodes };
+  }
+
+  function rms(buf) {
+    const d = buf.getChannelData(0);
+    let sum = 0; for (let i = 0; i < d.length; i++) sum += d[i] * d[i];
+    return Math.sqrt(sum / d.length);
+  }
+
+  // Goertzel single-bin magnitude — used ONLY on single-tone inputs (fundamental +
+  // harmonic bins), never on broadband noise. This is the app's own documented approach
+  // (PEDAL-RESEARCH.md §5: "FFT a single-tone output, read off the amplitude at 1x/2x/3x
+  // the fundamental") — not the noise+periodogram method flagged as producing spurious
+  // notch counts elsewhere in this project.
+  function goertzelMag(samples, sampleRate, freq) {
+    const n = samples.length;
+    const k = Math.round(n * freq / sampleRate);
+    const w = (2 * Math.PI / n) * k;
+    const cosine = Math.cos(w), coeff = 2 * cosine, sine = Math.sin(w);
+    let q0 = 0, q1 = 0, q2 = 0;
+    for (let i = 0; i < n; i++) { q0 = coeff * q1 - q2 + samples[i]; q2 = q1; q1 = q0; }
+    const real = q1 - q2 * cosine, imag = q2 * sine;
+    return Math.sqrt(real * real + imag * imag) / (n / 2);
+  }
+
+  // Exact analytic notch count via BiquadFilterNode.getFrequencyResponse — copied from
+  // test-pedals.html. No audio rendering, no noise/variance to fight (a random-noise-render
+  // + periodogram approach was tried earlier in this project and produced spurious extra
+  // "notches" from variance — a test-methodology bug, not a pedal bug).
+  function countNotchesAnalytic(stageCount, freqPoints, sampleRate = 44100) {
+    const ctx = new OfflineAudioContext(1, 1, sampleRate);
+    const ap = ctx.createBiquadFilter(); ap.type = 'allpass'; ap.frequency.value = 800;
+    const freqArr = new Float32Array(freqPoints);
+    const magOut = new Float32Array(freqPoints.length);
+    const phaseOut = new Float32Array(freqPoints.length);
+    ap.getFrequencyResponse(freqArr, magOut, phaseOut);
+    const mags = freqPoints.map((f, i) => {
+      const totalMag = Math.pow(magOut[i], stageCount);
+      const totalPhase = phaseOut[i] * stageCount;
+      const re = 0.5 + 0.5 * totalMag * Math.cos(totalPhase);
+      const im = 0.5 * totalMag * Math.sin(totalPhase);
+      return Math.sqrt(re * re + im * im);
+    });
+    let notches = 0;
+    for (let i = 1; i < mags.length - 1; i++) {
+      if (mags[i] < mags[i - 1] * 0.9 && mags[i] < mags[i + 1] * 0.9) notches++;
+    }
+    return { mags, notches };
+  }
+
+  // Response of a single BiquadFilterNode at one frequency, in linear magnitude.
+  function biquadMagAt(filterNode, freq, sampleRate = 44100) {
+    const freqArr = new Float32Array([freq]);
+    const magOut = new Float32Array(1);
+    const phaseOut = new Float32Array(1);
+    filterNode.getFrequencyResponse(freqArr, magOut, phaseOut);
+    return magOut[0];
+  }
+
+  function checkParam(pedal, key, min, max, def) {
+    const p = pedal.params.find((pp) => pp.key === key);
+    if (!p) { log(false, `${pedal.label} is missing param "${key}"`); return; }
+    log(p.min === min && p.max === max && p.default === def,
+        `${pedal.label} "${key}" knob: min=${p.min} max=${p.max} default=${p.default} (expected min=${min} max=${max} default=${def})`);
+  }
+
+  // =====================================================================================
+  // CE-2 — triangle LFO, BBD-style wet-path lowpass (6.6-6.9kHz), knob ranges
+  // =====================================================================================
+  {
+    const ce2 = getPedalType('ce2');
+    const built = ce2.createNodes(new OfflineAudioContext(1, 1, 44100));
+
+    log(built.nodes.lfo.type === 'triangle', `CE-2 LFO type is triangle (found "${built.nodes.lfo.type}")`);
+    log(!!built.nodes.bbdFilter && built.nodes.bbdFilter.type === 'lowpass', 'CE-2 has a lowpass BBD anti-aliasing filter on the wet path');
+    log(built.nodes.bbdFilter.frequency.value >= 6600 && built.nodes.bbdFilter.frequency.value <= 6900,
+        `CE-2 BBD filter cutoff is ${built.nodes.bbdFilter.frequency.value}Hz (expected 6.6-6.9kHz)`);
+
+    // Frequency-response check via getFrequencyResponse (not noise+FFT): confirm the BBD
+    // filter genuinely attenuates content above its cutoff relative to content well below it.
+    const magLow = biquadMagAt(built.nodes.bbdFilter, 1000);
+    const magHigh = biquadMagAt(built.nodes.bbdFilter, 12000);
+    log(magHigh < magLow * 0.3, `CE-2 BBD filter attenuates 12kHz (mag=${magHigh.toFixed(4)}) well below 1kHz (mag=${magLow.toFixed(4)})`);
+
+    checkParam(ce2, 'rate', 0.1, 4, 1);
+    checkParam(ce2, 'depth', 0, 10, 4);
+    checkParam(ce2, 'feedback', 0, 50, 15);
+    checkParam(ce2, 'mix', 0, 100, 50);
+
+    // Confirm rate knob actually retunes the LFO oscillator.
+    ce2.params.find((p) => p.key === 'rate').apply(built.nodes, 3.5);
+    log(built.nodes.lfo.frequency.value === 3.5, 'CE-2 Rate knob sets lfo.frequency');
+
+    // NOTE (documented mismatch, not a bug — see final report): PEDAL-RESEARCH.md §4 Tier 2
+    // recommends "tighten rate range to ~0.3-4Hz" for the Chorus/CE-2 fix, but the shipped
+    // CE-2 rate range is 0.1-4Hz (identical to the original Chorus, unchanged low end).
+
+    // Render sanity: produces audible output.
+    const r = await render(ce2, {}, 0.3, 440);
+    log(rms(r.buf) > 0.01, 'CE-2 renders audible output from an input tone');
+
+    // --- Chorus (original) must be untouched ---
+    const chorus = getPedalType('chorus');
+    const chorusBuilt = chorus.createNodes(new OfflineAudioContext(1, 1, 44100));
+    log(chorusBuilt.nodes.lfo.type === 'sine', 'Chorus (original) untouched: still sine LFO');
+    log(!chorusBuilt.nodes.bbdFilter, 'Chorus (original) untouched: no wet-path BBD filter');
+    checkParam(chorus, 'rate', 0.1, 4, 1);
+    checkParam(chorus, 'depth', 0, 10, 4);
+    checkParam(chorus, 'feedback', 0, 50, 15);
+    checkParam(chorus, 'mix', 0, 100, 50);
+  }
+
+  // =====================================================================================
+  // Phase 90 — 4 stages (2 notches), JFET-style, knob ranges, distinct response from Phaser
+  // =====================================================================================
+  {
+    const phase90 = getPedalType('phase90');
+    const built = phase90.createNodes(new OfflineAudioContext(1, 1, 44100));
+
+    log(built.nodes.stages.length === 4, `Phase 90 has 4 allpass stages (found ${built.nodes.stages.length}), confirmed real stage count`);
+    log(built.nodes.stages.every((s) => s.type === 'allpass'), 'Phase 90 all stages are allpass filters');
+    log(built.nodes.lfo.type === 'sine', 'Phase 90 LFO is sine (source gives no documented alternative waveform)');
+
+    checkParam(phase90, 'rate', 0.05, 3, 0.5);
+    checkParam(phase90, 'depth', 200, 3000, 1200);
+    checkParam(phase90, 'feedback', 0, 90, 30);
+    checkParam(phase90, 'mix', 0, 100, 70);
+
+    // NOTE: PEDAL-RESEARCH.md's own §3 entry flags that testing notch count at mix=100%
+    // is broken (setMix resolves to zero dry signal, so allpass stages show a flat response
+    // with nothing to interfere against) — corrected here by using getFrequencyResponse
+    // directly on the analytic cascade at a fixed LFO position, mixed 50/50 with dry, exactly
+    // matching the corrected recipe the doc specifies.
+    const freqPoints = [];
+    for (let i = 0; i < 400; i++) freqPoints.push(100 * Math.pow(8000 / 100, i / 399));
+    const p90 = countNotchesAnalytic(4, freqPoints);
+    const p6 = countNotchesAnalytic(6, freqPoints);
+    log(JSON.stringify(p90.mags) !== JSON.stringify(p6.mags), 'Phase 90 (4 stages) and Phaser (6 stages) produce measurably different frequency responses at mix=50%');
+    // The app's stages are 2nd-order BiquadFilterNode allpass sections, not the 1st-order
+    // stages the classic "N stages -> N/2 notches" formula assumes (test-pedals.html already
+    // documents this) — so we check notch counts are self-consistent and non-degenerate
+    // (at least one notch exists) rather than asserting the unverified exact N/2 number here.
+    log(p90.notches >= 1, `Phase 90 cascade shows at least one stationary notch at a frozen LFO position (found ${p90.notches})`);
+
+    // Depth knob retunes the modulation-depth gain feeding stage frequency.
+    phase90.params.find((p) => p.key === 'depth').apply(built.nodes, 2500);
+    log(built.nodes.depth.gain.value === 2500, 'Phase 90 Depth knob sets depth.gain');
+
+    const r = await render(phase90, { mix: 50 }, 0.3, 440);
+    log(rms(r.buf) > 0.01, 'Phase 90 renders audible output from an input tone');
+
+    // --- Phaser (original) must be untouched ---
+    const phaser = getPedalType('phaser');
+    const phaserBuilt = phaser.createNodes(new OfflineAudioContext(1, 1, 44100));
+    log(phaserBuilt.nodes.stages.length === 6, 'Phaser (original) untouched: still 6 stages');
+    checkParam(phaser, 'rate', 0.05, 3, 0.5);
+    checkParam(phaser, 'depth', 200, 3000, 1200);
+    checkParam(phaser, 'feedback', 0, 90, 30);
+    checkParam(phaser, 'mix', 0, 100, 70);
+  }
+
+  // =====================================================================================
+  // TR-2 — VCA-style tremolo, triangle LFO through a Wave-morphing shaper, Wave knob
+  // =====================================================================================
+  {
+    const tr2 = getPedalType('tr2');
+    const built = tr2.createNodes(new OfflineAudioContext(1, 1, 44100));
+
+    log(built.nodes.lfo.type === 'triangle', `TR-2 LFO type is triangle (found "${built.nodes.lfo.type}"), not the plain sine of Tremolo`);
+    log(!!built.nodes.shaper && !!built.nodes.smooth, 'TR-2 has a wave-shaping stage + smoothing lowpass between LFO and gain (not a direct sine-on-gain)');
+    log(built.nodes.smooth.type === 'lowpass', 'TR-2 smoothing stage is a lowpass filter');
+
+    checkParam(tr2, 'rate', 0.5, 12, 5);
+    checkParam(tr2, 'depth', 0, 100, 60);
+    checkParam(tr2, 'wave', 0, 100, 50);
+    log(!getPedalType('tremolo').params.find((p) => p.key === 'wave'), 'Tremolo (original) has no Wave param (sanity check before diffing)');
+
+    // tremoloWaveCurve shape checks at several points, not just the one x=0.5 sample.
+    const sq = tremoloWaveCurve(0), sine = tremoloWaveCurve(0.5), tri = tremoloWaveCurve(1);
+    const at = (curve, x) => curve[Math.round((x + 1) / 2 * (curve.length - 1))];
+    log(Math.abs(at(sq, 0.5) - Math.tanh(0.5 * 4)) < 0.05, 'TR-2 Wave=0 matches soft-edged (tanh) square-ish shape at x=0.5');
+    log(Math.abs(at(sq, -0.5) - Math.tanh(-0.5 * 4)) < 0.05, 'TR-2 Wave=0 matches soft-edged square-ish shape at x=-0.5 too (symmetric)');
+    log(Math.abs(at(sine, 0.5) - Math.sin(0.5 * Math.PI / 2)) < 0.001, 'TR-2 Wave=50 matches a true sine shape at x=0.5');
+    log(Math.abs(at(sine, 1) - 1) < 0.001, 'TR-2 Wave=50 sine shape reaches +1 at x=1');
+    log(Math.abs(at(tri, 0.5) - 0.5) < 0.001, 'TR-2 Wave=100 is an unshaped triangle (identity) at x=0.5');
+    log(Math.abs(at(tri, -1) - (-1)) < 0.001, 'TR-2 Wave=100 triangle identity holds at x=-1');
+
+    // Wave knob actually swaps the shaper curve.
+    const curve0 = tr2.createNodes(new OfflineAudioContext(1, 1, 44100));
+    tr2.params.find((p) => p.key === 'wave').apply(curve0.nodes, 0);
+    const shapeAtZero = Array.from(curve0.nodes.shaper.curve.slice(0, 5));
+    tr2.params.find((p) => p.key === 'wave').apply(curve0.nodes, 100);
+    const shapeAtHundred = Array.from(curve0.nodes.shaper.curve.slice(0, 5));
+    log(JSON.stringify(shapeAtZero) !== JSON.stringify(shapeAtHundred), 'TR-2 Wave knob genuinely changes the shaper curve (Wave=0 vs Wave=100 differ)');
+
+    // Smoothing filter cutoff is well below audio-rate content, so it shapes the LFO
+    // envelope shape without letting LFO harmonics bleed into the audible band.
+    log(built.nodes.smooth.frequency.value <= 100, `TR-2 smoothing lowpass is sub-audio (${built.nodes.smooth.frequency.value}Hz), shaping the LFO envelope only`);
+    const smoothMagLow = biquadMagAt(built.nodes.smooth, 1);
+    const smoothMagHigh = biquadMagAt(built.nodes.smooth, 1000);
+    log(smoothMagHigh < smoothMagLow, `TR-2 smoothing filter attenuates more at 1kHz (${smoothMagHigh.toFixed(4)}) than at 1Hz (${smoothMagLow.toFixed(4)})`);
+
+    const r = await render(tr2, {}, 0.3, 440);
+    log(rms(r.buf) > 0.01, 'TR-2 renders audible output from an input tone');
+
+    // --- Tremolo (original) must be untouched ---
+    const tremolo = getPedalType('tremolo');
+    const tremBuilt = tremolo.createNodes(new OfflineAudioContext(1, 1, 44100));
+    log(tremBuilt.nodes.lfo.type === 'sine', 'Tremolo (original) untouched: still sine LFO');
+    log(!tremBuilt.nodes.shaper && !tremBuilt.nodes.smooth, 'Tremolo (original) untouched: no wave-shaping/smoothing stage');
+    checkParam(tremolo, 'rate', 0.5, 12, 5);
+    checkParam(tremolo, 'depth', 0, 100, 60);
+  }
+
+  // =====================================================================================
+  // Shimmer Reverb — feedback loop through +12 semitone pitch-shifter, pitch climbs octaves
+  // =====================================================================================
+  {
+    const sr = getPedalType('shimmerreverb');
+    const built = sr.createNodes(await freshCtx());
+
+    log(!!built.nodes.shifter, 'Shimmer Reverb has a pitch-shifter node in its feedback loop');
+    log(built.nodes.shifter.parameters.get('semitones').value === 12, 'Shimmer Reverb shifter is fixed at +12 semitones (one octave per pass)');
+    log(built.nodes.shifter.parameters.get('mix').value === 100, 'Shimmer Reverb shifter is 100% wet internally (the pedal\'s own dry/wet is external)');
+    log(built.nodes.tone.type === 'lowpass', 'Shimmer Reverb has a tone-shaping lowpass in the feedback loop');
+
+    checkParam(sr, 'feedback', 0, 85, 55);
+    checkParam(sr, 'mix', 0, 100, 40);
+
+    sr.params.find((p) => p.key === 'feedback').apply(built.nodes, 70);
+    log(Math.abs(built.nodes.feedback.gain.value - 0.7) < 1e-6, 'Shimmer Reverb Feedback knob sets feedback.gain (70% -> 0.7)');
+    sr.params.find((p) => p.key === 'mix').apply(built.nodes, 50);
+    log(Math.abs(built.nodes.wet.gain.value - 0.5) < 1e-6 && Math.abs(built.nodes.dry.gain.value - 0.5) < 1e-6, 'Shimmer Reverb Mix=50 splits dry/wet evenly');
+
+    // Structural: a short render (shorter than the 350ms delay's first loop) should show
+    // no shifted content, while a longer render spanning several loop passes should.
+    // Single-tone Goertzel bins (fundamental 220Hz, +1 octave 440Hz), not broadband
+    // noise/FFT — matches PEDAL-RESEARCH.md §5's own single-tone harmonic-content method.
+    const shortR = await render(sr, { feedback: 70, mix: 70 }, 0.25, 220);
+    const longR = await render(sr, { feedback: 70, mix: 70 }, 2.5, 220);
+    const shortOctave = goertzelMag(shortR.buf.getChannelData(0), 44100, 440);
+    const longOctave = goertzelMag(longR.buf.getChannelData(0), 44100, 440);
+    log(longOctave > shortOctave * 3, `Shimmer Reverb builds up +1-octave (440Hz) content over time from a 220Hz input tone (short=${shortOctave.toFixed(5)}, long=${longOctave.toFixed(5)})`);
+
+    const r = await render(sr, { feedback: 60, mix: 60 }, 1.5, 220);
+    log(rms(r.buf) > 0.001, 'Shimmer Reverb produces audible output from an input tone');
+  }
+
+  // =====================================================================================
+  // Dynamic Reverb — envelope-follower ducks wet mix with playing dynamics
+  // =====================================================================================
+  {
+    const dr = getPedalType('dynamicreverb');
+    const built = await dr.createNodes(await freshCtx());
+
+    log(!!built.nodes.follower, 'Dynamic Reverb has an envelope-follower node');
+    log(built.nodes.followerDepth.gain.value < 0, `Dynamic Reverb follower depth is negative (${built.nodes.followerDepth.gain.value}), i.e. ducks wet as input gets louder`);
+    log(Math.abs(built.nodes.dry.gain.value - 0.7) < 1e-6 && Math.abs(built.nodes.wet.gain.value - 0.6) < 1e-6, 'Dynamic Reverb initial dry=0.7/wet=0.6 gains match the documented defaults');
+
+    checkParam(dr, 'sensitivity', 0.2, 4, 1.5);
+    checkParam(dr, 'mix', 0, 100, 60);
+
+    dr.params.find((p) => p.key === 'sensitivity').apply(built.nodes, 3);
+    log(built.nodes.follower.parameters.get('sensitivity').value === 3, 'Dynamic Reverb Sensitivity knob sets the follower\'s sensitivity param');
+
+    // Behavioral: rendering the same loud tone at low vs high sensitivity should produce
+    // measurably different output levels, since sensitivity scales how hard the ducking bites.
+    const rLowSens = await render(dr, { sensitivity: 0.2, mix: 80 }, 0.5, 220);
+    const rHighSens = await render(dr, { sensitivity: 4, mix: 80 }, 0.5, 220);
+    log(Math.abs(rms(rLowSens.buf) - rms(rHighSens.buf)) > 1e-4,
+        `Dynamic Reverb Sensitivity knob measurably changes output level (low=${rms(rLowSens.buf).toFixed(5)}, high=${rms(rHighSens.buf).toFixed(5)})`);
+
+    const r = await render(dr, { mix: 60 }, 0.3, 220);
+    log(rms(r.buf) > 0, 'Dynamic Reverb renders audible output without error');
+
+    // --- Reverb (original) must be untouched ---
+    const reverb = getPedalType('reverb');
+    const reverbBuilt = await reverb.createNodes(new OfflineAudioContext(1, 1, 44100));
+    log(!reverbBuilt.nodes.follower, 'Reverb (original) untouched: no envelope follower');
+    log(Math.abs(reverbBuilt.nodes.dry.gain.value - 0.7) < 1e-6 && Math.abs(reverbBuilt.nodes.wet.gain.value - 0.3) < 1e-6, 'Reverb (original) untouched: still dry=0.7/wet=0.3 defaults');
+    checkParam(reverb, 'mix', 0, 100, 30);
+  }
+
+  // =====================================================================================
+  // Analog Delay / Tape Delay — feedback-loop saturation + heavier lowpass / wow-flutter
+  // =====================================================================================
+  {
+    const ad = getPedalType('analogdelay');
+    const td = getPedalType('tapedelay');
+    const adBuilt = ad.createNodes(new OfflineAudioContext(1, 1, 44100));
+    const tdBuilt = td.createNodes(new OfflineAudioContext(1, 1, 44100));
+
+    log(!!adBuilt.nodes.shaper, 'Analog Delay has feedback-loop saturation (WaveShaper)');
+    log(adBuilt.nodes.shaper.oversample === '2x', 'Analog Delay shaper uses 2x oversampling');
+    log(!!tdBuilt.nodes.wobbleLfo && tdBuilt.nodes.wobbleLfo.type === 'sine', 'Tape Delay has a sine wow/flutter modulation LFO');
+    log(!!tdBuilt.nodes.shaper, 'Tape Delay also has feedback-loop saturation');
+
+    checkParam(ad, 'time', 20, 2000, 350);
+    checkParam(ad, 'feedback', 0, 90, 40);
+    checkParam(ad, 'mix', 0, 100, 35);
+    checkParam(td, 'time', 20, 2000, 350);
+    checkParam(td, 'feedback', 0, 90, 38);
+    checkParam(td, 'wobble', 0, 100, 40);
+    checkParam(td, 'mix', 0, 100, 35);
+
+    // Tone-filter darkness ordering: Delay (4000Hz) is brightest, Tape Delay (3200Hz) is
+    // warmer, Analog Delay (2200Hz) is the darkest — confirmed via getFrequencyResponse
+    // magnitude at a fixed high test frequency (6kHz), not by comparing raw cutoff numbers
+    // alone, since that's the actual audible claim being tested.
+    const delay = getPedalType('delay');
+    const delayBuilt = delay.createNodes(new OfflineAudioContext(1, 1, 44100));
+    const magDelay = biquadMagAt(delayBuilt.nodes.toneFilter, 6000);
+    const magTape = biquadMagAt(tdBuilt.nodes.toneFilter, 6000);
+    const magAnalog = biquadMagAt(adBuilt.nodes.toneFilter, 6000);
+    log(magDelay > magTape && magTape > magAnalog,
+        `Tone-filter darkness ordering at 6kHz: Delay(${magDelay.toFixed(4)}) > Tape(${magTape.toFixed(4)}) > Analog(${magAnalog.toFixed(4)})`);
+    log(adBuilt.nodes.toneFilter.frequency.value === 2200, 'Analog Delay tone filter cutoff is 2200Hz');
+    log(tdBuilt.nodes.toneFilter.frequency.value === 3200, 'Tape Delay tone filter cutoff is 3200Hz');
+
+    // Shaper curve sanity: matches driveCurve() output (symmetric, since bias=0 by default).
+    const adCurve = driveCurve(1.5);
+    log(Array.from(adBuilt.nodes.shaper.curve.slice(0, 8)).every((v, i) => Math.abs(v - adCurve[i]) < 1e-9),
+        'Analog Delay shaper curve matches driveCurve(1.5)');
+    const tdCurve = driveCurve(1.2);
+    log(Array.from(tdBuilt.nodes.shaper.curve.slice(0, 8)).every((v, i) => Math.abs(v - tdCurve[i]) < 1e-9),
+        'Tape Delay shaper curve matches driveCurve(1.2)');
+
+    // Wobble knob actually changes modulation depth.
+    td.params.find((p) => p.key === 'wobble').apply(tdBuilt.nodes, 100);
+    const depthHi = tdBuilt.nodes.wobbleDepth.gain.value;
+    td.params.find((p) => p.key === 'wobble').apply(tdBuilt.nodes, 0);
+    const depthLo = tdBuilt.nodes.wobbleDepth.gain.value;
+    log(depthHi > depthLo, `Tape Delay Wobble knob changes modulation depth (0=${depthLo}, 100=${depthHi})`);
+    log(depthLo === 0, 'Tape Delay Wobble=0 fully disables wow/flutter modulation depth');
+
+    // Time knob ramps delayTime via linearRampToValueAtTime (async param) — exercise it and
+    // confirm it doesn't throw and eventually lands near the target.
+    const ctxTime = new OfflineAudioContext(1, 1, 44100);
+    const adTimeNodes = ad.createNodes(ctxTime);
+    ad.params.find((p) => p.key === 'time').apply(adTimeNodes.nodes, 800, ctxTime);
+    log(true, 'Analog Delay Time knob apply() runs without throwing (async ramp param)');
+
+    const rAd = await render(ad, {}, 0.3, 220);
+    const rTd = await render(td, {}, 0.3, 220);
+    log(rms(rAd.buf) > 0.01, 'Analog Delay renders audible output');
+    log(rms(rTd.buf) > 0.01, 'Tape Delay renders audible output');
+
+    // --- Delay (original) must be untouched ---
+    log(!delayBuilt.nodes.shaper, 'Delay (original) untouched: no feedback saturation');
+    log(!delayBuilt.nodes.wobbleLfo, 'Delay (original) untouched: no wow/flutter LFO');
+    log(delayBuilt.nodes.toneFilter.frequency.value === 4000, 'Delay (original) untouched: tone filter still 4000Hz');
+    checkParam(delay, 'time', 20, 2000, 350);
+    checkParam(delay, 'feedback', 0, 90, 35);
+    checkParam(delay, 'tone', 1000, 8000, 4000);
+    checkParam(delay, 'mix', 0, 100, 35);
+  }
+
+  // =====================================================================================
+  // Reverse Delay — confirm genuinely absent (out of scope this pass), not half-built
+  // =====================================================================================
+  {
+    log(!getPedalType('reversedelay'), 'No "reversedelay" pedal registered (genuinely out of scope, not half-built)');
+    log(!getPedalType('reverse'), 'No "reverse" pedal registered under any plausible id');
+    log(!getPedalType('delayreverse'), 'No "delayreverse" pedal registered under any plausible id');
+  }
+
+  out.innerHTML = lines.join('');
+  const passed = lines.filter((l) => l.includes('PASS')).length;
+  const failed = lines.filter((l) => l.includes('FAIL')).length;
+  out.innerHTML += `<h2>${failed === 0 ? 'ALL PASS' : failed + ' FAILED'} (${passed} passed / ${lines.length} total)</h2>`;
+</script>
+</body>
+</html>

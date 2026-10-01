@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Pedal looks check</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body { background: #0b0c0e; padding: 30px; }
+  #board { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; }
+  h2 { color: #ccc; font-family: sans-serif; width: 100%; }
+</style>
+</head>
+<body>
+<h2>New real-pedal lookalikes</h2>
+<div id="board"></div>
+<script type="module">
+  import { getPedalType } from './js/pedal-registry.js';
+  import { renderChain } from './js/ui.js';
+
+  const res = await fetch('index.html');
+  const html = await res.text();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const template = doc.getElementById('pedalCardTemplate');
+  document.body.appendChild(template.cloneNode(true));
+  const realTemplate = document.getElementById('pedalCardTemplate');
+
+  const ids = ['ts9', 'sd1', 'ds1', 'bd2', 'rat2', 'bigmuff', 'fuzzface', 'klon',
+               'vintagecomp', 'cs3', 'ge7', 'crybaby', 'ce2', 'phase90', 'tr2',
+               'overdrive', 'wah', 'chorus'];
+
+  const fakeEngine = {
+    chain: ids.map((id, i) => {
+      const typeDef = getPedalType(id);
+      const params = {};
+      typeDef.params.forEach((p) => { params[p.key] = p.default; });
+      return { instanceId: 'fake' + i, kind: 'pedal', typeDef, params, enabled: true };
+    }),
+  };
+
+  renderChain(fakeEngine, document.getElementById('board'), realTemplate, {
+    onParamChange() {}, onToggle() {}, onRemove() {},
+  });
+</script>
+</body>
+</html>

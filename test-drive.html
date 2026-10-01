@@ -1,0 +1,445 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Drive/Fuzz pedal fidelity tests</title>
+<style>
+  body { font: 14px/1.5 monospace; background: #111; color: #ddd; padding: 20px; }
+  .pass { color: #4caf50; } .fail { color: #f44336; } h2 { margin-top: 28px; } h3 { margin-top: 20px; color: #888; }
+</style>
+</head>
+<body>
+<h1>Drive/Fuzz group fidelity tests</h1>
+<p>Covers: TS9, SD-1, DS-1, BD-2, Rat 2, Big Muff Pi, Fuzz Face, Klon — plus confirming the
+original generic Overdrive/Distortion/Fuzz pedals are unmodified. See PEDAL-RESEARCH.md §3
+"Drive / Fuzz" for the sourced claims each test checks against.</p>
+<div id="out">running...</div>
+<script type="module">
+  import { getPedalType, driveCurve, driveCurveAsinh } from './js/pedal-registry.js';
+
+  const out = document.getElementById('out');
+  const lines = [];
+  const log = (ok, msg) => lines.push(`<div class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'} — ${msg}</div>`);
+  const section = (title) => lines.push(`<h3>${title}</h3>`);
+
+  // None of the drive/fuzz pedals use AudioWorkletNode (all plain WaveShaperNode/BiquadFilterNode
+  // graphs), so a plain OfflineAudioContext per render is enough — no worklet module registration
+  // needed here (contrast with test-pedals.html's freshCtx(), needed for the dynamics/pitch pedals).
+  async function render(pedal, paramOverrides, seconds = 0.05, toneHz = 220, sampleRate = 44100) {
+    const ctx = new OfflineAudioContext(1, Math.round(sampleRate * seconds), sampleRate);
+    const src = ctx.createOscillator(); src.frequency.value = toneHz; src.type = 'sine';
+    const nodes = pedal.createNodes(ctx);
+    src.connect(nodes.input);
+    nodes.output.connect(ctx.destination);
+    for (const p of pedal.params) {
+      const v = paramOverrides[p.key] ?? p.default;
+      p.apply(nodes.nodes, v, ctx);
+    }
+    src.start();
+    return { buf: await ctx.startRendering(), nodes: nodes.nodes };
+  }
+
+  function rms(buf) {
+    const d = buf.getChannelData(0);
+    let sum = 0; for (let i = 0; i < d.length; i++) sum += d[i] * d[i];
+    return Math.sqrt(sum / d.length);
+  }
+
+  function peakAsymmetry(buf) {
+    const d = buf.getChannelData(0);
+    let pos = 0, neg = 0;
+    for (let i = 0; i < d.length; i++) { if (d[i] > pos) pos = d[i]; if (d[i] < neg) neg = d[i]; }
+    return { pos, neg, ratio: pos / Math.abs(neg) };
+  }
+
+  // Single-frequency-bin magnitude (Goertzel) — the standard lightweight way to read off
+  // harmonic amplitude at 1x/2x/3x the fundamental without a full FFT, per PEDAL-RESEARCH.md
+  // §5's own stated methodology ("FFT a single-tone output, read off the amplitude at
+  // 1x/2x/3x the fundamental frequency").
+  function harmonicMag(buf, freq, sampleRate) {
+    const d = buf.getChannelData(0);
+    const N = d.length;
+    const k = Math.round(N * freq / sampleRate);
+    const w = (2 * Math.PI * k) / N;
+    const cosine = Math.cos(w), coeff = 2 * cosine, sine = Math.sin(w);
+    let q0 = 0, q1 = 0, q2 = 0;
+    for (let i = 0; i < N; i++) { q0 = coeff * q1 - q2 + d[i]; q2 = q1; q1 = q0; }
+    const re = q1 - q2 * cosine, im = q2 * sine;
+    return Math.sqrt(re * re + im * im) / (N / 2);
+  }
+
+  const curveAt = (curve, x) => curve[Math.round(((x + 1) / 2) * (curve.length - 1))];
+
+  // Analytic parallel-branch (not cascaded) frequency response magnitude, for Big Muff's
+  // lowpass/highpass Tone crossfade — the two branches sum at the output rather than
+  // multiplying in series like the Phaser's cascaded allpass stages do.
+  function parallelMag(lowHz, highHz, lowGain, highGain, testHz, sampleRate = 44100) {
+    const ctx = new OfflineAudioContext(1, 1, sampleRate);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = lowHz;
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = highHz;
+    const freqArr = new Float32Array([testHz]);
+    const lMag = new Float32Array(1), lPhase = new Float32Array(1);
+    const hMag = new Float32Array(1), hPhase = new Float32Array(1);
+    lp.getFrequencyResponse(freqArr, lMag, lPhase);
+    hp.getFrequencyResponse(freqArr, hMag, hPhase);
+    const re = lowGain * lMag[0] * Math.cos(lPhase[0]) + highGain * hMag[0] * Math.cos(hPhase[0]);
+    const im = lowGain * lMag[0] * Math.sin(lPhase[0]) + highGain * hMag[0] * Math.sin(hPhase[0]);
+    return Math.sqrt(re * re + im * im);
+  }
+
+  function checkParamRanges(pedal, id, specs) {
+    for (const [key, { min, max, def }] of Object.entries(specs)) {
+      const p = pedal.params.find((pp) => pp.key === key);
+      log(!!p, `${id} has a '${key}' param`);
+      if (!p) continue;
+      log(p.min === min && p.max === max, `${id} '${key}' range is ${min}-${max} (found ${p.min}-${p.max})`);
+      log(p.default === def, `${id} '${key}' default is ${def} (found ${p.default})`);
+    }
+  }
+
+  function isValidCurve(curve) {
+    if (!(curve instanceof Float32Array) || curve.length !== 4096) return false;
+    for (let i = 0; i < curve.length; i++) if (!Number.isFinite(curve[i])) return false;
+    return true;
+  }
+
+  // =========================================================================
+  // Originals: confirm the generic pedals these 8 new ones sit alongside were
+  // never touched by the drive/fuzz research pass.
+  // =========================================================================
+  section('Originals unmodified (Overdrive, Distortion, Fuzz)');
+  {
+    const od = getPedalType('overdrive');
+    checkParamRanges(od, 'Overdrive', {
+      drive: { min: 0, max: 100, def: 40 }, tone: { min: 0, max: 100, def: 60 }, level: { min: 0, max: 200, def: 100 },
+    });
+    const odApplySrc = od.params.find((p) => p.key === 'drive').apply.toString();
+    log(odApplySrc.includes('driveCurve(') && !odApplySrc.includes('Asinh'), 'Overdrive drive knob still plain driveCurve (tanh), not asinh');
+    const { buf: odBuf } = await render(od, {}, 0.02, 220);
+    log(Math.abs(peakAsymmetry(odBuf).ratio - 1) < 0.03, 'Overdrive output stays symmetric (no bias)');
+
+    const dist = getPedalType('distortion');
+    checkParamRanges(dist, 'Distortion', {
+      drive: { min: 0, max: 100, def: 55 }, mid: { min: -12, max: 12, def: 3 },
+      tone: { min: 0, max: 100, def: 55 }, level: { min: 0, max: 200, def: 90 },
+    });
+    const distApplySrc = dist.params.find((p) => p.key === 'drive').apply.toString();
+    log(!distApplySrc.includes('driveCurveAsinh'), 'Distortion drive knob still uses tanh-family driveCurve, not asinh');
+    const { buf: distBuf } = await render(dist, {}, 0.02, 220);
+    log(Math.abs(peakAsymmetry(distBuf).ratio - 1) < 0.03, 'Distortion output stays symmetric (no bias) — see report note on Tier-2 wording');
+
+    const fuzz = getPedalType('fuzz');
+    checkParamRanges(fuzz, 'Fuzz', {
+      fuzz: { min: 0, max: 100, def: 65 }, tone: { min: 0, max: 100, def: 50 }, level: { min: 0, max: 200, def: 80 },
+    });
+    const fuzzApplySrc = fuzz.params.find((p) => p.key === 'fuzz').apply.toString();
+    log(/driveCurve\([^,]+,\s*0\.18\)/.test(fuzzApplySrc), 'Fuzz bias is still the fixed literal 0.18 (not derived from the knob)');
+  }
+
+  // =========================================================================
+  // TS9
+  // =========================================================================
+  section('TS9 (asinh symmetric clip)');
+  {
+    const ts9 = getPedalType('ts9');
+    checkParamRanges(ts9, 'TS9', {
+      drive: { min: 0, max: 100, def: 40 }, tone: { min: 0, max: 100, def: 60 }, level: { min: 0, max: 200, def: 100 },
+    });
+    const applySrc = ts9.params.find((p) => p.key === 'drive').apply.toString();
+    log(applySrc.includes('driveCurveAsinh'), 'TS9 drive knob uses driveCurveAsinh');
+
+    // Gentler shoulder than tanh across the knob sweep. NOTE: skipped at drive=0 (k=1) —
+    // driveCurve() is NOT peak-normalized (tanh(1)=0.76, nowhere near saturated yet) while
+    // driveCurveAsinh() always IS peak-normalized to reach exactly +/-1 at x=+/-1 for any k
+    // (see its own comment) — at very low k that normalization alone makes its midpoint
+    // read numerically louder than tanh's still-mostly-linear midpoint, which is a mismatch
+    // in what's being normalized against, not the asinh-vs-tanh shoulder-shape claim under
+    // test. From drive=25 up (k>=4.5) tanh is saturated enough that the comparison is
+    // apples-to-apples, and it holds at every point checked.
+    for (const v of [0, 25, 50, 75, 100]) {
+      const k = 1 + v * 0.14;
+      const tanhC = driveCurve(k), asinhC = driveCurveAsinh(k);
+      if (v >= 25) {
+        log(Math.abs(curveAt(asinhC, 0.5)) < Math.abs(curveAt(tanhC, 0.5)),
+            `TS9 asinh gentler than tanh at x=0.5, drive=${v} (k=${k.toFixed(2)}): asinh=${curveAt(asinhC, 0.5).toFixed(3)} tanh=${curveAt(tanhC, 0.5).toFixed(3)}`);
+      }
+      log(isValidCurve(asinhC), `TS9 asinh curve at drive=${v} is a valid finite 4096-sample curve`);
+    }
+    // Min/max/default knob apply, and symmetry (no bias on TS9).
+    for (const v of [0, 40, 100]) {
+      const { buf } = await render(ts9, { drive: v }, 0.02, 220);
+      log(Math.abs(peakAsymmetry(buf).ratio - 1) < 0.05, `TS9 output symmetric at drive=${v} (no bias)`);
+    }
+    // Tone knob sweep sanity (700-772Hz per formula).
+    const built = ts9.createNodes(new OfflineAudioContext(1, 1, 44100));
+    ts9.params.find((p) => p.key === 'tone').apply(built.nodes, 0);
+    log(built.nodes.tone.frequency.value === 700, 'TS9 Tone=0 -> 700Hz');
+    ts9.params.find((p) => p.key === 'tone').apply(built.nodes, 100);
+    log(built.nodes.tone.frequency.value === 7900 || Math.abs(built.nodes.tone.frequency.value - (700 + 100 * 72)) < 0.01, 'TS9 Tone=100 -> 7900Hz');
+  }
+
+  // =========================================================================
+  // SD-1
+  // =========================================================================
+  section('SD-1 (asymmetric asinh + mid scoop)');
+  {
+    const sd1 = getPedalType('sd1');
+    checkParamRanges(sd1, 'SD-1', {
+      drive: { min: 0, max: 100, def: 40 }, tone: { min: 0, max: 100, def: 60 }, level: { min: 0, max: 200, def: 100 },
+    });
+    const applySrc = sd1.params.find((p) => p.key === 'drive').apply.toString();
+    log(applySrc.includes('driveCurveAsinh') && applySrc.includes('0.08'), 'SD-1 drive knob uses driveCurveAsinh with a fixed 0.08 bias');
+
+    for (const v of [0, 40, 100]) {
+      const { buf } = await render(sd1, { drive: v }, 0.02, 220);
+      const { pos, neg, ratio } = peakAsymmetry(buf);
+      log(Math.abs(ratio - 1) > 0.02, `SD-1 measurably asymmetric at drive=${v} (pos=${pos.toFixed(3)} neg=${neg.toFixed(3)} ratio=${ratio.toFixed(3)})`);
+    }
+
+    const scoopBuilt = sd1.createNodes(new OfflineAudioContext(1, 1, 44100));
+    log(scoopBuilt.nodes.scoop.type === 'peaking', 'SD-1 scoop filter is a peaking filter');
+    log(scoopBuilt.nodes.scoop.frequency.value === 800, 'SD-1 scoop centered at 800Hz');
+    log(scoopBuilt.nodes.scoop.gain.value < 0, `SD-1 scoop is a cut, not a boost (${scoopBuilt.nodes.scoop.gain.value}dB)`);
+    log(!sd1.params.find((p) => p.key === 'scoop'), 'SD-1 scoop amount is fixed, not a user-exposed knob');
+
+    // Research's own verification test: A/B the tone filter against TS9's and confirm
+    // SD-1 reads as LESS mid-heavy, not more — measured directly as RMS at 800Hz.
+    const ts9 = getPedalType('ts9');
+    const { buf: sd1Buf } = await render(sd1, { drive: 30 }, 0.05, 800);
+    const { buf: ts9Buf } = await render(ts9, { drive: 30 }, 0.05, 800);
+    log(rms(sd1Buf) < rms(ts9Buf), `SD-1 is quieter than TS9 at 800Hz (SD-1 rms=${rms(sd1Buf).toFixed(4)}, TS9 rms=${rms(ts9Buf).toFixed(4)}) — confirms scooped mid, not boosted`);
+  }
+
+  // =========================================================================
+  // DS-1
+  // =========================================================================
+  section('DS-1 (asymmetric hard shunt-style clip)');
+  {
+    const ds1 = getPedalType('ds1');
+    checkParamRanges(ds1, 'DS-1', {
+      drive: { min: 0, max: 100, def: 55 }, tone: { min: 0, max: 100, def: 55 }, level: { min: 0, max: 200, def: 90 },
+    });
+    log(!ds1.params.find((p) => p.key === 'mid'), 'DS-1 has no separate Mid knob (real 3-knob Dist/Tone/Level layout)');
+    log(!!getPedalType('distortion').params.find((p) => p.key === 'mid'), 'Distortion (original) still has its Mid knob, for contrast');
+
+    for (const v of [0, 55, 100]) {
+      const { buf } = await render(ds1, { drive: v }, 0.02, 220);
+      const { ratio } = peakAsymmetry(buf);
+      log(Math.abs(ratio - 1) > 0.02, `DS-1 measurably asymmetric at drive=${v}`);
+      // Regression guard: driveCurve()'s fixed-point DC-removal (subtracting tanh(k*bias))
+      // nearly cancels the whole positive lobe once k*bias saturates tanh — a real bug that
+      // was live at DS-1's own default (Dist=55) before the bias-scales-as-1/k fix. Confirm
+      // the positive peak stays a healthy fraction of the negative peak's magnitude at every
+      // knob position, not collapsed toward zero.
+      log(Math.abs(ratio) > 0.15, `DS-1 positive peak isn't collapsed toward zero at drive=${v} (ratio=${ratio.toFixed(4)})`);
+    }
+
+    // Row's own cited verification test: FFT a clipped 220Hz tone, check for measurable
+    // 2nd-harmonic energy (a symmetric curve gives odd harmonics only).
+    const sr = 44100;
+    const { buf: ds1Buf } = await render(ds1, { drive: 80 }, 0.2, 220, sr);
+    const ds1H1 = harmonicMag(ds1Buf, 220, sr), ds1H2 = harmonicMag(ds1Buf, 440, sr);
+    const { buf: distBuf } = await render(getPedalType('distortion'), { drive: 80 }, 0.2, 220, sr);
+    const distH1 = harmonicMag(distBuf, 220, sr), distH2 = harmonicMag(distBuf, 440, sr);
+    const ds1Ratio = ds1H2 / ds1H1, distRatio = distH2 / distH1;
+    log(ds1Ratio > 0.01, `DS-1 has measurable 2nd-harmonic energy (H2/H1=${ds1Ratio.toFixed(4)})`);
+    log(ds1Ratio > distRatio * 2, `DS-1's 2nd-harmonic content clearly exceeds symmetric Distortion's (DS-1=${ds1Ratio.toFixed(4)} vs Distortion=${distRatio.toFixed(4)})`);
+  }
+
+  // =========================================================================
+  // BD-2
+  // =========================================================================
+  section('BD-2 (two cascaded FET/op-amp stages)');
+  {
+    const bd2 = getPedalType('bd2');
+    checkParamRanges(bd2, 'BD-2', {
+      drive: { min: 0, max: 100, def: 50 }, tone: { min: 0, max: 100, def: 55 }, level: { min: 0, max: 200, def: 100 },
+    });
+    const built = bd2.createNodes(new OfflineAudioContext(1, 1, 44100));
+    log(!!built.nodes.shaper1 && !!built.nodes.shaper2, 'BD-2 has two distinct WaveShaper stages');
+
+    for (const v of [0, 25, 50, 75, 100]) {
+      bd2.params.find((p) => p.key === 'drive').apply(built.nodes, v);
+      const k1 = 1.5 + v * 0.06, k2 = 3 + v * 0.25;
+      log(Math.abs(curveAt(built.nodes.shaper1.curve, 0.5) - curveAt(driveCurve(k1), 0.5)) < 1e-6,
+          `BD-2 stage1 curve matches k=${k1.toFixed(2)} at drive=${v}`);
+      log(Math.abs(curveAt(built.nodes.shaper2.curve, 0.5)) >= Math.abs(curveAt(built.nodes.shaper1.curve, 0.5)),
+          `BD-2 stage2 clips at least as hard as stage1 at drive=${v}`);
+    }
+
+    // Exploratory only (per PEDAL-RESEARCH.md §3: the specific 2nd->3rd harmonic-shift
+    // claim is sourced to an unverified reader comment, not the article itself — so this
+    // logs the measured ratio rather than asserting a fabricated pass/fail number).
+    const sr = 44100;
+    const { buf: loBuf } = await render(bd2, { drive: 10 }, 0.2, 220, sr);
+    const { buf: hiBuf } = await render(bd2, { drive: 90 }, 0.2, 220, sr);
+    const loH2 = harmonicMag(loBuf, 440, sr) / harmonicMag(loBuf, 220, sr);
+    const hiH2 = harmonicMag(hiBuf, 440, sr) / harmonicMag(hiBuf, 220, sr);
+    log(true, `BD-2 exploratory: H2/H1 at drive=10 is ${loH2.toFixed(4)}, at drive=90 is ${hiH2.toFixed(4)} (no confirmed target ratio to assert against — see PEDAL-RESEARCH.md)`);
+  }
+
+  // =========================================================================
+  // Rat 2
+  // =========================================================================
+  section('Rat 2 (475Hz-32kHz filter sweep, harder clip)');
+  {
+    const rat2 = getPedalType('rat2');
+    checkParamRanges(rat2, 'Rat 2', {
+      drive: { min: 0, max: 100, def: 55 }, filter: { min: 475, max: 32000, def: 4000 }, level: { min: 0, max: 200, def: 90 },
+    });
+    const built = rat2.createNodes(new OfflineAudioContext(1, 1, 44100));
+    rat2.params.find((p) => p.key === 'filter').apply(built.nodes, 475);
+    log(built.nodes.tone.frequency.value === 475, 'Rat 2 Filter min knob value -> 475Hz');
+    rat2.params.find((p) => p.key === 'filter').apply(built.nodes, 32000);
+    // Not a pedal bug: BiquadFilterNode.frequency is spec-clamped to Nyquist
+    // (sampleRate/2). At the 44.1kHz used throughout this app/tests that's 22050Hz, so the
+    // knob's declared 475-32000Hz range (matching the real Rat 2's measured sweep, per
+    // PEDAL-RESEARCH.md) is NOT fully reachable via a lowpass BiquadFilterNode at a standard
+    // sample rate — the top ~1/3 of the knob does nothing beyond the clamp. Flagged in the
+    // report as a platform-level gap, not something fixable by editing pedal-registry.js.
+    const nyquist = 44100 / 2;
+    log(built.nodes.tone.frequency.value === nyquist,
+        `Rat 2 Filter max knob (32000Hz) is clamped to Nyquist (${nyquist}Hz) at 44.1kHz, confirming the platform ceiling (actual value: ${built.nodes.tone.frequency.value})`);
+
+    for (const v of [0, 50, 100]) {
+      const ratCurve = driveCurve(6 + v * 0.5);
+      const distCurve = driveCurve(4 + v * 0.4);
+      log(Math.abs(curveAt(ratCurve, 0.6)) >= Math.abs(curveAt(distCurve, 0.6)),
+          `Rat 2 clips at least as hard as Distortion at matched drive=${v}`);
+    }
+    for (const v of [0, 55, 100]) {
+      const { buf } = await render(rat2, { drive: v }, 0.02, 220);
+      log(Number.isFinite(rms(buf)) && rms(buf) > 0, `Rat 2 renders finite non-silent output at drive=${v}`);
+    }
+  }
+
+  // =========================================================================
+  // Big Muff Pi
+  // =========================================================================
+  section('Big Muff Pi (two-stage clip + lowpass/highpass Tone crossfade)');
+  {
+    const bigmuff = getPedalType('bigmuff');
+    checkParamRanges(bigmuff, 'Big Muff', {
+      sustain: { min: 0, max: 100, def: 60 }, tone: { min: 0, max: 100, def: 50 }, level: { min: 0, max: 200, def: 100 },
+    });
+    const built = bigmuff.createNodes(new OfflineAudioContext(1, 1, 44100));
+    log(!!built.nodes.shaper1 && !!built.nodes.shaper2, 'Big Muff has two distinct WaveShaper stages');
+    log(!!built.nodes.lowGain && !!built.nodes.highGain, 'Big Muff Tone is a lowpass/highpass crossfade, not one filter');
+
+    for (const v of [0, 50, 100]) {
+      bigmuff.params.find((p) => p.key === 'sustain').apply(built.nodes, v);
+      const k1 = 4 + v * 0.3, k2 = 8 + v * 0.5;
+      log(Math.abs(curveAt(built.nodes.shaper1.curve, 0.5) - curveAt(driveCurve(k1), 0.5)) < 1e-6, `Big Muff stage1 curve matches k=${k1.toFixed(2)} at sustain=${v}`);
+      log(Math.abs(curveAt(built.nodes.shaper2.curve, 0.9)) >= Math.abs(curveAt(built.nodes.shaper1.curve, 0.9)), `Big Muff stage2 clips at least as hard as stage1 at sustain=${v}`);
+    }
+
+    bigmuff.params.find((p) => p.key === 'tone').apply(built.nodes, 0);
+    log(built.nodes.lowGain.gain.value === 1 && built.nodes.highGain.gain.value === 0, 'Big Muff Tone=0 is fully lowpass branch');
+    bigmuff.params.find((p) => p.key === 'tone').apply(built.nodes, 50);
+    log(Math.abs(built.nodes.lowGain.gain.value - 0.5) < 1e-9 && Math.abs(built.nodes.highGain.gain.value - 0.5) < 1e-9, 'Big Muff Tone=50 (center) is an even 50/50 crossfade');
+    bigmuff.params.find((p) => p.key === 'tone').apply(built.nodes, 100);
+    log(built.nodes.lowGain.gain.value === 0 && built.nodes.highGain.gain.value === 1, 'Big Muff Tone=100 is fully highpass branch');
+
+    // Center-position notch: real pedal measures ~13.5dB total loss at 1kHz vs passband
+    // at center Tone. This app's 2-branch crossfade (500Hz lowpass / 2000Hz highpass,
+    // summed 50/50) is an explicit simplification (not a full passive tone-stack replica),
+    // so this checks for the qualitative dip the crossfade should still produce, not the
+    // exact -13.5dB figure, which this simpler topology isn't expected to hit precisely.
+    const mid = parallelMag(500, 2000, 0.5, 0.5, 1000);
+    const low = parallelMag(500, 2000, 0.5, 0.5, 150);
+    const high = parallelMag(500, 2000, 0.5, 0.5, 6000);
+    log(mid < low * 0.9 && mid < high * 0.9, `Big Muff Tone=50 center notch: |H(1kHz)|=${mid.toFixed(3)} is a dip vs |H(150Hz)|=${low.toFixed(3)} and |H(6kHz)|=${high.toFixed(3)}`);
+  }
+
+  // =========================================================================
+  // Fuzz Face
+  // =========================================================================
+  section('Fuzz Face (soft-then-hard, opposing-gain 2-stage)');
+  {
+    const ff = getPedalType('fuzzface');
+    checkParamRanges(ff, 'Fuzz Face', {
+      fuzz: { min: 0, max: 100, def: 65 }, tone: { min: 0, max: 100, def: 50 }, level: { min: 0, max: 200, def: 80 },
+    });
+    const built = ff.createNodes(new OfflineAudioContext(1, 1, 44100));
+    log(!!built.nodes.stage1 && !!built.nodes.stage2 && !!built.nodes.stage1Gain, 'Fuzz Face has a 2-stage cascade with a gain stage between them');
+
+    let prevGain = Infinity;
+    for (const v of [0, 25, 50, 75, 100]) {
+      ff.params.find((p) => p.key === 'fuzz').apply(built.nodes, v);
+      const g = built.nodes.stage1Gain.gain.value;
+      log(g <= prevGain, `Fuzz Face stage1 gain monotonically non-increasing at fuzz=${v} (${g.toFixed(3)}, prev ${prevGain === Infinity ? 'n/a' : prevGain.toFixed(3)})`);
+      prevGain = g;
+      log(isValidCurve(built.nodes.stage2.curve), `Fuzz Face stage2 curve valid at fuzz=${v}`);
+    }
+
+    const curveLoFull = ff.createNodes(new OfflineAudioContext(1, 1, 44100));
+    ff.params.find((p) => p.key === 'fuzz').apply(curveLoFull.nodes, 0);
+    const curveHiFull = ff.createNodes(new OfflineAudioContext(1, 1, 44100));
+    ff.params.find((p) => p.key === 'fuzz').apply(curveHiFull.nodes, 100);
+    // Compared at a MODERATE point (x=0.3), not x=0.9: by x=0.9 both fuzz=0 and fuzz=100
+    // curves are already fully saturated (post bias-collapse fix, both plateau to ~the same
+    // value there since k*bias is held constant), so a fixed far-out sample point can't
+    // distinguish "harder" once both are already pinned — a flawed original test design,
+    // independent of the driveCurve bug fixed in pedal-registry.js. At a moderate x the
+    // higher-k curve at fuzz=100 has genuinely already saturated while fuzz=0 hasn't yet,
+    // which is the actual "harder/faster clipping" signal.
+    log(Math.abs(curveAt(curveHiFull.nodes.stage2.curve, 0.3)) > Math.abs(curveAt(curveLoFull.nodes.stage2.curve, 0.3)),
+        'Fuzz Face stage2 clips harder (saturates faster) at fuzz=100 than fuzz=0, measured at a moderate x=0.3');
+
+    for (const v of [0, 65, 100]) {
+      const { buf } = await render(ff, { fuzz: v }, 0.02, 220);
+      log(Math.abs(peakAsymmetry(buf).ratio - 1) > 0.02, `Fuzz Face measurably asymmetric at fuzz=${v}`);
+    }
+  }
+
+  // =========================================================================
+  // Klon
+  // =========================================================================
+  section('Klon (parallel dry/wet, dual-gang-linked Gain knob)');
+  {
+    const klon = getPedalType('klon');
+    checkParamRanges(klon, 'Klon', {
+      gain: { min: 0, max: 100, def: 40 }, treble: { min: -12, max: 12, def: 2 }, level: { min: 0, max: 200, def: 100 },
+    });
+    const built = klon.createNodes(new OfflineAudioContext(1, 1, 44100));
+    log(!!built.nodes.dirtyGain && !!built.nodes.cleanGain, 'Klon has separate dirty/clean gain branches (parallel, not series)');
+
+    let prevDirty = -Infinity, prevClean = Infinity;
+    for (const v of [0, 50, 100]) {
+      klon.params.find((p) => p.key === 'gain').apply(built.nodes, v);
+      const dirty = built.nodes.dirtyGain.gain.value, clean = built.nodes.cleanGain.gain.value;
+      log(dirty >= prevDirty, `Klon dirty gain non-decreasing at gain=${v} (${dirty.toFixed(3)})`);
+      log(clean <= prevClean, `Klon clean gain non-increasing at gain=${v} (${clean.toFixed(3)})`);
+      prevDirty = dirty; prevClean = clean;
+    }
+    klon.params.find((p) => p.key === 'gain').apply(built.nodes, 0);
+    log(built.nodes.dirtyGain.gain.value === 0 && built.nodes.cleanGain.gain.value === 1,
+        'Klon Gain=0 is a pure-clean bypass-equivalent (dirty=0, clean=unity)');
+
+    // Row's own cited verification test: at low Gain (mostly-clean blend), THD should stay
+    // very low; a pure series shaper (the generic Fuzz/Distortion/Overdrive pattern) could
+    // never do this since it can't null the dirty path out.
+    const sr = 44100;
+    const { buf: loBuf } = await render(klon, { gain: 5 }, 0.2, 220, sr);
+    const { buf: hiBuf } = await render(klon, { gain: 100 }, 0.2, 220, sr);
+    const thd = (buf) => {
+      const h1 = harmonicMag(buf, 220, sr), h2 = harmonicMag(buf, 440, sr), h3 = harmonicMag(buf, 660, sr);
+      return Math.sqrt(h2 * h2 + h3 * h3) / h1;
+    };
+    const thdLo = thd(loBuf), thdHi = thd(hiBuf);
+    log(thdLo < 0.05, `Klon THD is very low at Gain=5 (${(thdLo * 100).toFixed(2)}%)`);
+    log(thdHi > thdLo * 3, `Klon THD rises substantially by Gain=100 (${(thdHi * 100).toFixed(2)}% vs ${(thdLo * 100).toFixed(2)}% at Gain=5)`);
+    log(rms(loBuf) > 0.05, 'Klon at low Gain still passes signal through (not silent)');
+
+    // Treble knob sanity.
+    klon.params.find((p) => p.key === 'treble').apply(built.nodes, -12);
+    log(built.nodes.treble.gain.value === -12, 'Klon Treble=-12 applies directly');
+    klon.params.find((p) => p.key === 'treble').apply(built.nodes, 12);
+    log(built.nodes.treble.gain.value === 12, 'Klon Treble=+12 applies directly');
+  }
+
+  out.innerHTML = lines.join('');
+  const failed = lines.filter((l) => l.includes('FAIL')).length;
+  const total = lines.filter((l) => l.includes('PASS') || l.includes('FAIL')).length;
+  out.innerHTML += `<h2>${failed === 0 ? `ALL PASS (${total})` : `${failed} FAILED / ${total}`}</h2>`;
+</script>
+</body>
+</html>

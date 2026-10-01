@@ -439,6 +439,241 @@
           "index.html"
         ],
         "createdAt": "2026-09-18T07:18:19.404Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(58% 0.2 45)",
+        "createdAt": "2026-09-30T13:25:37.926Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(60% 0.15 165)",
+        "createdAt": "2026-09-30T13:25:38.074Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(74% 0.16 95)",
+        "createdAt": "2026-09-30T13:25:38.229Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(72% 0.17 75)",
+        "createdAt": "2026-09-30T13:25:38.374Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(64% 0.2 35)",
+        "createdAt": "2026-09-30T13:25:38.523Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(42% 0.18 30)",
+        "createdAt": "2026-09-30T13:25:38.678Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(60% 0.15 25)",
+        "createdAt": "2026-09-30T13:25:38.822Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(66% 0.14 250)",
+        "createdAt": "2026-09-30T13:25:38.976Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(56% 0.19 305)",
+        "createdAt": "2026-09-30T13:25:39.138Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(60% 0.14 165)",
+        "createdAt": "2026-09-30T13:25:39.288Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(58% 0.05 260)",
+        "createdAt": "2026-09-30T13:38:30.826Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(60% 0.04 240)",
+        "createdAt": "2026-09-30T13:38:30.974Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(68% 0.16 250)",
+        "createdAt": "2026-09-30T13:38:31.156Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(46% 0.16 280)",
+        "createdAt": "2026-09-30T13:38:31.313Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(78% 0.13 90)",
+        "createdAt": "2026-09-30T13:38:31.463Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(55% 0.18 300)",
+        "createdAt": "2026-09-30T13:38:31.622Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(48% 0.14 340)",
+        "createdAt": "2026-09-30T13:38:31.771Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(58% 0.13 65)",
+        "createdAt": "2026-09-30T13:38:31.916Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(52% 0.12 50)",
+        "createdAt": "2026-09-30T13:38:32.068Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(38% 0.17 18)",
+        "createdAt": "2026-09-30T13:50:37.290Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(64% 0.18 230)",
+        "createdAt": "2026-09-30T13:50:37.442Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(55% 0.22 25)",
+        "createdAt": "2026-09-30T13:50:37.606Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(55% 0.16 305)",
+        "createdAt": "2026-09-30T13:50:37.754Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(58% 0.18 320)",
+        "createdAt": "2026-09-30T13:50:37.905Z"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "georgia",
+        "createdAt": "2026-10-01T02:07:10.996Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255,255,255,0.16)",
+        "createdAt": "2026-10-01T02:07:11.161Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#2b2d31",
+        "createdAt": "2026-10-01T02:07:11.307Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#2e2e2e",
+        "createdAt": "2026-10-01T02:07:11.465Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#3a3c40",
+        "createdAt": "2026-10-01T02:07:11.658Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(78% 0.18 145)",
+        "createdAt": "2026-10-01T02:07:11.807Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(88% 0.17 95)",
+        "createdAt": "2026-10-01T02:07:11.981Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(70% 0.18 50)",
+        "createdAt": "2026-10-01T02:07:12.147Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(75% 0.01 260)",
+        "createdAt": "2026-10-01T02:07:12.315Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(24% 0.01 260)",
+        "createdAt": "2026-10-01T02:07:12.471Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(42% 0.18 260)",
+        "createdAt": "2026-10-01T02:07:12.655Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(80% 0.01 260)",
+        "createdAt": "2026-10-01T02:07:12.802Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(70% 0.09 80)",
+        "createdAt": "2026-10-01T02:07:12.964Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(28% 0.08 30)",
+        "createdAt": "2026-10-01T02:07:13.119Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(20% 0.02 60)",
+        "createdAt": "2026-10-01T02:07:13.280Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(18% 0.01 260)",
+        "createdAt": "2026-10-01T02:07:13.432Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(35% 0.13 260)",
+        "createdAt": "2026-10-01T02:07:13.586Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(72% 0.18 55)",
+        "createdAt": "2026-10-01T02:07:13.757Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(52% 0.09 175)",
+        "createdAt": "2026-10-01T02:07:13.930Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(78% 0.13 85)",
+        "createdAt": "2026-10-01T02:07:14.092Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(88% 0.03 85)",
+        "createdAt": "2026-10-01T02:07:14.244Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(55% 0.21 25)",
+        "createdAt": "2026-10-01T02:07:14.426Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(62% 0.14 230)",
+        "createdAt": "2026-10-01T02:07:14.608Z"
       }
     ]
   }

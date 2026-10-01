@@ -20,6 +20,42 @@ export function driveCurve(k, bias = 0, samples = 4096) {
   return curve;
 }
 
+// asinh has a much gentler, longer shoulder into saturation than tanh (never fully
+// saturates) — the curve family real op-amp/diode feedback-clippers (TS9, SD-1) actually
+// follow, per Yeh/Abel/Smith DAFx-07 and confirmed independently via a KVR DSP-forum post.
+// Peak-normalized to +/-1 like driveCurve, since raw asinh output grows past +/-1 for k>~1.
+export function driveCurveAsinh(k, bias = 0, samples = 4096) {
+  const curve = new Float32Array(samples);
+  const zero = Math.asinh(k * bias);
+  let peak = 0;
+  for (let i = 0; i < samples; i++) {
+    const x = (i / (samples - 1)) * 2 - 1;
+    const y = Math.asinh(k * (x + bias)) - zero;
+    curve[i] = y;
+    if (Math.abs(y) > peak) peak = Math.abs(y);
+  }
+  if (peak > 0) for (let i = 0; i < samples; i++) curve[i] /= peak;
+  return curve;
+}
+
+// Boss TR-2's real circuit crossfades the tremolo LFO's shape between a soft-edged
+// (trapezoidal, not hard) square, a sine, and a triangle via a dedicated JFET waveshaping
+// stage. This approximates that by reshaping a triangle-wave input: t=0 -> soft square,
+// t=0.5 -> sine (the standard sin(x*pi/2) triangle-to-sine wave-shaping identity), t=1 ->
+// unshaped triangle. Feed a triangle-type OscillatorNode's output through this curve.
+export function tremoloWaveCurve(t, samples = 4096) {
+  const curve = new Float32Array(samples);
+  for (let i = 0; i < samples; i++) {
+    const x = (i / (samples - 1)) * 2 - 1;
+    const sine = Math.sin(x * (Math.PI / 2));
+    const y = t < 0.5
+      ? Math.tanh(x * 4) * (1 - t * 2) + sine * (t * 2)
+      : sine * (2 - t * 2) + x * (t * 2 - 1);
+    curve[i] = y;
+  }
+  return curve;
+}
+
 // Shared param appliers/nodes — these were copy-pasted per pedal.
 const setMix = (n, v) => { n.wet.gain.value = v / 100; n.dry.gain.value = 1 - v / 100; };
 const setLevel = (n, v) => (n.level.gain.value = v / 100);
@@ -66,6 +102,49 @@ export const PEDAL_TYPES = [
       { key: 'ratio', label: 'Ratio', min: 1, max: 20, default: 4, apply: (n, v) => (n.comp.parameters.get('ratio').value = v) },
       { key: 'attack', label: 'Attack', min: 0, max: 50, default: 5, unit: 'ms', apply: (n, v) => (n.comp.parameters.get('attack').value = v / 1000) },
       { key: 'release', label: 'Release', min: 10, max: 1000, default: 150, unit: 'ms', apply: (n, v) => (n.comp.parameters.get('release').value = v / 1000) },
+      { key: 'level', label: 'Level', min: 0, max: 200, default: 100, unit: '%', apply: (n, v) => (n.makeup.gain.value = v / 100) },
+    ],
+  },
+  {
+    id: 'vintagecomp', label: 'Dyna Comp', category: 'dynamics', color: 'oklch(55% 0.21 25)', brand: 'mxr', brandLabel: 'MXR',
+    blurb: 'A single-pole ~1.5s envelope follower with just one knob — the MXR Dyna Comp\'s slow, simple squash.',
+    about: 'Modeled on the MXR Dyna Comp: a CA3080 OTA driven by a single-pole envelope detector with a confirmed ~1.5s time constant (calculated from its own C8/R13 values), not the independently-adjustable fast attack/release of a modern compressor. Just one Sensitivity knob, no ratio/knee/attack/release controls, matching the real pedal.',
+    createNodes(ctx) {
+      const comp = new AudioWorkletNode(ctx, 'dynamics-processor');
+      comp.parameters.get('knee').value = 6;
+      comp.parameters.get('ratio').value = 8;
+      comp.parameters.get('attack').value = 1.5;
+      comp.parameters.get('release').value = 1.5;
+      const makeup = ctx.createGain(); makeup.gain.value = 1.8;
+      comp.connect(makeup);
+      return { input: comp, output: makeup, nodes: { comp, makeup } };
+    },
+    params: [
+      { key: 'sensitivity', label: 'Sensitivity', min: 0, max: 100, default: 50, apply: (n, v) => (n.comp.parameters.get('threshold').value = -10 - (v / 100) * 30) },
+    ],
+  },
+  {
+    id: 'cs3', label: 'CS-3', category: 'dynamics', color: 'oklch(62% 0.14 230)', brand: 'boss', brandLabel: 'BOSS',
+    blurb: 'A hard-knee compressor whose Attack and Release move in opposite directions on one knob — the Boss CS-3.',
+    about: 'Modeled on the Boss Compression Sustainer CS-3: a fixed hard knee and high ratio, plus its documented Attack/Release coupling — the two aren\'t independent, turning one lengthens it while shortening the other, unlike the generic Compressor\'s separate knobs.',
+    createNodes(ctx) {
+      const comp = new AudioWorkletNode(ctx, 'dynamics-processor');
+      comp.parameters.get('knee').value = 2;
+      comp.parameters.get('ratio').value = 10;
+      const makeup = ctx.createGain();
+      comp.connect(makeup);
+      return { input: comp, output: makeup, nodes: { comp, makeup } };
+    },
+    params: [
+      { key: 'threshold', label: 'Threshold', min: -60, max: 0, default: -24, unit: 'dB', apply: (n, v) => (n.comp.parameters.get('threshold').value = v) },
+      {
+        key: 'attackRelease', label: 'Attack/Release', min: 0, max: 100, default: 50,
+        apply: (n, v) => {
+          const t = v / 100;
+          n.comp.parameters.get('attack').value = 0.001 + t * 0.05;
+          n.comp.parameters.get('release').value = 0.5 - t * 0.45;
+        },
+      },
       { key: 'level', label: 'Level', min: 0, max: 200, default: 100, unit: '%', apply: (n, v) => (n.makeup.gain.value = v / 100) },
     ],
   },
@@ -130,6 +209,41 @@ export const PEDAL_TYPES = [
     ],
   },
   {
+    id: 'ts9', label: 'TS9', category: 'drive', color: 'oklch(78% 0.18 145)', brand: 'ibanez', brandLabel: 'Ibanez',
+    blurb: 'The Ibanez Tube Screamer\'s gentler, longer clipping shoulder — smoother breakup than a generic overdrive.',
+    about: 'Modeled on the Ibanez TS9/TS808: two diodes clip symmetrically in an op-amp feedback loop, which follows an asinh-family curve rather than tanh — a much more gradual onset into saturation that never fully hard-saturates. The result breaks up more gently and smoothly than the generic Overdrive.',
+    createNodes(ctx) {
+      const shaper = ctx.createWaveShaper(); shaper.oversample = '2x';
+      const tone = ctx.createBiquadFilter(); tone.type = 'lowpass';
+      const level = ctx.createGain();
+      shaper.connect(tone).connect(level);
+      return { input: shaper, output: level, nodes: { shaper, tone, level } };
+    },
+    params: [
+      { key: 'drive', label: 'Drive', min: 0, max: 100, default: 40, apply: (n, v) => (n.shaper.curve = driveCurveAsinh(1 + v * 0.14)) },
+      { key: 'tone', label: 'Tone', min: 0, max: 100, default: 60, apply: (n, v) => (n.tone.frequency.value = 700 + v * 72) },
+      { key: 'level', label: 'Level', min: 0, max: 200, default: 100, unit: '%', apply: setLevel },
+    ],
+  },
+  {
+    id: 'sd1', label: 'SD-1', category: 'drive', color: 'oklch(88% 0.17 95)', brand: 'boss', brandLabel: 'BOSS',
+    blurb: 'Like the TS9 but comparatively scooped and asymmetric — the Boss Super Overdrive.',
+    about: 'Modeled on the Boss SD-1 Super Overdrive: same asinh-family clipping curve family as the TS9, but with confirmed asymmetric clipping (a small DC bias) and a comparatively scooped midrange rather than the TS9\'s more pronounced mids.',
+    createNodes(ctx) {
+      const shaper = ctx.createWaveShaper(); shaper.oversample = '2x';
+      const scoop = ctx.createBiquadFilter(); scoop.type = 'peaking'; scoop.frequency.value = 800; scoop.Q.value = 0.9; scoop.gain.value = -3;
+      const tone = ctx.createBiquadFilter(); tone.type = 'lowpass';
+      const level = ctx.createGain();
+      shaper.connect(scoop).connect(tone).connect(level);
+      return { input: shaper, output: level, nodes: { shaper, scoop, tone, level } };
+    },
+    params: [
+      { key: 'drive', label: 'Drive', min: 0, max: 100, default: 40, apply: (n, v) => (n.shaper.curve = driveCurveAsinh(1 + v * 0.14, 0.08)) },
+      { key: 'tone', label: 'Tone', min: 0, max: 100, default: 60, apply: (n, v) => (n.tone.frequency.value = 700 + v * 72) },
+      { key: 'level', label: 'Level', min: 0, max: 200, default: 100, unit: '%', apply: setLevel },
+    ],
+  },
+  {
     id: 'distortion', label: 'Distortion', category: 'drive', color: 'oklch(66% 0.19 45)',
     blurb: 'Harder, more compressed clipping for a heavier, sustained rock/metal crunch.',
     about: 'Distortion clips your signal harder and more consistently than an overdrive, producing a thicker, more compressed, more sustained tone that doesn\'t clean up much no matter how softly you play. Good for rock rhythm and lead tones that need more aggression and sustain.',
@@ -149,6 +263,34 @@ export const PEDAL_TYPES = [
     ],
   },
   {
+    id: 'ds1', label: 'DS-1', category: 'drive', color: 'oklch(70% 0.18 50)', brand: 'boss', brandLabel: 'BOSS',
+    blurb: 'A hard, asymmetric shunt-clip with an asymmetric booster feeding it — the Boss DS-1.',
+    about: 'Modeled on the Boss DS-1: diodes shunt the signal to AC ground for a hard-clipping character, fed by an asymmetric booster stage. Only 3 knobs (Dist/Tone/Level), matching the real pedal — no separate Mid control.',
+    createNodes(ctx) {
+      const shaper = ctx.createWaveShaper(); shaper.oversample = '4x';
+      const tone = ctx.createBiquadFilter(); tone.type = 'lowpass';
+      const level = ctx.createGain();
+      shaper.connect(tone).connect(level);
+      return { input: shaper, output: level, nodes: { shaper, tone, level } };
+    },
+    params: [
+      {
+        key: 'drive', label: 'Dist', min: 0, max: 100, default: 55,
+        apply: (n, v) => {
+          const k = 5 + v * 0.45;
+          // bias scaled as a constant/k (not a fixed 0.15) — at high k, a fixed bias made
+          // tanh(k*bias) saturate to ~the same value as tanh(k*(x+bias)) across almost the
+          // whole positive-x range, so driveCurve's DC-removal term canceled nearly all of
+          // the positive lobe (curve(0.9) -> ~0 instead of staying hard-clipped) — a real
+          // bug already audible at the default Dist=55, not a tuning choice.
+          n.shaper.curve = driveCurve(k, 0.75 / k);
+        },
+      },
+      { key: 'tone', label: 'Tone', min: 0, max: 100, default: 55, apply: (n, v) => (n.tone.frequency.value = 600 + v * 75) },
+      { key: 'level', label: 'Level', min: 0, max: 200, default: 90, unit: '%', apply: setLevel },
+    ],
+  },
+  {
     id: 'fuzz', label: 'Fuzz', category: 'drive', color: 'oklch(38% 0.17 18)',
     blurb: 'Thick, buzzy, almost synth-like saturation — the most extreme of the drive pedals.',
     about: 'Fuzz clips the waveform far harder and more asymmetrically than distortion, turning your signal into something closer to a buzzy square wave. It\'s the fuzziest, most saturated, most harmonically dense of the drive family — think 60s/70s psychedelic and stoner rock leads.',
@@ -160,9 +302,149 @@ export const PEDAL_TYPES = [
       return { input: shaper, output: level, nodes: { shaper, tone, level } };
     },
     params: [
-      { key: 'fuzz', label: 'Fuzz', min: 0, max: 100, default: 65, apply: (n, v) => (n.shaper.curve = driveCurve(8 + v * 0.45, 0.18)) },
+      {
+        key: 'fuzz', label: 'Fuzz', min: 0, max: 100, default: 65,
+        apply: (n, v) => {
+          const k = 8 + v * 0.45;
+          // bias scaled as a constant/k (was fixed at 0.18) — same saturation-cancellation
+          // bug as DS-1/Fuzz Face: at high k a fixed bias makes tanh(k*bias) saturate to
+          // ~1, canceling almost the entire positive lobe (curve(0.9) was exactly 0 at this
+          // pedal's own default Fuzz=65). 1.44/k keeps k*bias constant at the original
+          // k=8 bias value, so low-Fuzz character is unchanged and nothing collapses.
+          n.shaper.curve = driveCurve(k, 1.44 / k);
+        },
+      },
       { key: 'tone', label: 'Tone', min: 0, max: 100, default: 50, apply: (n, v) => (n.tone.frequency.value = 1200 + v * 60) },
       { key: 'level', label: 'Level', min: 0, max: 200, default: 80, unit: '%', apply: setLevel },
+    ],
+  },
+  {
+    id: 'fuzzface', label: 'Fuzz Face', category: 'drive', color: 'oklch(75% 0.01 260)', shape: 'round', brand: 'arbiter', brandLabel: 'Arbiter · England',
+    blurb: 'Two soft-then-hard clipping stages with opposing gain — the Dallas Arbiter Fuzz Face (germanium).',
+    about: 'Modeled on the Dallas Arbiter Fuzz Face (germanium), per GEOFEX\'s own circuit analysis: a voltage-feedback-biasing topology where Q1 clips soft/mushy first and Q2 clips hard on the same polarity, and the two stages\' gains move in opposite directions as the Fuzz knob turns (more of the signal feeds back to bias Q1 as Q2\'s gain rises). Upgraded from the earlier single-shaper version to this real 2-stage cascade.',
+    createNodes(ctx) {
+      const stage1 = ctx.createWaveShaper(); stage1.oversample = '2x';
+      const stage1Gain = ctx.createGain();
+      const stage2 = ctx.createWaveShaper(); stage2.oversample = '4x';
+      const tone = ctx.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = 4200;
+      const level = ctx.createGain();
+      stage1.connect(stage1Gain).connect(stage2).connect(tone).connect(level);
+      return { input: stage1, output: level, nodes: { stage1, stage1Gain, stage2, tone, level } };
+    },
+    params: [
+      {
+        key: 'fuzz', label: 'Fuzz', min: 0, max: 100, default: 65,
+        apply: (n, v) => {
+          const t = v / 100;
+          n.stage1.curve = driveCurve(2 + t * 2, 0.12);
+          n.stage1Gain.gain.value = 1.4 - t * 0.8;
+          const k2 = 4 + t * 10;
+          // bias scaled as a constant/k2 (was growing alongside k2, up to 0.27) — at high
+          // k2 that made tanh(k2*bias) saturate to ~the same value as tanh(k2*(x+bias))
+          // across almost the whole positive-x range, so driveCurve's DC-removal term
+          // canceled nearly all of the positive lobe (curve(0.9) -> ~0.001 instead of
+          // staying hard-clipped) — a real bug already audible at the default Fuzz=65,
+          // not a tuning choice.
+          n.stage2.curve = driveCurve(k2, 0.48 / k2);
+        },
+      },
+      { key: 'tone', label: 'Tone', min: 0, max: 100, default: 50, apply: (n, v) => (n.tone.frequency.value = 1200 + v * 60) },
+      { key: 'level', label: 'Level', min: 0, max: 200, default: 80, unit: '%', apply: setLevel },
+    ],
+  },
+  {
+    id: 'rat2', label: 'Rat 2', category: 'drive', color: 'oklch(24% 0.01 260)',
+    blurb: 'A harder-clipping op-amp fuzz-drive with a much wider Filter sweep than a typical tone knob.',
+    about: 'Modeled on the ProCo Rat 2: an LM308 op-amp driving silicon diodes shunted across the feedback path for a harder clip than a typical overdrive, plus its "Filter" knob\'s real, unusually wide 475Hz-32kHz lowpass sweep.',
+    createNodes(ctx) {
+      const shaper = ctx.createWaveShaper(); shaper.oversample = '4x';
+      const tone = ctx.createBiquadFilter(); tone.type = 'lowpass';
+      const level = ctx.createGain();
+      shaper.connect(tone).connect(level);
+      return { input: shaper, output: level, nodes: { shaper, tone, level } };
+    },
+    params: [
+      { key: 'drive', label: 'Distortion', min: 0, max: 100, default: 55, apply: (n, v) => (n.shaper.curve = driveCurve(6 + v * 0.5)) },
+      { key: 'filter', label: 'Filter', min: 475, max: 32000, default: 4000, unit: 'Hz', apply: (n, v) => (n.tone.frequency.value = v) },
+      { key: 'level', label: 'Level', min: 0, max: 200, default: 90, unit: '%', apply: setLevel },
+    ],
+  },
+  {
+    id: 'bd2', label: 'BD-2', category: 'drive', color: 'oklch(42% 0.18 260)', accent: 'oklch(78% 0.13 85)', trim: 'oklch(78% 0.13 85)', brand: 'boss', brandLabel: 'BOSS',
+    blurb: 'Two cascaded soft-then-hard clipping stages — the Boss Blues Driver.',
+    about: 'Modeled on the Boss Blues Driver: two cascaded FET/op-amp clipping stages in series (confirmed via a direct circuit-analysis article), rather than the single shaper stage every other generic drive pedal here uses.',
+    createNodes(ctx) {
+      const shaper1 = ctx.createWaveShaper(); shaper1.oversample = '2x';
+      const shaper2 = ctx.createWaveShaper(); shaper2.oversample = '2x';
+      const tone = ctx.createBiquadFilter(); tone.type = 'lowpass';
+      const level = ctx.createGain();
+      shaper1.connect(shaper2).connect(tone).connect(level);
+      return { input: shaper1, output: level, nodes: { shaper1, shaper2, tone, level } };
+    },
+    params: [
+      {
+        key: 'drive', label: 'Gain', min: 0, max: 100, default: 50,
+        apply: (n, v) => { n.shaper1.curve = driveCurve(1.5 + v * 0.06); n.shaper2.curve = driveCurve(3 + v * 0.25); },
+      },
+      { key: 'tone', label: 'Tone', min: 0, max: 100, default: 55, apply: (n, v) => (n.tone.frequency.value = 700 + v * 70) },
+      { key: 'level', label: 'Level', min: 0, max: 200, default: 100, unit: '%', apply: setLevel },
+    ],
+  },
+  {
+    id: 'bigmuff', label: 'Big Muff Pi', category: 'drive', color: 'oklch(80% 0.01 260)', brand: 'ehx', brandLabel: 'electro-harmonix',
+    blurb: 'Two clipping stages (soft, then hard) feeding a scooped-mid tone crossfade — the Electro-Harmonix Big Muff Pi.',
+    about: 'Modeled on the Electro-Harmonix Big Muff Pi: 2 cascaded clipping stages (the first "softly clips," the second "repeats the operation... creating the hard clip," confirmed via a direct circuit teardown), feeding a real passive-style Tone control that crossfades between a lowpass and a highpass branch rather than one simple filter — which is what produces its ~13.5dB scooped-mid dip at center.',
+    createNodes(ctx) {
+      const shaper1 = ctx.createWaveShaper(); shaper1.oversample = '4x';
+      const shaper2 = ctx.createWaveShaper(); shaper2.oversample = '4x';
+      const lowBranch = ctx.createBiquadFilter(); lowBranch.type = 'lowpass'; lowBranch.frequency.value = 500;
+      const highBranch = ctx.createBiquadFilter(); highBranch.type = 'highpass'; highBranch.frequency.value = 2000;
+      const lowGain = ctx.createGain(); const highGain = ctx.createGain();
+      const level = ctx.createGain();
+      shaper1.connect(shaper2);
+      shaper2.connect(lowBranch).connect(lowGain).connect(level);
+      shaper2.connect(highBranch).connect(highGain).connect(level);
+      return { input: shaper1, output: level, nodes: { shaper1, shaper2, lowGain, highGain, level } };
+    },
+    params: [
+      {
+        key: 'sustain', label: 'Sustain', min: 0, max: 100, default: 60,
+        apply: (n, v) => { n.shaper1.curve = driveCurve(4 + v * 0.3); n.shaper2.curve = driveCurve(8 + v * 0.5); },
+      },
+      {
+        key: 'tone', label: 'Tone', min: 0, max: 100, default: 50,
+        apply: (n, v) => { const t = v / 100; n.lowGain.gain.value = 1 - t; n.highGain.gain.value = t; },
+      },
+      { key: 'level', label: 'Level', min: 0, max: 200, default: 100, unit: '%', apply: setLevel },
+    ],
+  },
+  {
+    id: 'klon', label: 'Klon', category: 'drive', color: 'oklch(70% 0.09 80)', accent: 'oklch(28% 0.08 30)', trim: 'oklch(20% 0.02 60)', shape: 'lowbox',
+    blurb: 'A mostly-clean parallel blend around a mild germanium-style shaper — the Klon Centaur.',
+    about: 'Modeled on the Klon Centaur: a dry/wet parallel blend (a simplification of the real 3-path circuit down to 2 paths) around a mild germanium-diode-style shaper. The single Gain knob drives the dirty path up and the clean path down together in one linked motion, mirroring the real Klon\'s dual-gang Gain potentiometer rather than two independent wet/dry knobs.',
+    createNodes(ctx) {
+      const shaper = ctx.createWaveShaper(); shaper.oversample = '2x'; shaper.curve = driveCurve(2, 0.05);
+      const dirtyGain = ctx.createGain(); const cleanGain = ctx.createGain();
+      const inputNode = ctx.createGain(); const outputNode = ctx.createGain();
+      const treble = ctx.createBiquadFilter(); treble.type = 'highshelf'; treble.frequency.value = 2000; treble.gain.value = 2;
+      const level = ctx.createGain();
+      inputNode.connect(shaper).connect(dirtyGain).connect(outputNode);
+      inputNode.connect(cleanGain).connect(outputNode);
+      outputNode.connect(treble).connect(level);
+      return { input: inputNode, output: level, nodes: { shaper, dirtyGain, cleanGain, treble, level } };
+    },
+    params: [
+      {
+        key: 'gain', label: 'Gain', min: 0, max: 100, default: 40,
+        apply: (n, v) => {
+          const t = v / 100;
+          n.shaper.curve = driveCurve(1.5 + t * 6, 0.05);
+          n.dirtyGain.gain.value = t;
+          n.cleanGain.gain.value = 1 - t * 0.7;
+        },
+      },
+      { key: 'treble', label: 'Treble', min: -12, max: 12, default: 2, unit: 'dB', apply: (n, v) => (n.treble.gain.value = v) },
+      { key: 'level', label: 'Level', min: 0, max: 200, default: 100, unit: '%', apply: setLevel },
     ],
   },
   {
@@ -194,6 +476,21 @@ export const PEDAL_TYPES = [
     params: [
       { key: 'position', label: 'Treadle', min: 300, max: 2200, default: 900, unit: 'Hz', apply: (n, v) => (n.filter.frequency.value = v) },
       { key: 'q', label: 'Vocal Q', min: 1, max: 12, default: 5, apply: (n, v) => (n.filter.Q.value = v) },
+      { key: 'level', label: 'Level', min: 0, max: 300, default: 160, unit: '%', apply: setLevel },
+    ],
+  },
+  {
+    id: 'crybaby', label: 'Cry Baby', category: 'filter', color: 'oklch(18% 0.01 260)', shape: 'wedge',
+    blurb: 'A vocal wah tuned to the real Dunlop GCB-95\'s exact sweep range.',
+    about: 'Modeled on the Dunlop Cry Baby GCB-95: a fixed 450Hz-1600Hz resonant sweep (the real circuit\'s L1/C2 values, confirmed from a teardown) with no exposed resonance knob, since the real pedal doesn\'t have one — just Treadle and Level.',
+    createNodes(ctx) {
+      const filter = ctx.createBiquadFilter(); filter.type = 'bandpass'; filter.frequency.value = 750; filter.Q.value = 5;
+      const level = ctx.createGain();
+      filter.connect(level);
+      return { input: filter, output: level, nodes: { filter, level } };
+    },
+    params: [
+      { key: 'position', label: 'Treadle', min: 450, max: 1600, default: 750, unit: 'Hz', apply: (n, v) => (n.filter.frequency.value = v) },
       { key: 'level', label: 'Level', min: 0, max: 300, default: 160, unit: '%', apply: setLevel },
     ],
   },
@@ -257,6 +554,25 @@ export const PEDAL_TYPES = [
     ],
   },
   {
+    id: 'ce2', label: 'CE-2', category: 'modulation', color: 'oklch(35% 0.13 260)', brand: 'boss', brandLabel: 'BOSS',
+    blurb: 'The Boss CE-2\'s triangle-LFO sweep and BBD-style band-limited wet signal.',
+    about: 'Modeled on the Boss CE-2/CE-2W: a triangle (not sine) LFO drives the modulation, and its BBD chip\'s anti-aliasing filter band-limits the wet signal to roughly 6.6-6.9kHz — both confirmed from a direct circuit teardown and Roland\'s own spec sheet.',
+    createNodes(ctx) {
+      const base = createModDelay(ctx, { maxDelay: 0.05, delayTime: 0.02, lfoHz: 1, depth: 0.004, feedback: 0.15 });
+      base.nodes.lfo.type = 'triangle';
+      const bbdFilter = ctx.createBiquadFilter(); bbdFilter.type = 'lowpass'; bbdFilter.frequency.value = 6700;
+      base.nodes.delay.disconnect(base.nodes.wet);
+      base.nodes.delay.connect(bbdFilter).connect(base.nodes.wet);
+      return { ...base, nodes: { ...base.nodes, bbdFilter } };
+    },
+    params: [
+      { key: 'rate', label: 'Rate', min: 0.1, max: 4, default: 1, unit: 'Hz', apply: (n, v) => (n.lfo.frequency.value = v) },
+      { key: 'depth', label: 'Depth', min: 0, max: 10, default: 4, unit: 'ms', apply: (n, v) => (n.depth.gain.value = v / 1000) },
+      { key: 'feedback', label: 'Feedback', min: 0, max: 50, default: 15, unit: '%', apply: (n, v) => (n.feedback.gain.value = v / 100) },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 50, unit: '%', apply: setMix },
+    ],
+  },
+  {
     id: 'flanger', label: 'Flanger', category: 'modulation', color: 'oklch(60% 0.19 335)',
     blurb: 'Swooshy, jet-plane-like sweeping — more intense and metallic than chorus.',
     about: 'Flanger mixes your signal with a very short, modulated delayed copy plus feedback, creating a sweeping, metallic, "jet engine" comb-filtering sound. More aggressive and resonant than chorus — a signature of psychedelic and 80s rock.',
@@ -302,6 +618,37 @@ export const PEDAL_TYPES = [
     ],
   },
   {
+    id: 'phase90', label: 'Phase 90', category: 'modulation', color: 'oklch(72% 0.18 55)', brand: 'mxr', brandLabel: 'MXR',
+    blurb: 'The MXR Phase 90\'s real 4-stage circuit — 2 sweeping notches instead of the generic Phaser\'s 3.',
+    about: 'Modeled on the MXR Phase 90: 4 JFET-based phase-shifting stages create 2 sweeping notches (confirmed directly from a circuit teardown), vs. the generic Phaser\'s 6 stages/3 notches.',
+    createNodes(ctx) {
+      const stageCount = 4;
+      const stages = [];
+      let chainIn = ctx.createGain();
+      let node = chainIn;
+      for (let i = 0; i < stageCount; i++) {
+        const ap = ctx.createBiquadFilter(); ap.type = 'allpass'; ap.frequency.value = 800;
+        node.connect(ap); node = ap; stages.push(ap);
+      }
+      const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.5;
+      const depth = ctx.createGain(); depth.gain.value = 1200;
+      stages.forEach((ap) => lfo.connect(depth).connect(ap.frequency));
+      lfo.start();
+      const feedback = ctx.createGain(); feedback.gain.value = 0.3;
+      node.connect(feedback).connect(chainIn);
+      const dry = ctx.createGain(); const wet = ctx.createGain(); const outputNode = ctx.createGain();
+      chainIn.connect(dry).connect(outputNode);
+      node.connect(wet).connect(outputNode);
+      return { input: chainIn, output: outputNode, nodes: { lfo, depth, feedback, dry, wet, stages } };
+    },
+    params: [
+      { key: 'rate', label: 'Rate', min: 0.05, max: 3, default: 0.5, unit: 'Hz', apply: (n, v) => (n.lfo.frequency.value = v) },
+      { key: 'depth', label: 'Depth', min: 200, max: 3000, default: 1200, unit: 'Hz', apply: (n, v) => (n.depth.gain.value = v) },
+      { key: 'feedback', label: 'Feedback', min: 0, max: 90, default: 30, unit: '%', apply: (n, v) => (n.feedback.gain.value = v / 100) },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 70, unit: '%', apply: setMix },
+    ],
+  },
+  {
     id: 'tremolo', label: 'Tremolo', category: 'modulation', color: 'oklch(65% 0.12 185)',
     blurb: 'Rhythmic volume pulsing — the sound turns up and down in a steady wave.',
     about: 'Tremolo rapidly and rhythmically raises and lowers your volume, creating a pulsing, throbbing effect. Simple but iconic — surf rock, spaghetti-western twang, and dreamy indie tones all lean on tremolo.',
@@ -319,6 +666,29 @@ export const PEDAL_TYPES = [
         key: 'depth', label: 'Depth', min: 0, max: 100, default: 60, unit: '%',
         apply: (n, v) => { const d = v / 100; n.depth.gain.value = d / 2; n.gainNode.gain.value = 1 - d / 2; },
       },
+    ],
+  },
+  {
+    id: 'tr2', label: 'TR-2', category: 'modulation', color: 'oklch(52% 0.09 175)', accent: 'oklch(78% 0.13 85)', brand: 'boss', brandLabel: 'BOSS',
+    blurb: 'The Boss TR-2\'s VCA tremolo with a Wave knob morphing between square, sine, and triangle.',
+    about: 'Modeled on the Boss TR-2: confirmed from its own schematic to be VCA-based with a dedicated waveshaping stage between the LFO and the audio path, not a plain sine-on-gain tremolo. The Wave knob crossfades the modulation shape from a soft-edged (trapezoidal, not hard) square, through sine, to triangle.',
+    createNodes(ctx) {
+      const gainNode = ctx.createGain(); gainNode.gain.value = 0.7;
+      const lfo = ctx.createOscillator(); lfo.type = 'triangle'; lfo.frequency.value = 5;
+      const shaper = ctx.createWaveShaper(); shaper.curve = tremoloWaveCurve(0.5);
+      const smooth = ctx.createBiquadFilter(); smooth.type = 'lowpass'; smooth.frequency.value = 50;
+      const depth = ctx.createGain(); depth.gain.value = 0.3;
+      lfo.connect(shaper); shaper.connect(smooth); smooth.connect(depth).connect(gainNode.gain);
+      lfo.start();
+      return { input: gainNode, output: gainNode, nodes: { gainNode, lfo, shaper, smooth, depth } };
+    },
+    params: [
+      { key: 'rate', label: 'Rate', min: 0.5, max: 12, default: 5, unit: 'Hz', apply: (n, v) => (n.lfo.frequency.value = v) },
+      {
+        key: 'depth', label: 'Depth', min: 0, max: 100, default: 60, unit: '%',
+        apply: (n, v) => { const d = v / 100; n.depth.gain.value = d / 2; n.gainNode.gain.value = 1 - d / 2; },
+      },
+      { key: 'wave', label: 'Wave', min: 0, max: 100, default: 50, apply: (n, v) => (n.shaper.curve = tremoloWaveCurve(v / 100)) },
     ],
   },
   {
@@ -475,6 +845,105 @@ export const PEDAL_TYPES = [
       { key: 'mix', label: 'Mix', min: 0, max: 100, default: 30, unit: '%', apply: setMix },
     ],
   },
+  {
+    id: 'shimmerreverb', label: 'Shimmer Reverb', category: 'time', color: 'oklch(55% 0.18 300)',
+    blurb: 'A reverb tail that climbs an octave with each repeat — a Boss RV-6 Shimmer mode.',
+    about: 'The RV-6\'s exact internal DSP is proprietary and undisclosed, but its Shimmer mode\'s real effect — a reverb tail that climbs in pitch with each repeat — is buildable directly: feeding the existing pitch-shifter worklet back into a feedback delay loop, so each pass through the loop shifts up another octave.',
+    createNodes(ctx) {
+      const inputNode = ctx.createGain(); const outputNode = ctx.createGain();
+      const dry = ctx.createGain(); dry.gain.value = 0.7;
+      const delay = ctx.createDelay(2); delay.delayTime.value = 0.35;
+      const shifter = new AudioWorkletNode(ctx, 'pitch-shifter-processor');
+      shifter.parameters.get('semitones').value = 12;
+      shifter.parameters.get('mix').value = 100;
+      const tone = ctx.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = 5000;
+      const feedback = ctx.createGain(); feedback.gain.value = 0.55;
+      const wet = ctx.createGain(); wet.gain.value = 0.4;
+      inputNode.connect(dry).connect(outputNode);
+      inputNode.connect(delay);
+      delay.connect(shifter).connect(tone).connect(feedback).connect(delay);
+      delay.connect(wet).connect(outputNode);
+      return { input: inputNode, output: outputNode, nodes: { dry, delay, shifter, feedback, tone, wet } };
+    },
+    params: [
+      { key: 'feedback', label: 'Feedback', min: 0, max: 85, default: 55, unit: '%', apply: (n, v) => (n.feedback.gain.value = v / 100) },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 40, unit: '%', apply: setMix },
+    ],
+  },
+  {
+    id: 'dynamicreverb', label: 'Dynamic Reverb', category: 'time', color: 'oklch(48% 0.14 340)',
+    blurb: 'Reverb that ducks under your playing and swells back in as notes decay — a Boss RV-6 Dynamic mode.',
+    about: 'The RV-6\'s exact internal DSP is proprietary, but its Dynamic mode\'s behavior — reverb wet level tracking your playing dynamics — reuses the same envelope-follower technique already in this app\'s Envelope Filter pedal, applied to the reverb wet mix instead of a filter sweep.',
+    async createNodes(ctx) {
+      const convolver = ctx.createConvolver();
+      convolver.buffer = await generateReverbIR(ctx.sampleRate, 'hall');
+      const follower = new AudioWorkletNode(ctx, 'envelope-follower-processor');
+      const followerDepth = ctx.createGain(); followerDepth.gain.value = -0.6; // ducks (inverted) as playing gets louder
+      const dry = ctx.createGain(); dry.gain.value = 0.7;
+      const wet = ctx.createGain(); wet.gain.value = 0.6;
+      const inputNode = ctx.createGain(); const outputNode = ctx.createGain();
+      inputNode.connect(dry).connect(outputNode);
+      inputNode.connect(convolver).connect(wet).connect(outputNode);
+      inputNode.connect(follower);
+      follower.connect(followerDepth).connect(wet.gain);
+      return { input: inputNode, output: outputNode, nodes: { convolver, follower, followerDepth, dry, wet } };
+    },
+    params: [
+      { key: 'sensitivity', label: 'Sensitivity', min: 0.2, max: 4, default: 1.5, apply: (n, v) => (n.follower.parameters.get('sensitivity').value = v) },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 60, unit: '%', apply: setMix },
+    ],
+  },
+  {
+    id: 'analogdelay', label: 'Analog Delay', category: 'time', color: 'oklch(58% 0.13 65)',
+    blurb: 'Repeats that darken and saturate as they build — the "Analog" mode of a Boss DD-8.',
+    about: 'The DD-8\'s internal delay algorithms are proprietary, but its "Analog" mode\'s real, documented character is buildable directly: extra feedback-loop saturation plus a heavier lowpass on each repeat, unlike the clean digital Delay pedal.',
+    createNodes(ctx) {
+      const delay = ctx.createDelay(2); delay.delayTime.value = 0.35;
+      const shaper = ctx.createWaveShaper(); shaper.oversample = '2x'; shaper.curve = driveCurve(1.5);
+      const feedback = ctx.createGain(); feedback.gain.value = 0.4;
+      const toneFilter = ctx.createBiquadFilter(); toneFilter.type = 'lowpass'; toneFilter.frequency.value = 2200;
+      const dry = ctx.createGain(); const wet = ctx.createGain();
+      const inputNode = ctx.createGain(); const outputNode = ctx.createGain();
+      inputNode.connect(dry).connect(outputNode);
+      inputNode.connect(delay);
+      delay.connect(toneFilter).connect(shaper).connect(feedback).connect(delay);
+      delay.connect(wet).connect(outputNode);
+      return { input: inputNode, output: outputNode, nodes: { delay, shaper, feedback, toneFilter, dry, wet } };
+    },
+    params: [
+      { key: 'time', label: 'Time', min: 20, max: 2000, default: 350, unit: 'ms', apply: (n, v, ctx) => n.delay.delayTime.linearRampToValueAtTime(v / 1000, ctx.currentTime + 0.05) },
+      { key: 'feedback', label: 'Feedback', min: 0, max: 90, default: 40, unit: '%', apply: (n, v) => (n.feedback.gain.value = v / 100) },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 35, unit: '%', apply: setMix },
+    ],
+  },
+  {
+    id: 'tapedelay', label: 'Tape Delay', category: 'time', color: 'oklch(52% 0.12 50)',
+    blurb: 'Warm, saturated repeats with a subtle pitch wobble — the "Tape" mode of a Boss DD-8.',
+    about: 'The DD-8\'s internal delay algorithms are proprietary, but its "Tape" mode\'s real, documented character is buildable directly: saturation plus a tiny modulated (wow/flutter) delay time, unlike the clean digital Delay pedal.',
+    createNodes(ctx) {
+      const delay = ctx.createDelay(2); delay.delayTime.value = 0.35;
+      const wobbleLfo = ctx.createOscillator(); wobbleLfo.type = 'sine'; wobbleLfo.frequency.value = 0.6;
+      const wobbleDepth = ctx.createGain(); wobbleDepth.gain.value = 0.0015;
+      wobbleLfo.connect(wobbleDepth).connect(delay.delayTime);
+      wobbleLfo.start();
+      const shaper = ctx.createWaveShaper(); shaper.oversample = '2x'; shaper.curve = driveCurve(1.2);
+      const feedback = ctx.createGain(); feedback.gain.value = 0.38;
+      const toneFilter = ctx.createBiquadFilter(); toneFilter.type = 'lowpass'; toneFilter.frequency.value = 3200;
+      const dry = ctx.createGain(); const wet = ctx.createGain();
+      const inputNode = ctx.createGain(); const outputNode = ctx.createGain();
+      inputNode.connect(dry).connect(outputNode);
+      inputNode.connect(delay);
+      delay.connect(toneFilter).connect(shaper).connect(feedback).connect(delay);
+      delay.connect(wet).connect(outputNode);
+      return { input: inputNode, output: outputNode, nodes: { delay, wobbleLfo, wobbleDepth, shaper, feedback, toneFilter, dry, wet } };
+    },
+    params: [
+      { key: 'time', label: 'Time', min: 20, max: 2000, default: 350, unit: 'ms', apply: (n, v, ctx) => n.delay.delayTime.linearRampToValueAtTime(v / 1000, ctx.currentTime + 0.05) },
+      { key: 'feedback', label: 'Feedback', min: 0, max: 90, default: 38, unit: '%', apply: (n, v) => (n.feedback.gain.value = v / 100) },
+      { key: 'wobble', label: 'Wobble', min: 0, max: 100, default: 40, unit: '%', apply: (n, v) => (n.wobbleDepth.gain.value = (v / 100) * 0.003) },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 35, unit: '%', apply: setMix },
+    ],
+  },
 
   // ----- EQ -----
   {
@@ -515,6 +984,24 @@ export const PEDAL_TYPES = [
     },
     params: [100, 250, 630, 1600, 4000, 10000].map((f, i) => ({
       key: `band${i}`, label: `${f >= 1000 ? f / 1000 + 'k' : f}Hz`, min: -20, max: 20, default: 0, unit: 'dB',
+      apply: (n, v) => (n.bands[i].gain.value = v),
+    })),
+  },
+  {
+    id: 'ge7', label: 'GE-7', category: 'eq', color: 'oklch(88% 0.03 85)', brand: 'boss', brandLabel: 'BOSS',
+    blurb: 'The Boss GE-7\'s exact 7-band layout, boost/cut range, and frequencies.',
+    about: 'Modeled directly on Boss\'s own published spec for the GE-7 Graphic Equalizer: seven bands at 100Hz, 200Hz, 400Hz, 800Hz, 1.6kHz, 3.2kHz, and 6.4kHz, each with plus/minus 15dB of boost or cut.',
+    createNodes(ctx) {
+      const freqs = [100, 200, 400, 800, 1600, 3200, 6400];
+      const bands = freqs.map((f) => {
+        const b = ctx.createBiquadFilter(); b.type = 'peaking'; b.frequency.value = f; b.Q.value = 1.4; b.gain.value = 0;
+        return b;
+      });
+      for (let i = 0; i < bands.length - 1; i++) bands[i].connect(bands[i + 1]);
+      return { input: bands[0], output: bands[bands.length - 1], nodes: { bands } };
+    },
+    params: [100, 200, 400, 800, 1600, 3200, 6400].map((f, i) => ({
+      key: `band${i}`, label: `${f >= 1000 ? f / 1000 + 'k' : f}Hz`, min: -15, max: 15, default: 0, unit: 'dB',
       apply: (n, v) => (n.bands[i].gain.value = v),
     })),
   },

@@ -18,8 +18,8 @@ class DynamicsProcessor extends AudioWorkletProcessor {
       { name: 'threshold', defaultValue: -24, minValue: -60, maxValue: 0, automationRate: 'k-rate' },
       { name: 'ratio', defaultValue: 4, minValue: 1, maxValue: 20, automationRate: 'k-rate' },
       { name: 'knee', defaultValue: 30, minValue: 0, maxValue: 40, automationRate: 'k-rate' },
-      { name: 'attack', defaultValue: 0.003, minValue: 0, maxValue: 0.2, automationRate: 'k-rate' }, // seconds
-      { name: 'release', defaultValue: 0.15, minValue: 0.01, maxValue: 1, automationRate: 'k-rate' }, // seconds
+      { name: 'attack', defaultValue: 0.003, minValue: 0, maxValue: 2, automationRate: 'k-rate' }, // seconds
+      { name: 'release', defaultValue: 0.15, minValue: 0.01, maxValue: 3, automationRate: 'k-rate' }, // seconds
     ];
   }
 
