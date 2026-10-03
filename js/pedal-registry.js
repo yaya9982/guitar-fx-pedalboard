@@ -319,7 +319,7 @@ export const PEDAL_TYPES = [
     ],
   },
   {
-    id: 'fuzzface', label: 'Fuzz Face', category: 'drive', color: 'oklch(75% 0.01 260)', shape: 'round', brand: 'arbiter', brandLabel: 'Arbiter · England',
+    id: 'fuzzface', label: 'Fuzz Face', category: 'drive', color: 'oklch(75% 0.01 260)', brand: 'arbiter', brandLabel: 'Arbiter · England',
     blurb: 'Two soft-then-hard clipping stages with opposing gain — the Dallas Arbiter Fuzz Face (germanium).',
     about: 'Modeled on the Dallas Arbiter Fuzz Face (germanium), per GEOFEX\'s own circuit analysis: a voltage-feedback-biasing topology where Q1 clips soft/mushy first and Q2 clips hard on the same polarity, and the two stages\' gains move in opposite directions as the Fuzz knob turns (more of the signal feeds back to bias Q1 as Q2\'s gain rises). Upgraded from the earlier single-shaper version to this real 2-stage cascade.',
     createNodes(ctx) {

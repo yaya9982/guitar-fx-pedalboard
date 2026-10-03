@@ -864,32 +864,10 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 }
 .pedal-stompbox:not(.disabled-pedal) .pedal-footswitch .led::after { opacity: 0.9; }
 
-/* ---------- 3 real-enclosure shape variants (Fuzz Face / Cry Baby / Klon) ----------
+/* ---------- 2 real-enclosure shape variants (Cry Baby / Klon) ----------
    All reuse the exact same .pedal-stompbox markup (screws, plate, knobs, footswitch) —
-   just reshaped/repositioned per real pedal, no new elements. */
-
-/* Fuzz Face: round aluminum enclosure, no corner screws, triangular footswitch pad. */
-.pedal-stompbox--round {
-  width: 190px; height: 190px; min-width: 0;
-  border-radius: 50%;
-  padding: 20px 18px 14px;
-  justify-content: flex-start;
-}
-.pedal-stompbox--round .screw { display: none; }
-.pedal-stompbox--round .stompbox-grip-row { display: none; }
-.pedal-stompbox--round .stompbox-plate {
-  flex-direction: column; align-items: center; gap: 2px;
-  border-bottom: none; margin-bottom: 0; padding-bottom: 0; width: auto;
-}
-.pedal-stompbox--round .stompbox-plate::after { display: none; }
-.pedal-stompbox--round .pedal-header-actions { order: 2; }
-.pedal-stompbox--round .pedal-knobs { flex-direction: row; gap: 18px; margin: 10px 0 10px; }
-.pedal-stompbox--round .stompbox-foot-row { margin-top: auto; }
-.pedal-stompbox--round .pedal-footswitch {
-  width: 76px; height: 58px; border-radius: 10% 10% 50% 50% / 10% 10% 40% 40%;
-  clip-path: polygon(28% 0%, 72% 0%, 100% 100%, 0% 100%);
-  background: repeating-linear-gradient(115deg, #d6d9dc 0 3px, #9a9ea5 3px 6px);
-}
+   just reshaped/repositioned per real pedal, no new elements. Fuzz Face previously had a
+   round variant here too; reverted back to the default box shape per request. */
 
 /* Cry Baby: wide flat treadle top tapering into a narrower lower body (black wrinkle
    finish, no corner screws) — full width stays available where the plate/knobs sit, only
@@ -1495,7 +1473,6 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   .topbar { flex-direction: column; align-items: stretch; }
   .topbar-right { justify-content: space-between; }
   .pedal-stompbox { width: 100%; max-width: 220px; }
-  .pedal-stompbox--round { width: 160px; height: 160px; max-width: 160px; }
   .pedal-stompbox--wedge { max-width: 160px; }
   .pedal-stompbox--lowbox { max-width: 240px; }
   /* taller/squarer on narrow screens so the control panel has room and knobs don't crush */

@@ -674,6 +674,16 @@
         "rule": "design-system-color",
         "value": "oklch(62% 0.14 230)",
         "createdAt": "2026-10-01T02:07:14.608Z"
+      },
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "createdAt": "2026-10-01T04:08:29.869Z"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "brush script mt",
+        "createdAt": "2026-10-01T04:08:30.025Z"
       }
     ]
   }
