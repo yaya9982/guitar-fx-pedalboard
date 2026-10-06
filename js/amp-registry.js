@@ -48,7 +48,8 @@ async function createAmpNodes(ctx, cfg) {
   cabConvolver.buffer = await generateCabIR(ctx.sampleRate, cfg.cab);
 
   const outputLevel = ctx.createGain();
-  outputLevel.gain.value = 1;
+  const makeup = cfg.makeup || 1; // per-amp trim for the cab IR's loudness loss
+  outputLevel.gain.value = makeup;
 
   // wire it up
   let node = inputGain;
@@ -65,7 +66,7 @@ async function createAmpNodes(ctx, cfg) {
   return {
     input: inputGain,
     output: outputLevel,
-    nodes: { inputGain, preEQNodes, shaper, postEQNodes, presenceNode, bassNode, midNode, trebleNode, cabConvolver, outputLevel, driveRange: cfg.driveRange, presenceMaxDb: cfg.presenceMaxDb },
+    nodes: { inputGain, preEQNodes, shaper, postEQNodes, presenceNode, bassNode, midNode, trebleNode, cabConvolver, outputLevel, driveRange: cfg.driveRange, makeup, presenceMaxDb: cfg.presenceMaxDb },
   };
 }
 
@@ -78,7 +79,7 @@ function ampParams() {
     { key: 'mid', label: 'Middle', min: 0, max: 100, default: 50, apply: (n, v) => (n.midNode.gain.value = (v - 50) / 50 * 10) },
     { key: 'treble', label: 'Treble', min: 0, max: 100, default: 50, apply: (n, v) => (n.trebleNode.gain.value = (v - 50) / 50 * 12) },
     { key: 'presence', label: 'Presence', min: 0, max: 100, default: 55, apply: (n, v) => { n.presenceNode.gain.value = (v / 100) * n.presenceMaxDb; } },
-    { key: 'level', label: 'Level', min: 0, max: 150, default: 100, unit: '%', apply: (n, v) => (n.outputLevel.gain.value = v / 100) },
+    { key: 'level', label: 'Level', min: 0, max: 150, default: 100, unit: '%', apply: (n, v) => (n.outputLevel.gain.value = v / 100 * n.makeup) },
   ];
 }
 
@@ -92,7 +93,7 @@ export const AMP_TYPES = [
     blurb: 'Bright, transparent headroom with no breakup — a blank canvas for pedals.',
     about: 'Signal passes through a wide-headroom gain stage that stays under the clipping threshold at any setting, so no distortion harmonics get added — only a flat-ish EQ curve and the cabinet\'s own frequency response shape the tone. Clean is a headroom-y, mostly transparent amp voicing with very light natural compression and no real breakup, even when pushed. It\'s a blank canvas — ideal for building your tone entirely from pedals in front of it, or for genuinely clean rhythm/jazz tones.',
     createNodes: (ctx) => createAmpNodes(ctx, {
-      driveRange: [0.4, 1.6], curveK: 1.5, oversample: 'none',
+      driveRange: [0.4, 1.6], curveK: 1.5, oversample: 'none', makeup: 8, // ~+18dB, matches AC/DC default RMS at ~0.1 input; tune by ear
       preEQ: [{ type: 'highpass', freq: 60 }],
       postEQ: [
         { type: 'peaking', freq: 3000, Q: 1, gain: 2 },

@@ -799,6 +799,48 @@ export const PEDAL_TYPES = [
     ],
   },
 
+  {
+    id: 'twelvestring', label: '12-String Sim', category: 'pitch', color: 'oklch(72% 0.12 70)',
+    blurb: 'Plays your 6-string like a 12-string: octave notes on the low strings, shimmer on all.',
+    about: 'A real 12-string pairs each of the four low strings (E, A, D, G) with a thinner string an octave higher, while the two top strings (B, E) are doubled in unison, so they shimmer from slight detuning. This pedal copies that: a steep low-pass at the Split frequency feeds a full-wave rectifier (the classic analog octave-up trick) so only the low notes gain an octave, and a copy of the whole signal detuned about 7 cents adds the unison shimmer. It splits by pitch, not by string, so fretted notes above the split get no octave.',
+    createNodes(ctx) {
+      const input = ctx.createGain();
+      const output = ctx.createGain();
+      input.connect(output); // dry
+
+      // 6 cascaded low-pass biquads (~72 dB/oct): G3 (196 Hz) vs B3 (247 Hz) are only ~4 semitones apart
+      const lows = [0, 1, 2, 3, 4, 5].map(() => {
+        const f = ctx.createBiquadFilter();
+        f.type = 'lowpass'; f.frequency.value = 225; f.Q.value = -3.01; // lowpass Q is in dB: -3.01 dB = Butterworth
+        return f;
+      });
+      // Full-wave rectifier (|x|) doubles a sine's frequency exactly; the granular shifter
+      // measured off-pitch and smeared at +12 (276 Hz for a 146.8 Hz input, target 293.7).
+      // ponytail: polyphonic low-string chords add intermodulation, upgrade to a real polyphonic shifter
+      const rectifier = ctx.createWaveShaper();
+      rectifier.curve = new Float32Array([1, 0, 1]);
+      const dcBlock = ctx.createBiquadFilter();
+      dcBlock.type = 'highpass'; dcBlock.frequency.value = 80; dcBlock.Q.value = -3.01;
+      const octGain = ctx.createGain();
+      input.connect(lows[0]);
+      lows.reduce((a, b) => a.connect(b)).connect(rectifier).connect(dcBlock).connect(octGain).connect(output);
+
+      // ponytail: 7 cents (Sound On Sound: 5-10); the granular shifter swirls slowly at ratios this close to 1
+      const detShift = new AudioWorkletNode(ctx, 'pitch-shifter-processor');
+      detShift.parameters.get('semitones').value = 0.07;
+      detShift.parameters.get('mix').value = 100;
+      const shimGain = ctx.createGain();
+      input.connect(detShift).connect(shimGain).connect(output);
+
+      return { input, output, nodes: { lows, octGain, shimGain, output } };
+    },
+    params: [
+      { key: 'octave', label: 'Octave', min: 0, max: 100, default: 70, unit: '%', apply: (n, v) => (n.octGain.gain.value = v / 50) }, // rectified 2f partial is ~-7.5dB vs the fundamental
+      { key: 'shimmer', label: 'Shimmer', min: 0, max: 100, default: 40, unit: '%', apply: (n, v) => (n.shimGain.gain.value = v / 100) },
+      { key: 'split', label: 'Split', min: 150, max: 400, default: 225, unit: ' Hz', apply: (n, v) => n.lows.forEach((f) => (f.frequency.value = v)) },
+    ],
+  },
+
   // ----- TIME-BASED -----
   {
     id: 'delay', label: 'Delay', category: 'time', color: 'oklch(62% 0.15 55)',

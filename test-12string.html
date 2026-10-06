@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>12-String Sim pedal tests</title>
+<style>
+  body { font: 14px/1.5 monospace; background: #111; color: #ddd; padding: 20px; }
+  .pass { color: #4caf50; } .fail { color: #f44336; } .info { color: #90a4ae; } h2 { margin-top: 28px; }
+</style>
+</head>
+<body>
+<h1>12-String Sim pedal tests</h1>
+<div id="out">running...</div>
+<script type="module">
+  import { getPedalType } from './js/pedal-registry.js';
+  const SR = 44100, out = document.getElementById('out'), lines = [];
+  const log = (ok, msg) => lines.push(`<div class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'} - ${msg}</div>`);
+  const info = (msg) => lines.push(`<div class="info">INFO - ${msg}</div>`);
+
+  async function freshCtx(length) {
+    const ctx = new OfflineAudioContext(1, length, SR);
+    await ctx.audioWorklet.addModule('./js/pitch-worklet.js');
+    return ctx;
+  }
+  async function render(pedal, ov, seconds, hz) {
+    const ctx = await freshCtx(Math.round(SR * seconds));
+    const src = ctx.createOscillator(); src.frequency.value = hz; src.type = 'sine';
+    const n = await pedal.createNodes(ctx);
+    src.connect(n.input); n.output.connect(ctx.destination);
+    for (const p of pedal.params) p.apply(n.nodes, ov[p.key] ?? p.default, ctx);
+    src.start();
+    return (await ctx.startRendering()).getChannelData(0);
+  }
+  // generalized Goertzel at an arbitrary (non-bin-centered) frequency, Hann-windowed; skips first 0.5s
+  function mag(d, f) {
+    const s = d.subarray(Math.floor(SR * 0.5)), n = s.length;
+    const w = 2 * Math.PI * f / SR, c = Math.cos(w), co = 2 * c;
+    let q1 = 0, q2 = 0;
+    for (let i = 0; i < n; i++) {
+      const h = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (n - 1));
+      const q0 = co * q1 - q2 + s[i] * h; q2 = q1; q1 = q0;
+    }
+    return Math.sqrt(q1 * q1 + q2 * q2 - co * q1 * q2) / (n * 0.25);
+  }
+  const db = (a, b) => 20 * Math.log10((a + 1e-12) / (b + 1e-12));
+  const rms = (d) => { let s = 0; for (const v of d) s += v * v; return Math.sqrt(s / d.length); };
+  const bad = (d) => d.some((v) => !Number.isFinite(v));
+
+  window.addEventListener('error', (e) => log(false, 'page error: ' + e.message));
+  try {
+    const ped = getPedalType('twelvestring');
+    const OCT = { octave: 100, shimmer: 0 }, SHIM = { octave: 0, shimmer: 100 };
+    const oct = {}; // 2x level in absolute mag and dB vs fundamental
+    for (const [name, hz] of [['E2', 82.41], ['A2', 110], ['D3', 146.83], ['G3', 196], ['B3', 246.94], ['E4', 329.63]]) {
+      const d = await render(ped, OCT, 2, hz);
+      if (bad(d)) log(false, `${name} output contains NaN/Inf`);
+      oct[name] = { m2: mag(d, 2 * hz), rel: db(mag(d, 2 * hz), mag(d, hz)) };
+    }
+    for (const n of ['E2', 'A2', 'D3'])
+      log(oct[n].rel > -12, `${n} octave (2x) at ${oct[n].rel.toFixed(1)} dB re fundamental (need > -12 dB)`);
+    info(`G3 196 Hz octave level: ${oct.G3.rel.toFixed(1)} dB re fundamental (leakage possible by design)`);
+    for (const n of ['B3', 'E4']) {
+      const below = db(oct[n].m2, oct.D3.m2);
+      log(below <= -15, `${n} 2x bin is ${below.toFixed(1)} dB vs D3's 2x bin (need <= -15 dB); ${oct[n].rel.toFixed(1)} dB re own fundamental`);
+    }
+
+    // 4. shimmer
+    {
+      const f0 = 329.63, d = await render(ped, SHIM, 3, f0);
+      if (bad(d)) log(false, 'shimmer render contains NaN/Inf');
+      let best = 0, bestF = 0;
+      for (let f = 328; f <= 333.0001; f += 0.02) {
+        if (Math.abs(f - f0) < 0.5) continue; // exclude the dry fundamental
+        const m = mag(d, f); if (m > best) { best = m; bestF = f; }
+      }
+      const cents = 1200 * Math.log2(bestF / f0);
+      info(`shimmer scan peak ${bestF.toFixed(2)} Hz = ${cents.toFixed(1)} cents, ${db(best, mag(d, f0)).toFixed(1)} dB re dry fundamental (target +7c = 330.96 Hz)`);
+      log(cents > 3 && cents < 12, `shimmer peak offset ${cents.toFixed(1)} cents (need within 3..12 around +7)`);
+    }
+
+    // 5. dry unchanged
+    {
+      const d = await render(ped, { octave: 0, shimmer: 0 }, 1.5, 220);
+      const ref = 1 / Math.SQRT2, r = rms(d), e = db(r, ref);
+      log(Math.abs(e) < 0.5, `dry path rms ${r.toFixed(4)} vs sine ref ${ref.toFixed(4)} (${e.toFixed(2)} dB, need within 0.5)`);
+    }
+
+    // 6. split
+    {
+      const lo = await render(ped, { ...OCT, split: 225 }, 2, 246.94);
+      const hi = await render(ped, { ...OCT, split: 400 }, 2, 246.94);
+      const a = mag(lo, 493.88), b = mag(hi, 493.88);
+      log(db(b, a) > 3, `B3 octave bin: Split=400 is ${db(b, a).toFixed(1)} dB above Split=225 (need > 3)`);
+    }
+
+    // default params sanity
+    {
+      const d = await render(ped, {}, 1, 110);
+      log(!bad(d) && rms(d) > 0.1, `default params render finite, rms ${rms(d).toFixed(4)}`);
+    }
+  } catch (e) { log(false, 'exception: ' + e.message + ' ' + e.stack); }
+
+  const failed = lines.filter((l) => l.includes('FAIL')).length;
+  out.innerHTML = lines.join('') + `<h2>${failed === 0 ? 'ALL PASS' : failed + ' FAILED'} (${lines.filter((l) => l.includes('PASS')).length} passed)</h2>`;
+</script>
+</body>
+</html>
