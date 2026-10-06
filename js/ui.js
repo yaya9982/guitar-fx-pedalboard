@@ -562,9 +562,8 @@ export function buildAddMenu(onPick) {
   menu.className = 'add-pedal-menu';
 
   const ampGroups = [
-    { title: 'Amps', items: AMP_TYPES.filter((a) => a.group === 'standard'), color: 'oklch(70% 0.08 80)' },
+    { title: 'Amps', items: AMP_TYPES.filter((a) => a.group === 'standard' || a.group === 'acoustic'), color: 'oklch(70% 0.08 80)' },
     { title: 'Signature', items: AMP_TYPES.filter((a) => a.group === 'signature'), color: 'oklch(75% 0.13 85)' },
-    { title: 'Acoustic', items: AMP_TYPES.filter((a) => a.group === 'acoustic'), color: 'oklch(70% 0.11 65)' },
   ];
   const ampNote = document.createElement('div');
   ampNote.className = 'add-menu-note';
