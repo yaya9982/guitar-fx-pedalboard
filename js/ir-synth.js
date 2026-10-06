@@ -132,19 +132,34 @@ async function buildCabIR(sampleRate, opts) {
 
 export const generateAcousticBodyIR = (sampleRate) => cached(`body:${sampleRate}`, () => buildAcousticBodyIR(sampleRate));
 
-async function buildAcousticBodyIR(sampleRate) {
-  return render(sampleRate, 0.35, (ctx, source, envelope) => {
-    const bodyLow = ctx.createBiquadFilter();
-    bodyLow.type = 'peaking'; bodyLow.frequency.value = 100; bodyLow.Q.value = 1.4; bodyLow.gain.value = 6; // low-end "boom"
-    const bodyMid = ctx.createBiquadFilter();
-    bodyMid.type = 'peaking'; bodyMid.frequency.value = 220; bodyMid.Q.value = 1.1; bodyMid.gain.value = 4;
-    const woodResonance = ctx.createBiquadFilter();
-    woodResonance.type = 'peaking'; woodResonance.frequency.value = 480; woodResonance.Q.value = 2; woodResonance.gain.value = 3;
-    const airiness = ctx.createBiquadFilter();
-    airiness.type = 'highshelf'; airiness.frequency.value = 6000; airiness.gain.value = 3;
-    const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = 9000;
+// Body resonances as a direct path plus a few damped cosines (the "least-damped modes as
+// parametric resonators" idea of Karjalainen & Smith, 1996), not a noise burst. Keeping the
+// direct impulse means the pick attack and the string's own tone pass through untouched and the
+// body only adds its resonances on top, like a transfer function from pickup to mic.
+//   f   resonance frequency (Hz); t60 ring time (s); g linear gain the mode adds at its peak.
+// 116 and 219 Hz are the Helmholtz-coupled and top-plate modes measured on a steel-string
+// guitar (Hess, Savart Journal 2014); 130 Hz is that guitar's Helmholtz antinode. Top-plate
+// damping (Q ~ 9, ring ~ 0.1 s) is derived from the same paper's lumped-model table; the
+// Helmholtz mode rings longer. The other modes are indicative values from a student FEM study.
+const BODY_MODES = [
+  { f: 108, t60: 0.30, g: 1.0 },
+  { f: 147, t60: 0.15, g: 0.35 },
+  { f: 190, t60: 0.12, g: 0.35 },
+  { f: 219, t60: 0.10, g: 0.6 },
+  { f: 272, t60: 0.08, g: 0.3 },
+  { f: 302, t60: 0.07, g: 0.3 },
+];
 
-    source.connect(bodyLow).connect(bodyMid).connect(woodResonance).connect(airiness).connect(lp).connect(envelope).connect(ctx.destination);
-  });
+async function buildAcousticBodyIR(sampleRate) {
+  const seconds = 0.4;
+  const length = Math.ceil(seconds * sampleRate);
+  const buffer = new AudioBuffer({ length, sampleRate, numberOfChannels: 1 });
+  const h = buffer.getChannelData(0);
+  h[0] = 1;
+  for (const { f, t60, g } of BODY_MODES) {
+    const tau = t60 / 6.908; // amplitude time constant: 60 dB = 6.908 tau
+    const a = (2 * g) / (tau * sampleRate); // a damped cosine peaks at a*tau*fs/2 in the frequency domain
+    for (let n = 0; n < length; n++) h[n] += a * Math.exp(-n / (tau * sampleRate)) * Math.cos((2 * Math.PI * f * n) / sampleRate);
+  }
+  return buffer;
 }

@@ -76,6 +76,14 @@ they're simpler, self-contained features:
 - **Research rigor**: see the Research methodology section below and `PEDAL-RESEARCH.md`.
   Cite sources, verify via direct fetch where possible, explicitly flag unverified claims
   rather than guessing or fabricating.
+- **Research requests**: whenever the user asks to research something, always run **3 or
+  more subagents on the same research brief in parallel** (identical prompts, independent
+  runs), then fact-check the results yourself: wherever the agents' findings differ, or a
+  claim rests on only one agent or on a search snippet, research it again directly (fetch the
+  primary source) to settle it before relying on it. Then organize the verified findings,
+  tagging each as agreed by all / settled by your own check / unverified, and say which
+  differences you resolved and how. Agreement alone isn't proof (agents often read the same
+  pages), so check the sources, not just the count.
 - **Impeccable design-hook**: per-pedal unique `oklch` colors are expected/established, not
   drift — but verify an unfamiliar flagged value before dismissing it as a false positive.
 - **Display scaling**: the entire UI lives in `#appStage`, a fixed 1920x1080 canvas scaled

@@ -1,5 +1,5 @@
-import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js';
-import { driveCurve } from './pedal-registry.js?v=2';
+import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js?v=2';
+import { driveCurve } from './pedal-registry.js?v=3';
 
 function makeBand(ctx, band) {
   const f = ctx.createBiquadFilter();
@@ -241,7 +241,7 @@ export const AMP_TYPES = [
   {
     id: 'acoustic', label: 'Acoustic', group: 'acoustic', layout: 'guitar', color: 'oklch(62% 0.11 65)',
     blurb: 'Your pickup signal reshaped to sound like a miked acoustic guitar body.',
-    about: 'Acoustic replaces the amp with a model of an acoustic guitar\'s wooden body: a low-mid dip and a mid scoop, then a short synthesized body-resonance impulse response that adds the boomy low end and woody midrange of a hollow body. It is an EQ and resonance approximation, not a recording of a real guitar, and there is no gain stage, so it stays clean. It takes the amp slot, so it replaces any other amp.',
+    about: 'Acoustic replaces the amp with a model of an acoustic guitar\'s wooden body. A corrective EQ trims the boxy, nasal and quacky bands a pickup exaggerates and adds a touch of air, then a synthesized body response adds the resonances a pickup misses: the air resonance near 110 Hz and the top-plate resonance near 220 Hz, each with a realistic ring time. It is an EQ and resonance approximation based on published guitar measurements, not a recording of a real guitar, and there is no gain stage, so it stays clean. It takes the amp slot, so it replaces any other amp.',
     createNodes: createAcousticNodes,
     params: [
       { key: 'volume', label: 'Volume', min: 0, max: 150, default: 100, unit: '%', apply: (n, v) => (n.outputLevel.gain.value = v / 100 * n.makeup) },
@@ -253,21 +253,35 @@ export function getAmpType(id) {
   return AMP_TYPES.find((a) => a.id === id);
 }
 
-const ACOUSTIC_MAKEUP = 1.2; // measured ~0 dB vs AC/DC at a 0.1 input (test-acoustic.html)
+const ACOUSTIC_MAKEUP = 0.2; // ~AC/DC's median level (test-acoustic.html; the amps' random cab IRs vary a few dB per load); this model itself keeps unity gain
+
+// Pickup-to-mic corrective EQ: an under-saddle/magnetic pickup hears the string but not the
+// body, and carries a "quack" in the upper mids. Frequencies/gains follow the recipes in
+// faderandknob.com/blog/acoustic-pickup-tone-fix and Premier Guitar's "Acoustic EQ for Stage"
+// (cut 0.8-1.6 kHz nasal tone by at most ~3 dB); the body resonances come from the IR below.
+const ACOUSTIC_EQ = [
+  { type: 'peaking', frequency: 400, Q: 1.5, gain: -3 }, // boxiness
+  { type: 'peaking', frequency: 1100, Q: 1, gain: -2 }, // nasal
+  { type: 'peaking', frequency: 2700, Q: 2, gain: -4 }, // piezo/pickup quack
+  { type: 'highshelf', frequency: 6000, gain: -3 }, // brittleness
+  { type: 'highshelf', frequency: 10000, gain: 3 }, // air (lifts back what the 6 kHz shelf takes off)
+];
 
 async function createAcousticNodes(ctx) {
-  const preEQ = ctx.createBiquadFilter(); preEQ.type = 'peaking'; preEQ.frequency.value = 200; preEQ.Q.value = 1; preEQ.gain.value = -3;
-  const midCut = ctx.createBiquadFilter(); midCut.type = 'peaking'; midCut.frequency.value = 900; midCut.Q.value = 1.2; midCut.gain.value = -4;
-  const convolver = ctx.createConvolver();
-  convolver.buffer = await generateAcousticBodyIR(ctx.sampleRate);
-  const dry = ctx.createGain(); dry.gain.value = 0.15;
-  const wet = ctx.createGain(); wet.gain.value = 0.85;
   const input = ctx.createGain();
   const outputLevel = ctx.createGain();
+  const convolver = ctx.createConvolver();
+  convolver.normalize = false; // the IR has a unity direct impulse; keep its gain exactly as designed
+  convolver.buffer = await generateAcousticBodyIR(ctx.sampleRate);
 
-  input.connect(preEQ).connect(midCut);
-  midCut.connect(dry).connect(outputLevel);
-  midCut.connect(convolver).connect(wet).connect(outputLevel);
+  let node = input;
+  for (const band of ACOUSTIC_EQ) {
+    const f = ctx.createBiquadFilter();
+    f.type = band.type; f.frequency.value = band.frequency; f.gain.value = band.gain;
+    if (band.Q !== undefined) f.Q.value = band.Q;
+    node.connect(f); node = f;
+  }
+  node.connect(convolver).connect(outputLevel);
 
   return { input, output: outputLevel, nodes: { outputLevel, makeup: ACOUSTIC_MAKEUP } };
 }

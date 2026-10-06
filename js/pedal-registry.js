@@ -1,4 +1,4 @@
-import { generateReverbIR, REVERB_TYPES } from './ir-synth.js';
+import { generateReverbIR, REVERB_TYPES } from './ir-synth.js?v=2';
 
 export const CATEGORIES = {
   dynamics: { label: 'Dynamics', swatch: 'oklch(64% 0.03 250)' },

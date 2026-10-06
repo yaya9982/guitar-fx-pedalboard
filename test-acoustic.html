@@ -26,5 +26,39 @@
   }
   ratios.sort((a, b) => a - b);
   lines.push(`MEDIAN makeup needed to match AC/DC: ${ratios[4].toFixed(2)}x`);
+
+  // ---- body response: frequency-response checks against the published targets ----
+  async function gainDb(hz) {
+    const def = getAmpType('acoustic');
+    const ctx = new OfflineAudioContext(1, SR * 1.5, SR);
+    const n = await def.createNodes(ctx);
+    n.nodes.makeup = 1; // measure the model itself, not the loudness trim
+    n.nodes.outputLevel.gain.value = 1;
+    const src = ctx.createOscillator(); src.frequency.value = hz;
+    const g = ctx.createGain(); g.gain.value = 0.1;
+    src.connect(g).connect(n.input); n.output.connect(ctx.destination); src.start();
+    const d = (await ctx.startRendering()).getChannelData(0).subarray(SR / 2);
+    let s = 0; for (const v of d) s += v * v;
+    return 20 * Math.log10(Math.sqrt(s / d.length) / (0.1 / Math.SQRT2));
+  }
+  const checks = [
+    [108, (x) => x > 3.5, 'air resonance lifted (> +3.5 dB)'],
+    [219, (x) => x > 2, 'top-plate resonance lifted (> +2 dB)'],
+    [400, (x) => x < -1.5, 'boxiness cut (< -1.5 dB)'],
+    [1100, (x) => x < -1, 'nasal band cut (< -1 dB)'],
+    [2700, (x) => x < -2.5, 'quack cut (< -2.5 dB)'],
+    [6000, (x) => x < -1.5, 'brittleness cut (< -1.5 dB)'],
+    [12000, (x) => x > -1.5, 'air band not rolled off (> -1.5 dB)'],
+  ];
+  const resp = ['<br><b>Body response (model only, relative to input)</b>'];
+  for (const [hz, ok, label] of checks) {
+    const x = await gainDb(hz);
+    resp.push(`<span class="${ok(x) ? 'pass' : 'fail'}">${ok(x) ? 'PASS' : 'FAIL'}</span> ${hz} Hz: ${x.toFixed(1)} dB - ${label}`);
+  }
+  const ir = await (await import('./js/ir-synth.js?v=2')).generateAcousticBodyIR(SR);
+  const h = ir.getChannelData(0);
+  const tail = Math.max(...h.subarray(Math.floor(h.length * 0.9)).map(Math.abs));
+  resp.push(`<span class="${h[0] > 0.9 && tail < 2e-3 ? 'pass' : 'fail'}">${h[0] > 0.9 && tail < 2e-3 ? 'PASS' : 'FAIL'}</span> IR: direct impulse ${h[0].toFixed(2)}, tail peak ${tail.toExponential(1)} after 0.36 s`);
+  lines.push(resp.join('<br>'));
   out.innerHTML = lines.join('<br>');
 </script></body></html>
