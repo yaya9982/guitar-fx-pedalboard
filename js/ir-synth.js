@@ -130,7 +130,7 @@ async function buildCabIR(sampleRate, opts) {
   });
 }
 
-export const generateAcousticBodyIR = (sampleRate) => cached(`body:${sampleRate}`, () => buildAcousticBodyIR(sampleRate));
+export const generateAcousticBodyIR = (sampleRate, { direct = true } = {}) => cached(`body:${sampleRate}:${direct}`, () => buildAcousticBodyIR(sampleRate, direct));
 
 // Body resonances as a direct path plus a few damped cosines (the "least-damped modes as
 // parametric resonators" idea of Karjalainen & Smith, 1996), not a noise burst. Keeping the
@@ -150,12 +150,12 @@ const BODY_MODES = [
   { f: 302, t60: 0.07, g: 0.3 },
 ];
 
-async function buildAcousticBodyIR(sampleRate) {
+async function buildAcousticBodyIR(sampleRate, direct) {
   const seconds = 0.4;
   const length = Math.ceil(seconds * sampleRate);
   const buffer = new AudioBuffer({ length, sampleRate, numberOfChannels: 1 });
   const h = buffer.getChannelData(0);
-  h[0] = 1;
+  if (direct) h[0] = 1;
   for (const { f, t60, g } of BODY_MODES) {
     const tau = t60 / 6.908; // amplitude time constant: 60 dB = 6.908 tau
     const a = (2 * g) / (tau * sampleRate); // a damped cosine peaks at a*tau*fs/2 in the frequency domain

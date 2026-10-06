@@ -1,5 +1,5 @@
-import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js?v=2';
-import { driveCurve } from './pedal-registry.js?v=3';
+import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js?v=3';
+import { driveCurve } from './pedal-registry.js?v=4';
 
 function makeBand(ctx, band) {
   const f = ctx.createBiquadFilter();
@@ -241,10 +241,14 @@ export const AMP_TYPES = [
   {
     id: 'acoustic', label: 'Acoustic', group: 'acoustic', layout: 'guitar', color: 'oklch(62% 0.11 65)',
     blurb: 'Your pickup signal reshaped to sound like a miked acoustic guitar body.',
-    about: 'Acoustic replaces the amp with a model of an acoustic guitar\'s wooden body. A corrective EQ trims the boxy, nasal and quacky bands a pickup exaggerates and adds a touch of air, then a synthesized body response adds the resonances a pickup misses: the air resonance near 110 Hz and the top-plate resonance near 220 Hz, each with a realistic ring time. It is an EQ and resonance approximation based on published guitar measurements, not a recording of a real guitar, and there is no gain stage, so it stays clean. It takes the amp slot, so it replaces any other amp.',
+    about: 'Acoustic replaces the amp with a model of an acoustic guitar\'s wooden body. A corrective EQ trims the boxy, nasal and quacky bands a pickup exaggerates and adds a touch of air, then a synthesized body response adds the resonances a pickup misses: the air resonance near 110 Hz and the top-plate resonance near 220 Hz, each with a realistic ring time. Body sets how much of that resonance is added, Softness how deeply the nasal and quacky upper mids are cut, and Air how much top-end sparkle is restored; the middle position of each is the base voicing. It is an EQ and resonance approximation based on published guitar measurements, not a recording of a real guitar, and there is no gain stage, so it stays clean. It takes the amp slot, so it replaces any other amp.',
     createNodes: createAcousticNodes,
     params: [
       { key: 'volume', label: 'Volume', min: 0, max: 150, default: 100, unit: '%', apply: (n, v) => (n.outputLevel.gain.value = v / 100 * n.makeup) },
+      // 50 = the base voicing; each knob scales one part of it between 0x and 2x.
+      { key: 'body', label: 'Body', min: 0, max: 100, default: 50, corner: true, apply: (n, v) => (n.bodyGain.gain.value = v / 50) },
+      { key: 'softness', label: 'Softness', min: 0, max: 100, default: 50, corner: true, apply: (n, v) => ['nasal', 'quack'].forEach((k) => (n.bands[k].node.gain.value = n.bands[k].base * v / 50)) },
+      { key: 'air', label: 'Air', min: 0, max: 100, default: 50, corner: true, apply: (n, v) => (n.bands.air.node.gain.value = n.bands.air.base * v / 50) },
     ],
   },
 ];
@@ -261,28 +265,34 @@ const ACOUSTIC_MAKEUP = 0.2; // ~AC/DC's median level (test-acoustic.html; the a
 // (cut 0.8-1.6 kHz nasal tone by at most ~3 dB); the body resonances come from the IR below.
 const ACOUSTIC_EQ = [
   { type: 'peaking', frequency: 400, Q: 1.5, gain: -3 }, // boxiness
-  { type: 'peaking', frequency: 1100, Q: 1, gain: -2 }, // nasal
-  { type: 'peaking', frequency: 2700, Q: 2, gain: -4 }, // piezo/pickup quack
+  { name: 'nasal', type: 'peaking', frequency: 1100, Q: 1, gain: -2 }, // nasal
+  { name: 'quack', type: 'peaking', frequency: 2700, Q: 2, gain: -4 }, // piezo/pickup quack
   { type: 'highshelf', frequency: 6000, gain: -3 }, // brittleness
-  { type: 'highshelf', frequency: 10000, gain: 3 }, // air (lifts back what the 6 kHz shelf takes off)
+  { name: 'air', type: 'highshelf', frequency: 10000, gain: 3 }, // air (lifts back what the 6 kHz shelf takes off)
 ];
 
 async function createAcousticNodes(ctx) {
   const input = ctx.createGain();
   const outputLevel = ctx.createGain();
+  // Resonances run on a parallel path (modes-only IR, no direct impulse), so Body is a plain
+  // gain on that path: 0 = EQ'd pickup signal only, 1 = the full modeled body, no IR swap or clicks.
   const convolver = ctx.createConvolver();
-  convolver.normalize = false; // the IR has a unity direct impulse; keep its gain exactly as designed
-  convolver.buffer = await generateAcousticBodyIR(ctx.sampleRate);
+  convolver.normalize = false;
+  convolver.buffer = await generateAcousticBodyIR(ctx.sampleRate, { direct: false });
+  const bodyGain = ctx.createGain();
 
+  const bands = {};
   let node = input;
   for (const band of ACOUSTIC_EQ) {
     const f = ctx.createBiquadFilter();
     f.type = band.type; f.frequency.value = band.frequency; f.gain.value = band.gain;
     if (band.Q !== undefined) f.Q.value = band.Q;
+    if (band.name) bands[band.name] = { node: f, base: band.gain };
     node.connect(f); node = f;
   }
-  node.connect(convolver).connect(outputLevel);
+  node.connect(outputLevel);
+  node.connect(convolver).connect(bodyGain).connect(outputLevel);
 
-  return { input, output: outputLevel, nodes: { outputLevel, makeup: ACOUSTIC_MAKEUP } };
+  return { input, output: outputLevel, nodes: { outputLevel, makeup: ACOUSTIC_MAKEUP, bodyGain, bands } };
 }
 

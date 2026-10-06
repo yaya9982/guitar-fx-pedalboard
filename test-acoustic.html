@@ -28,12 +28,13 @@
   lines.push(`MEDIAN makeup needed to match AC/DC: ${ratios[4].toFixed(2)}x`);
 
   // ---- body response: frequency-response checks against the published targets ----
-  async function gainDb(hz) {
+  async function gainDb(hz, knobs = {}) {
     const def = getAmpType('acoustic');
     const ctx = new OfflineAudioContext(1, SR * 1.5, SR);
     const n = await def.createNodes(ctx);
     n.nodes.makeup = 1; // measure the model itself, not the loudness trim
     n.nodes.outputLevel.gain.value = 1;
+    for (const [k, v] of Object.entries(knobs)) def.params.find((p) => p.key === k).apply(n.nodes, v);
     const src = ctx.createOscillator(); src.frequency.value = hz;
     const g = ctx.createGain(); g.gain.value = 0.1;
     src.connect(g).connect(n.input); n.output.connect(ctx.destination); src.start();
@@ -55,10 +56,25 @@
     const x = await gainDb(hz);
     resp.push(`<span class="${ok(x) ? 'pass' : 'fail'}">${ok(x) ? 'PASS' : 'FAIL'}</span> ${hz} Hz: ${x.toFixed(1)} dB - ${label}`);
   }
-  const ir = await (await import('./js/ir-synth.js?v=2')).generateAcousticBodyIR(SR);
+  const ir = await (await import('./js/ir-synth.js?v=3')).generateAcousticBodyIR(SR);
   const h = ir.getChannelData(0);
   const tail = Math.max(...h.subarray(Math.floor(h.length * 0.9)).map(Math.abs));
   resp.push(`<span class="${h[0] > 0.9 && tail < 2e-3 ? 'pass' : 'fail'}">${h[0] > 0.9 && tail < 2e-3 ? 'PASS' : 'FAIL'}</span> IR: direct impulse ${h[0].toFixed(2)}, tail peak ${tail.toExponential(1)} after 0.36 s`);
   lines.push(resp.join('<br>'));
+
+  const knobChecks = [
+    ['Body 0 removes the resonance lift at 108 Hz', 108, { body: 0 }, (x) => x < 1.5],
+    ['Body 100 doubles it (> +8 dB)', 108, { body: 100 }, (x) => x > 8],
+    ['Softness 0 removes the 2.7 kHz cut', 2700, { softness: 0 }, (x) => x > -1],
+    ['Softness 100 deepens it (< -6 dB)', 2700, { softness: 100 }, (x) => x < -6],
+    ['Air 0 leaves 12 kHz below -2.5 dB', 12000, { air: 0 }, (x) => x < -2.5],
+    ['Air 100 lifts 12 kHz above +1 dB', 12000, { air: 100 }, (x) => x > 1],
+  ];
+  const kn = ['<br><b>Knobs</b>'];
+  for (const [label, hz, knobs, ok] of knobChecks) {
+    const x = await gainDb(hz, knobs);
+    kn.push(`<span class="${ok(x) ? 'pass' : 'fail'}">${ok(x) ? 'PASS' : 'FAIL'}</span> ${label}: ${x.toFixed(1)} dB`);
+  }
+  lines.push(kn.join('<br>'));
   out.innerHTML = lines.join('<br>');
 </script></body></html>

@@ -1,5 +1,5 @@
-import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=3';
-import { AMP_TYPES } from './amp-registry.js?v=5';
+import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=4';
+import { AMP_TYPES } from './amp-registry.js?v=6';
 
 function stepFor(param) {
   if (param.step !== undefined) return param.step;
@@ -428,9 +428,10 @@ export function renderAmp(engine, container, template, callbacks, ampLogos = {})
   labelEl.textContent = inst.typeDef.label;
 
   const knobsHost = unit.querySelector('.amp-knobs, .guitar-knobs');
+  const cornerHost = unit.querySelector('.guitar-corner-knobs');
   inst.typeDef.params.forEach((paramDef) => {
     const row = buildParamRow(paramDef, inst.params[paramDef.key], (v) => callbacks.onParamChange(inst.instanceId, paramDef.key, v));
-    knobsHost.appendChild(row);
+    (paramDef.corner && cornerHost ? cornerHost : knobsHost).appendChild(row);
   });
 
   unit.querySelector('.pedal-header-actions .pedal-remove').addEventListener('click', (e) => { e.stopPropagation(); callbacks.onRemove(inst.instanceId); });

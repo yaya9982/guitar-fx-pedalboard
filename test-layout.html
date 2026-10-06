@@ -15,9 +15,9 @@
     const w = frame.contentWindow;
     const ampId = location.search.includes('acoustic') ? 'acoustic' : 'clean';
     await w.eval(`(async () => {
-      const ui = await import('/js/ui.js?v=6');
-      const pr = await import('/js/pedal-registry.js?v=3');
-      const ar = await import('/js/amp-registry.js?v=5');
+      const ui = await import('/js/ui.js?v=7');
+      const pr = await import('/js/pedal-registry.js?v=4');
+      const ar = await import('/js/amp-registry.js?v=6');
       const mk = (id, getter, kind) => {
         const typeDef = getter(id);
         const params = {}; typeDef.params.forEach((p) => { params[p.key] = p.default; });
@@ -28,6 +28,7 @@
       ui.renderChain(engine, document.getElementById('pedalChain'), document.getElementById('pedalCardTemplate'), noop);
       ui.renderAmp(engine, document.getElementById('ampSlot'), document.getElementById('ampCardTemplate'), noop, {});
       await document.fonts.ready;
+      if (${JSON.stringify(ampId === 'acoustic')}) document.querySelector('main').scrollTop = 99999; // the square guitar is taller than the canvas
       document.title = 'ready';
     })()`);
   });
