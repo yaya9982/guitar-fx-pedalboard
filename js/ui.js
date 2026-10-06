@@ -1,5 +1,5 @@
-import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=1';
-import { AMP_TYPES } from './amp-registry.js?v=1';
+import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=2';
+import { AMP_TYPES } from './amp-registry.js?v=2';
 
 function stepFor(param) {
   if (param.step !== undefined) return param.step;
@@ -134,12 +134,7 @@ export function showInfoPopover(anchorEl, title, text) {
   bodyEl.textContent = text;
   popover.appendChild(titleEl);
   popover.appendChild(bodyEl);
-  document.body.appendChild(popover);
-
-  const rect = anchorEl.getBoundingClientRect();
-  const left = Math.min(rect.left + window.scrollX, window.innerWidth - popover.offsetWidth - 16);
-  popover.style.top = `${rect.bottom + window.scrollY + 6}px`;
-  popover.style.left = `${Math.max(8, left)}px`;
+  placeFloating(popover, anchorEl, 16);
 
   const closeOnOutside = (e) => {
     if (!popover.contains(e.target) && e.target !== anchorEl) {
@@ -150,18 +145,39 @@ export function showInfoPopover(anchorEl, title, text) {
   setTimeout(() => document.addEventListener('click', closeOnOutside, true), 0);
 }
 
+// The whole UI lives in #appStage, a fixed 1920x1080 canvas scaled to fit the window (see
+// style.css). getBoundingClientRect() and pointer events report real screen pixels, so
+// anything that turns them into layout coordinates must divide by the stage scale.
+const STAGE_W = 1920;
+function stageScale() {
+  const stage = document.getElementById('appStage');
+  return stage ? stage.getBoundingClientRect().width / STAGE_W : 1;
+}
+
+// Append a floating menu/popover to the stage, just below its anchor, clamped inside the stage.
+function placeFloating(el, anchorEl, rightPad) {
+  const stage = document.getElementById('appStage');
+  stage.appendChild(el);
+  const sr = stage.getBoundingClientRect();
+  const k = sr.width / STAGE_W;
+  const rect = anchorEl.getBoundingClientRect();
+  el.style.top = `${(rect.bottom - sr.top) / k + 6}px`;
+  el.style.left = `${Math.max(8, Math.min((rect.left - sr.left) / k, STAGE_W - el.offsetWidth - rightPad))}px`;
+}
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // Jack points for a cable between two pedals, in coordinates relative to `container`.
 function wireEndpoints(cardA, cardB, container) {
+  const k = stageScale();
   const cRect = container.getBoundingClientRect();
   const a = cardA.getBoundingClientRect();
   const b = cardB.getBoundingClientRect();
   return {
-    x1: a.right - cRect.left, y1: a.top - cRect.top + a.height * 0.64,
-    x2: b.left - cRect.left, y2: b.top - cRect.top + b.height * 0.64,
-    aBottom: a.bottom - cRect.top, bTop: b.top - cRect.top,
-    sameRow: Math.abs(a.bottom - b.bottom) < 2,
+    x1: (a.right - cRect.left) / k, y1: (a.top - cRect.top + a.height * 0.64) / k,
+    x2: (b.left - cRect.left) / k, y2: (b.top - cRect.top + b.height * 0.64) / k,
+    aBottom: (a.bottom - cRect.top) / k, bTop: (b.top - cRect.top) / k,
+    sameRow: Math.abs(a.bottom - b.bottom) < 2 * k,
   };
 }
 
@@ -202,9 +218,10 @@ export function updateChainWires(container) {
   // While a card is mid-drag it's position:fixed (no longer part of the flex
   // flow), so its dashed placeholder stands in for it at the landing slot.
   const cards = [...container.querySelectorAll(':scope > .pedal-stompbox:not(.dragging), :scope > .pedal-card-placeholder')];
+  const k = stageScale();
   const cRect = container.getBoundingClientRect();
-  svg.setAttribute('width', cRect.width);
-  svg.setAttribute('height', cRect.height);
+  svg.setAttribute('width', cRect.width / k);
+  svg.setAttribute('height', cRect.height / k);
   svg.innerHTML = '';
 
   // Braided nylon jacket, referenced from sources/photos/cable.jpg and cable2.jpg:
@@ -288,11 +305,11 @@ export function updateChainWires(container) {
     const stub = 24;
     const first = cards[0].getBoundingClientRect();
     const last = cards[cards.length - 1].getBoundingClientRect();
-    const y1 = first.top - cRect.top + first.height * 0.64;
-    const x1 = first.left - cRect.left;
+    const y1 = (first.top - cRect.top + first.height * 0.64) / k;
+    const x1 = (first.left - cRect.left) / k;
     drawWire(`M ${Math.max(0, x1 - stub)} ${y1} L ${x1} ${y1}`, [[Math.max(0, x1 - stub), y1]]);
-    const y2 = last.top - cRect.top + last.height * 0.64;
-    const x2 = last.right - cRect.left;
+    const y2 = (last.top - cRect.top + last.height * 0.64) / k;
+    const x2 = (last.right - cRect.left) / k;
     drawWire(`M ${x2} ${y2} L ${x2 + stub} ${y2}`, [[x2 + stub, y2]]);
   }
 }
@@ -397,8 +414,9 @@ export function renderAmp(engine, container, template, callbacks, ampLogos = {})
   const inst = engine.amp.instance;
   if (!inst) return;
 
-  const frag = template.content.cloneNode(true);
-  const unit = frag.querySelector('.amp-unit');
+  const isGuitar = inst.typeDef.layout === 'guitar';
+  const frag = (isGuitar ? document.getElementById('guitarCardTemplate') : template).content.cloneNode(true);
+  const unit = frag.querySelector(isGuitar ? '.guitar-unit' : '.amp-unit');
   unit.dataset.instanceId = inst.instanceId;
   unit.dataset.ampType = inst.typeId; // targeted by the per-signature-amp plate colors in style.css
   unit.style.setProperty('--pedal-color', pedalColor(inst.typeDef));
@@ -409,13 +427,13 @@ export function renderAmp(engine, container, template, callbacks, ampLogos = {})
   const labelEl = unit.querySelector('.pedal-label');
   labelEl.textContent = inst.typeDef.label;
 
-  const knobsHost = unit.querySelector('.amp-knobs');
+  const knobsHost = unit.querySelector('.amp-knobs, .guitar-knobs');
   inst.typeDef.params.forEach((paramDef) => {
     const row = buildParamRow(paramDef, inst.params[paramDef.key], (v) => callbacks.onParamChange(inst.instanceId, paramDef.key, v));
     knobsHost.appendChild(row);
   });
 
-  unit.querySelector('.amp-header .pedal-remove').addEventListener('click', (e) => { e.stopPropagation(); callbacks.onRemove(inst.instanceId); });
+  unit.querySelector('.pedal-header-actions .pedal-remove').addEventListener('click', (e) => { e.stopPropagation(); callbacks.onRemove(inst.instanceId); });
   const infoBtn = unit.querySelector('.pedal-info');
   infoBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -487,23 +505,25 @@ function startCardDrag(card, container, callbacks, startEvent) {
   // is lifted out of flow entirely (fixed-positioned) and just follows the cursor.
   const placeholder = document.createElement('div');
   placeholder.className = 'pedal-card-placeholder';
-  placeholder.style.width = `${startRect.width}px`;
-  placeholder.style.height = `${startRect.height}px`;
+  const k = stageScale();
+  const stageRect = document.getElementById('appStage').getBoundingClientRect();
+  placeholder.style.width = `${startRect.width / k}px`;
+  placeholder.style.height = `${startRect.height / k}px`;
   placeholder.style.setProperty('--pedal-color', card.style.getPropertyValue('--pedal-color'));
   card.parentNode.insertBefore(placeholder, card);
 
   card.classList.add('dragging');
   card.style.position = 'fixed';
-  card.style.left = `${startRect.left}px`;
-  card.style.top = `${startRect.top}px`;
-  card.style.width = `${startRect.width}px`;
+  card.style.left = `${(startRect.left - stageRect.left) / k}px`;
+  card.style.top = `${(startRect.top - stageRect.top) / k}px`;
+  card.style.width = `${startRect.width / k}px`;
   card.style.margin = '0';
   card.style.zIndex = '200';
 
   const onPointerMove = (e) => {
     if (e.pointerId !== pointerId) return;
-    card.style.left = `${e.clientX - grabOffsetX}px`;
-    card.style.top = `${e.clientY - grabOffsetY}px`;
+    card.style.left = `${(e.clientX - grabOffsetX - stageRect.left) / k}px`;
+    card.style.top = `${(e.clientY - grabOffsetY - stageRect.top) / k}px`;
     const afterElement = getDragAfterElement(container, e.clientX);
     if (afterElement == null) container.appendChild(placeholder);
     else if (afterElement !== placeholder) container.insertBefore(placeholder, afterElement);
@@ -543,6 +563,7 @@ export function buildAddMenu(onPick) {
   const ampGroups = [
     { title: 'Amps', items: AMP_TYPES.filter((a) => a.group === 'standard'), color: 'oklch(70% 0.08 80)' },
     { title: 'Signature', items: AMP_TYPES.filter((a) => a.group === 'signature'), color: 'oklch(75% 0.13 85)' },
+    { title: 'Acoustic', items: AMP_TYPES.filter((a) => a.group === 'acoustic'), color: 'oklch(70% 0.11 65)' },
   ];
   const ampNote = document.createElement('div');
   ampNote.className = 'add-menu-note';
@@ -590,10 +611,7 @@ export function buildAddMenu(onPick) {
 export function showAddMenu(anchorEl, onPick) {
   document.querySelectorAll('.add-pedal-menu').forEach((m) => m.remove());
   const menu = buildAddMenu((kind, typeId) => { onPick(kind, typeId); menu.remove(); });
-  document.body.appendChild(menu);
-  const rect = anchorEl.getBoundingClientRect();
-  menu.style.top = `${rect.bottom + window.scrollY + 6}px`;
-  menu.style.left = `${Math.min(rect.left + window.scrollX, window.innerWidth - menu.offsetWidth - 320)}px`;
+  placeFloating(menu, anchorEl, 320);
 
   const closeOnOutside = (e) => {
     if (!menu.contains(e.target) && e.target !== anchorEl) {
@@ -621,10 +639,7 @@ export function showDemoMenu(anchorEl, demos, onPick) {
     btn.addEventListener('click', () => { onPick(demo); menu.remove(); });
     menu.appendChild(btn);
   });
-  document.body.appendChild(menu);
-  const rect = anchorEl.getBoundingClientRect();
-  menu.style.top = `${rect.bottom + window.scrollY + 6}px`;
-  menu.style.left = `${Math.min(rect.left + window.scrollX, window.innerWidth - menu.offsetWidth - 320)}px`;
+  placeFloating(menu, anchorEl, 320);
 
   const closeOnOutside = (e) => {
     if (!menu.contains(e.target) && e.target !== anchorEl) {
@@ -648,11 +663,7 @@ export function showSavePresetPopover(anchorEl, onSave) {
   saveBtn.textContent = 'Save';
   popover.appendChild(input);
   popover.appendChild(saveBtn);
-  document.body.appendChild(popover);
-
-  const rect = anchorEl.getBoundingClientRect();
-  popover.style.top = `${rect.bottom + window.scrollY + 6}px`;
-  popover.style.left = `${Math.min(rect.left + window.scrollX, window.innerWidth - popover.offsetWidth - 16)}px`;
+  placeFloating(popover, anchorEl, 16);
 
   const commit = () => {
     const name = input.value.trim();
@@ -731,10 +742,7 @@ export function showPresetMenu(anchorEl, presets, callbacks) {
   ioRow.appendChild(exportBtn); ioRow.appendChild(importLabel);
   menu.appendChild(ioRow);
 
-  document.body.appendChild(menu);
-  const rect = anchorEl.getBoundingClientRect();
-  menu.style.top = `${rect.bottom + window.scrollY + 6}px`;
-  menu.style.left = `${Math.min(rect.left + window.scrollX, window.innerWidth - menu.offsetWidth - 16)}px`;
+  placeFloating(menu, anchorEl, 16);
 
   const closeOnOutside = (e) => {
     if (!menu.contains(e.target) && e.target !== anchorEl) {

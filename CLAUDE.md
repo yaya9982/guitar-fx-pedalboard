@@ -36,6 +36,35 @@ Then open `http://localhost:8000/`.
   `guitar-fx-pedalboard/`, so these images are NOT version-controlled and won't exist in a
   fresh clone.** If you need them tracked, move `sources/` into this repo and commit it.
 
+## Other program features
+
+The pedalboard is one tab of a larger app (`index.html` has Pedalboard / Tuner / Looper /
+Information tabs). These don't get the same depth of research/testing rigor as the pedals —
+they're simpler, self-contained features:
+
+- **Tuner** (`js/tuner.js`): autocorrelation pitch detection with parabolic interpolation
+  (no external library), run off a dedicated `AnalyserNode` fed from the pre-effects signal
+  tap at ~30fps via `requestAnimationFrame`. `GUITAR_STRINGS` holds standard tuning + real
+  string gauges (used only to scale the UI's string-thickness illustration, not for pitch
+  math).
+- **Looper** (`js/looper.js`): `MediaRecorder`-based recording of the guitar signal alone, or
+  guitar + screen/tab audio together (via `getDisplayMedia`, opt-in per recording since the
+  browser's share picker can't be triggered silently). Playback/looping/seeking is manual
+  buffer management (`AudioBufferSourceNode` has no native seek — seeking just stops and
+  restarts the source at a new offset). WAV export via `js/wav-encoder.js`.
+- **Drum pads + beat presets** (`js/drum-kit.js`, `js/beat-presets.js`): fully synthesized —
+  oscillators/filtered noise, no sample files (matches the project's offline/no-binary-assets
+  rule). `DRUM_KITS` define each pad's sound as `tone` / `noise` / `layered` recipes;
+  `BEAT_PRESETS` are 16-step (one bar of 4/4) patterns driven by a `PatternPlayer`. Lives in
+  the Looper tab and gets captured into the same recording as the guitar.
+- **Noise gate / Denoise** (`js/noise-gate-worklet.js`, `js/spectral-denoise-worklet.js`):
+  two independent, user-toggleable input-cleanup AudioWorklets early in the signal chain,
+  before the pedal chain. Both default OFF; see the Presets section below for why loading a
+  saved state can't turn the gate back on.
+- **YouTube embed + Signal Preview**: a play-along video panel and a small scope showing what
+  a plain sine wave would look like after the current chain — practice/visual aids, not part
+  of the audio engine.
+
 ## Conventions
 
 - **Real-pedal-accuracy work**: the established convention (not a hard rule — use judgment)
@@ -49,6 +78,19 @@ Then open `http://localhost:8000/`.
   rather than guessing or fabricating.
 - **Impeccable design-hook**: per-pedal unique `oklch` colors are expected/established, not
   drift — but verify an unfamiliar flagged value before dismissing it as a false positive.
+- **Display scaling**: the entire UI lives in `#appStage`, a fixed 1920x1080 canvas scaled
+  uniformly to fit the window (`--ui-scale`, set by the inline script in `index.html`;
+  leftover window area is black). So never use `vw`/`vh`, `window.innerWidth` or `@media`
+  breakpoints for layout; size in px against the 1920x1080 canvas. Any code that turns
+  `getBoundingClientRect()` or pointer coordinates into layout px must divide by the stage
+  scale (see `stageScale()`/`placeFloating()` in `ui.js`), and floating menus must be appended
+  to `#appStage`, not `document.body`. `test-layout.html` renders the default board with no
+  audio; screenshot it with `chrome --headless=new --window-size=W,H` to check any display size.
+- **Browser testing**: whenever a new feature is implemented, deploy it locally and test it
+  in Chrome via the `mcp__claude-in-chrome__*` tools. Assume Claude in Chrome is already
+  connected; don't ask the user to set it up first. After testing, **leave the tab open**
+  (don't close it), and on the next test **reuse the tab you opened earlier** (check
+  `tabs_context_mcp`, then `navigate` it) instead of opening a new one.
 
 ## Pedal/amp visual design system
 
@@ -123,6 +165,42 @@ signal (sweep/tone/step/noise) through the pedal via `OfflineAudioContext`, meas
 transfer-curve/harmonic/timing/frequency-response, compare against the cited real number.
 Compare, don't eyeball.
 
+## Presets system
+
+Everything is handled in `js/presets.js`, wired up in `js/main.js`'s `restoreState()`.
+
+- **Storage**: browser `localStorage` only — no server, no files on disk unless the user
+  explicitly exports. Three separate keys:
+  - `guitarfx.presets.v1` — array of named presets: `{ name, state, savedAt }`.
+  - `guitarfx.autosave.v1` — a single slot holding the most recent state, written
+    automatically (not a user action).
+  - `guitarfx.ampLogos.v1` — custom amp-logo PNGs as data URLs, kept separate since they're
+    far bigger than everything else combined; currently unused (the feature is archived —
+    `AMP_LOGO_CUSTOMIZATION_ENABLED = false` in `ui.js` — but left fully intact).
+- **What's actually stored** (`buildStateObject(engine)` builds this — plain JSON, no custom
+  file format): input gain %, mute flag, master volume %, noise gate settings (enabled +
+  threshold/hold/release), denoise settings (enabled + strength), tuner volume %, acoustic-sim
+  enabled flag, and `chain` — every pedal/amp instance from `engine.getChainSnapshot()` as
+  `{ instanceId, kind, typeId, enabled, params }`.
+- **Saving**: the toolbar's Save button prompts for a name, then `savePreset(name, state)`
+  reads the current list from `localStorage`, drops any existing preset with that same name,
+  appends the new one, and writes the whole array back as one JSON string.
+- **Autosave**: every change debounces 400ms into overwriting the single autosave slot. On
+  page load, an existing autosave is restored automatically — no explicit save needed to
+  survive a refresh.
+- **Loading** (Browse button, autosave-on-load, or a demo preset — all three funnel into the
+  same `restoreState(state)`): restores input/master/tuner volume and denoise/acoustic-sim
+  settings, **always forces the noise gate OFF regardless of what the saved state says**
+  (hard-coded, deliberate — see below), then `engine.clearChain()` and replays the chain by
+  calling `engine.addToChain(inst.kind, inst.typeId, inst.params)` for each saved entry in
+  order, disabling any that were saved bypassed.
+- **Export/Import**: same JSON shape, just written to/read from an actual downloaded `.json`
+  file instead of `localStorage` (`exportStateAsFile`/`importStateFromFile`).
+- **Deliberate behavior, not a bug**: loading any preset/demo/autosave always leaves the noise
+  gate OFF even if it was ON when saved — an explicit earlier user request ("I don't want it
+  to open unless I switch it on no matter what, even when switching demo setups"), hard-coded
+  in `restoreState`.
+
 ## Deployment
 
 GitHub Pages via `.github/workflows/pages.yml`, deploys `master` to the site root.
@@ -140,6 +218,32 @@ Note: a branch-preview subfolder only persists across deploys if its checkout st
 unconditional (not gated on which ref triggered the run) — otherwise the next push to
 master rebuilds the site from scratch without it, since the official Pages deploy action
 replaces the whole site on every run rather than updating incrementally.
+
+### Merging a feature branch back to master and retiring its preview
+
+Once a branch's work is done and approved, to merge it into master, get it live at the site
+root, and remove its separate `/branch-name/` preview:
+
+1. **Merge the branch into master as usual** (`git merge` or a PR). Since the branch's own
+   commits modified `.github/workflows/pages.yml` to add its preview checkout step, merging
+   brings that modified workflow into master too — don't skip the next step or master's
+   future deploys will keep pointlessly checking out the now-merged branch.
+2. **Revert `pages.yml` on master back to the plain single-branch form** — remove the
+   branch's name from the `on: push: branches: [...]` trigger list and delete its dedicated
+   checkout step, so master goes back to just deploying itself to the site root.
+3. **Push master.** This triggers a fresh deploy that rebuilds the site from master only —
+   since the official Pages deploy action replaces the whole site every run, the old
+   `/branch-name/` subfolder simply isn't included anymore and disappears from the live site
+   once this deploy completes (no separate "delete" step needed for the site content itself).
+4. **Remove the branch from the `github-pages` environment's deployment-branch allowlist** —
+   repo Settings → Environments → github-pages → Deployment branches (or
+   `gh api -X DELETE repos/<owner>/<repo>/environments/github-pages/deployment-branch-policies/<policy-id>`,
+   where `<policy-id>` comes from listing them via
+   `gh api repos/<owner>/<repo>/environments/github-pages/deployment-branch-policies`).
+   Not strictly required for the site content to update, but leaves the permission grant from
+   step 2 of the preview setup needlessly in place otherwise.
+5. **Delete the branch itself**, local and remote: `git branch -d branch-name` and
+   `git push origin --delete branch-name`.
 
 ## Other docs
 

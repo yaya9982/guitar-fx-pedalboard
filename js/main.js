@@ -1,17 +1,17 @@
-import { AudioEngine } from './audio-engine.js?v=13';
-import { renderChain, renderAmp, showAddMenu, showDemoMenu, showSavePresetPopover, showPresetMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=1';
+import { AudioEngine } from './audio-engine.js?v=14';
+import { renderChain, renderAmp, showAddMenu, showDemoMenu, showSavePresetPopover, showPresetMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=3';
 import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js';
 import { Tuner, GUITAR_STRINGS, centsFromTarget } from './tuner.js?v=3';
 import { Looper } from './looper.js?v=3';
 import { audioBufferToWavBlob } from './wav-encoder.js';
 import { DrumKit, DRUM_PADS } from './drum-kit.js';
-import { BEAT_PRESETS, PatternPlayer } from './beat-presets.js?v=2';
+import { BEAT_PRESETS, PatternPlayer } from './beat-presets.js?v=3';
 import {
   buildStateObject, loadPresetList, savePreset, deletePreset,
   saveAutosave, loadAutosave, exportStateAsFile, importStateFromFile,
   loadAmpLogos, saveAmpLogos,
-} from './presets.js?v=2';
+} from './presets.js?v=3';
 
 const $ = (id) => document.getElementById(id);
 
@@ -36,7 +36,6 @@ const denoiseEnabled = $('denoiseEnabled');
 const denoiseStrength = $('denoiseStrength');
 const denoiseStrengthInfoBtn = $('denoiseStrengthInfoBtn');
 const denoiseInfoBtn = $('denoiseInfoBtn');
-const acousticSimEnabled = $('acousticSimEnabled');
 const addPedalBtn = $('addPedalBtn');
 const demoSetupsBtn = $('demoSetupsBtn');
 const clearSetupBtn = $('clearSetupBtn');
@@ -338,7 +337,6 @@ enableAudioBtn.addEventListener('click', async () => {
     demoSetupsBtn.disabled = false;
     clearSetupBtn.disabled = false;
     muteInputBtn.disabled = false;
-    acousticSimEnabled.disabled = false;
     tunerStringRow.querySelectorAll('.tuner-string-btn').forEach((b) => { b.disabled = false; });
 
     // Drum bus: a plain gain node feeding both the speakers and the looper's recording
@@ -494,7 +492,6 @@ denoiseStrengthInfoBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   showInfoPopover(denoiseStrengthInfoBtn, 'Strength', 'How aggressively Denoise reduces background noise — higher values remove more hiss but can thin out your tone if pushed too far.');
 });
-acousticSimEnabled.addEventListener('change', async () => { await engine.setAcousticSimEnabled(acousticSimEnabled.checked); autosave(); });
 
 addPedalBtn.addEventListener('click', () => {
   showAddMenu(addPedalBtn, async (kind, typeId) => {
@@ -854,8 +851,6 @@ async function restoreState(state) {
   denoiseEnabled.checked = denoiseOn; engine.setDenoiseEnabled(denoiseOn);
   denoiseStrength.value = denoiseAmt; engine.setDenoiseStrength(denoiseAmt);
   applyTunerVolume(state.tunerVolumePct ?? 30);
-  acousticSimEnabled.checked = state.acousticSim.enabled;
-  await engine.setAcousticSimEnabled(state.acousticSim.enabled);
 
   engine.clearChain();
   for (const inst of state.chain) {

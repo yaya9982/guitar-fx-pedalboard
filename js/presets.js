@@ -19,7 +19,6 @@ export function buildStateObject(engine) {
       strength: engine.spectralDenoiseNode?.parameters.get('strength').value ?? 50,
     },
     tunerVolumePct: engine.tunerVolumePct,
-    acousticSim: { enabled: engine.acousticSim.enabled },
     chain: engine.getChainSnapshot(),
   };
 }

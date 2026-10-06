@@ -1,5 +1,5 @@
-import { getPedalType } from './pedal-registry.js?v=1';
-import { getAmpType, createAcousticSimNodes } from './amp-registry.js?v=1';
+import { getPedalType } from './pedal-registry.js?v=2';
+import { getAmpType } from './amp-registry.js?v=2';
 
 // Keep in sync with WORKLET_MODULES in wave-preview.js (same URLs, so both share one HTTP cache entry).
 const WORKLET_URLS = [
@@ -34,7 +34,6 @@ export class AudioEngine {
     this.currentDeviceId = null;
     this.chain = []; // pedals only: [{ instanceId, kind: 'pedal', typeId, enabled, params, nodes, typeDef }]
     this.amp = { instance: null }; // single slot, always after the pedal chain — see setAmp()
-    this.acousticSim = { enabled: false, instance: null };
     this.masterVolumePct = 100;
     this.inputGainPct = 100;
     this.inputMuted = false;
@@ -309,7 +308,7 @@ export class AudioEngine {
   }
 
   // Only one amp at a time, always after the whole pedal chain (see _rebuildChain) — a
-  // separate slot rather than a chain entry, same shape as the acousticSim slot below.
+  // separate slot rather than a chain entry, kept apart from the pedal chain.
   // Loading a new amp replaces whatever was there.
   async setAmp(typeId, presetParams) {
     const typeDef = getAmpType(typeId);
@@ -369,8 +368,7 @@ export class AudioEngine {
 
   async setParam(instanceId, key, value) {
     const inst = this.chain.find((i) => i.instanceId === instanceId)
-      || (this.amp.instance?.instanceId === instanceId ? this.amp.instance : null)
-      || (this.acousticSim.instance?.instanceId === instanceId ? this.acousticSim.instance : null);
+      || (this.amp.instance?.instanceId === instanceId ? this.amp.instance : null);
     if (!inst) return;
     inst.params[key] = value;
     const paramDef = inst.typeDef.params.find((p) => p.key === key);
@@ -380,18 +378,6 @@ export class AudioEngine {
   reorderChain(newInstanceIdOrder) {
     const byId = new Map(this.chain.map((i) => [i.instanceId, i]));
     this.chain = newInstanceIdOrder.map((id) => byId.get(id)).filter(Boolean);
-    this._rebuildChain();
-  }
-
-  async setAcousticSimEnabled(enabled) {
-    this.acousticSim.enabled = enabled;
-    if (enabled && !this.acousticSim.instance) {
-      const built = await createAcousticSimNodes(this.ctx);
-      this.acousticSim.instance = {
-        instanceId: 'acoustic-sim', kind: 'acoustic', typeId: 'acoustic', enabled: true, params: {},
-        nodes: built.nodes, input: built.input, output: built.output, typeDef: { params: [] },
-      };
-    }
     this._rebuildChain();
   }
 
@@ -405,7 +391,6 @@ export class AudioEngine {
     this.preChainTap.disconnect();
     this.chain.forEach((inst) => { try { inst.output.disconnect(); } catch (e) { /* already disconnected */ } });
     if (this.amp.instance) { try { this.amp.instance.output.disconnect(); } catch (e) { /* noop */ } }
-    if (this.acousticSim.instance) { try { this.acousticSim.instance.output.disconnect(); } catch (e) { /* noop */ } }
 
     const active = this.chain.filter((i) => i.enabled);
     let node = this.preChainTap;
@@ -418,11 +403,6 @@ export class AudioEngine {
     if (this.amp.instance && this.amp.instance.enabled) {
       node.connect(this.amp.instance.input);
       node = this.amp.instance.output;
-    }
-
-    if (this.acousticSim.enabled && this.acousticSim.instance) {
-      node.connect(this.acousticSim.instance.input);
-      node = this.acousticSim.instance.output;
     }
 
     node.connect(this.masterGain);

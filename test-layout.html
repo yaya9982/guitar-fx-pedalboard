@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"><title>Layout scale check</title>
+<style>html, body { margin: 0; height: 100%; background: #000; overflow: hidden; } iframe { display: block; width: 100%; height: 100%; border: 0; }</style>
+</head>
+<body>
+<iframe id="app" src="index.html"></iframe>
+<script>
+  // Loads the app full-window and renders the default demo board (Clean amp + Compressor + Wah)
+  // without needing audio, so the layout can be screenshotted at any window size
+  // (e.g. headless Chrome with --window-size=W,H). Add ?acoustic to use the Acoustic amp instead.
+  const frame = document.getElementById('app');
+  frame.addEventListener('load', async () => {
+    const w = frame.contentWindow;
+    const ampId = location.search.includes('acoustic') ? 'acoustic' : 'clean';
+    await w.eval(`(async () => {
+      const ui = await import('/js/ui.js?v=3');
+      const pr = await import('/js/pedal-registry.js?v=2');
+      const ar = await import('/js/amp-registry.js?v=2');
+      const mk = (id, getter, kind) => {
+        const typeDef = getter(id);
+        const params = {}; typeDef.params.forEach((p) => { params[p.key] = p.default; });
+        return { instanceId: id, kind, typeId: id, typeDef, enabled: true, params };
+      };
+      const engine = { chain: [mk('compressor', pr.getPedalType, 'pedal'), mk('wah', pr.getPedalType, 'pedal')], amp: { instance: mk('${ampId}', ar.getAmpType, 'amp') } };
+      const noop = { onParamChange() {}, onRemove() {}, onToggle() {}, onReorder() {}, onLogoChange() {} };
+      ui.renderChain(engine, document.getElementById('pedalChain'), document.getElementById('pedalCardTemplate'), noop);
+      ui.renderAmp(engine, document.getElementById('ampSlot'), document.getElementById('ampCardTemplate'), noop, {});
+      await document.fonts.ready;
+      document.title = 'ready';
+    })()`);
+  });
+</script>
+</body>
+</html>

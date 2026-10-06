@@ -1,0 +1,30 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Acoustic amp loudness</title>
+<style>body{font:14px/1.5 monospace;background:#111;color:#ddd;padding:20px}.pass{color:#4caf50}.fail{color:#f44336}</style></head>
+<body><h1>Acoustic amp loudness vs AC/DC and Clean</h1><div id="out">running...</div>
+<script type="module">
+  import { getAmpType } from './js/amp-registry.js';
+  const SR = 44100, out = document.getElementById('out'), lines = [];
+  async function level(id, hz, amp) {
+    const ctx = new OfflineAudioContext(1, SR * 1.5, SR);
+    await ctx.audioWorklet.addModule('./js/dynamics-worklet.js');
+    const def = getAmpType(id);
+    const n = await def.createNodes(ctx);
+    for (const p of def.params) p.apply(n.nodes, p.default, ctx);
+    const src = ctx.createOscillator(); src.frequency.value = hz;
+    const g = ctx.createGain(); g.gain.value = amp;
+    src.connect(g).connect(n.input); n.output.connect(ctx.destination); src.start();
+    const d = (await ctx.startRendering()).getChannelData(0).subarray(SR / 2);
+    let s = 0; for (const v of d) s += v * v; return Math.sqrt(s / d.length);
+  }
+  const db = (a, b) => (20 * Math.log10(a / b)).toFixed(1);
+  const ratios = [];
+  for (const amp of [0.05, 0.1, 0.3]) for (const hz of [110, 196, 330]) {
+    const [ac, ad, cl] = [await level('acoustic', hz, amp), await level('acdc', hz, amp), await level('clean', hz, amp)];
+    ratios.push(ad / ac);
+    lines.push(`in ${amp} ${hz}Hz: acoustic ${ac.toFixed(4)} acdc ${ad.toFixed(4)} clean ${cl.toFixed(4)} | acdc-acoustic ${db(ad, ac)} dB, clean-acoustic ${db(cl, ac)} dB`);
+  }
+  ratios.sort((a, b) => a - b);
+  lines.push(`MEDIAN makeup needed to match AC/DC: ${ratios[4].toFixed(2)}x`);
+  out.innerHTML = lines.join('<br>');
+</script></body></html>
