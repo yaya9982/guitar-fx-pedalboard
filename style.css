@@ -1324,6 +1324,9 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 .looper-seek-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 .looper-seek { flex: 1; min-width: 0; }
 .looper-time { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.looper-edit-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700; }
+.looper-edit-row label { display: flex; align-items: center; gap: 8px; }
+.looper-edit-row output { font-family: var(--font-mono); min-width: 40px; }
 .looper-status { margin-top: 12px; font-size: 12px; color: var(--text-dim); font-family: var(--font-mono); }
 
 /* ---------- drum pads ---------- */

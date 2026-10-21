@@ -156,6 +156,7 @@ export class Looper {
           this.guitarBuffer = await this._decode(this.guitarChunks);
           this.screenBuffer = this.screenRecorder ? await this._decode(this.screenChunks) : null;
           this.source = 'guitar';
+          this._orig = null; // a new take replaces any earlier trim state
           resolve({ guitarBuffer: this.guitarBuffer, screenBuffer: this.screenBuffer });
         } catch (err) {
           reject(err);
@@ -244,6 +245,44 @@ export class Looper {
     else this._playOffset = clamped;
   }
 
+  // Playback-only level; independent of master volume and never baked into the download.
+  setVolume(v) {
+    this.monitorGain.gain.value = v;
+  }
+
+  static _slice(ctx, buf, start, end) {
+    if (!buf) return null;
+    const rate = buf.sampleRate;
+    const a = Math.min(Math.floor(start * rate), buf.length);
+    const len = Math.max(1, Math.min(Math.ceil(end * rate), buf.length) - a);
+    const out = ctx.createBuffer(buf.numberOfChannels, len, rate);
+    for (let c = 0; c < buf.numberOfChannels; c++) {
+      out.copyToChannel(buf.getChannelData(c).subarray(a, a + len), c);
+    }
+    return out;
+  }
+
+  // Non-destructive-ish: the first trim stashes the untrimmed buffers so resetTrim() can
+  // restore them. Re-trimming works on the current (already trimmed) take.
+  trim(start, end) {
+    if (!this.guitarBuffer || end - start < 0.05) return false;
+    if (!this._orig) this._orig = { guitar: this.guitarBuffer, screen: this.screenBuffer };
+    this.stopPlayback();
+    this.guitarBuffer = Looper._slice(this.ctx, this.guitarBuffer, start, end);
+    this.screenBuffer = Looper._slice(this.ctx, this.screenBuffer, start, end);
+    return true;
+  }
+
+  get isTrimmed() { return !!this._orig; }
+
+  resetTrim() {
+    if (!this._orig) return;
+    this.stopPlayback();
+    this.guitarBuffer = this._orig.guitar;
+    this.screenBuffer = this._orig.screen;
+    this._orig = null;
+  }
+
   setLoop(loop) {
     this.loop = loop;
     if (this.guitarSourceNode) this.guitarSourceNode.loop = loop;
@@ -252,6 +291,7 @@ export class Looper {
 
   clear() {
     this.stopPlayback();
+    this._orig = null;
     this.guitarBuffer = null;
     this.screenBuffer = null;
     this.guitarChunks = [];

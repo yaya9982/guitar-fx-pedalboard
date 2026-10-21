@@ -189,6 +189,19 @@
         <input type="range" id="looperSeekRange" class="looper-seek" min="0" max="0" step="0.01" value="0" disabled>
         <span id="looperTimeLabel" class="looper-time">0:00 / 0:00</span>
       </div>
+      <div class="looper-edit-row">
+        <label>Volume
+          <input type="range" id="looperVolRange" min="0" max="150" value="100" title="Loop playback volume (does not affect the downloaded file)">
+          <output id="looperVolValue">100%</output>
+        </label>
+      </div>
+      <div class="looper-edit-row">
+        <label>Trim start <input type="range" id="looperTrimStart" min="0" max="0" step="0.01" value="0" disabled></label>
+        <label>end <input type="range" id="looperTrimEnd" min="0" max="0" step="0.01" value="0" disabled></label>
+        <span id="looperTrimLabel" class="looper-time">0:00.0 – 0:00.0</span>
+        <button type="button" id="looperTrimBtn" class="looper-btn" disabled>Trim</button>
+        <button type="button" id="looperTrimResetBtn" class="looper-btn" disabled>Reset trim</button>
+      </div>
       <div id="looperStatus" class="looper-status">No recording yet.</div>
 
       <div class="drumkit-box">
@@ -528,6 +541,6 @@
   </div>
 </template>
 
-<script type="module" src="js/main.js?v=41"></script>
+<script type="module" src="js/main.js?v=42"></script>
 </body>
 </html>

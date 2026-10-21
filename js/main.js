@@ -3,7 +3,7 @@ import { renderChain, renderAmp, showAddMenu, showDemoMenu, showSavePresetPopove
 import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js';
 import { Tuner, GUITAR_STRINGS, centsFromTarget } from './tuner.js?v=3';
-import { Looper } from './looper.js?v=3';
+import { Looper } from './looper.js?v=4';
 import { audioBufferToWavBlob } from './wav-encoder.js';
 import { DrumKit, DRUM_PADS } from './drum-kit.js';
 import { BEAT_PRESETS, PatternPlayer } from './beat-presets.js?v=3';
@@ -67,6 +67,13 @@ const looperCaptureScreenAudio = $('looperCaptureScreenAudio');
 const looperSourceBtn = $('looperSourceBtn');
 const looperSeekRange = $('looperSeekRange');
 const looperTimeLabel = $('looperTimeLabel');
+const looperVolRange = $('looperVolRange');
+const looperVolValue = $('looperVolValue');
+const looperTrimStart = $('looperTrimStart');
+const looperTrimEnd = $('looperTrimEnd');
+const looperTrimLabel = $('looperTrimLabel');
+const looperTrimBtn = $('looperTrimBtn');
+const looperTrimResetBtn = $('looperTrimResetBtn');
 const drumKitSelect = $('drumKitSelect');
 const drumVolRange = $('drumVolRange');
 const drumPadGrid = $('drumPadGrid');
@@ -708,6 +715,32 @@ function resetLooperControlsIdle() {
   [looperPlayBtn, looperLoopBtn, looperClearBtn].forEach((b) => (b.disabled = false));
 }
 
+// Redraws everything derived from the current take (waveform, download, seek bar, trim
+// sliders). Called after recording stops and after every trim / reset-trim.
+function refreshTakeUI() {
+  const buf = looper.guitarBuffer;
+  drawWaveform(buf, looperWaveform);
+  looperDownloadBtn.href = URL.createObjectURL(audioBufferToWavBlob(buf));
+  looperDownloadBtn.classList.remove('disabled');
+
+  looperSeekRange.max = looper.duration;
+  looperSeekRange.value = 0;
+  looperSeekRange.disabled = false;
+  looperTimeLabel.textContent = `0:00 / ${formatTime(looper.duration)}`;
+
+  [looperTrimStart, looperTrimEnd].forEach((r) => { r.max = looper.duration; r.disabled = false; });
+  looperTrimStart.value = 0;
+  looperTrimEnd.value = looper.duration;
+  updateTrimLabel();
+  looperTrimBtn.disabled = false;
+  looperTrimResetBtn.disabled = !looper.isTrimmed;
+}
+
+const fmtT = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
+function updateTrimLabel() {
+  looperTrimLabel.textContent = `${fmtT(+looperTrimStart.value)} – ${fmtT(+looperTrimEnd.value)}`;
+}
+
 async function finishRecording() {
   if (isStopping) return;
   isStopping = true;
@@ -716,15 +749,7 @@ async function finishRecording() {
     const { guitarBuffer, screenBuffer } = await looper.stopRecording();
     resetLooperControlsIdle();
     looperStatus.textContent = `Recorded ${guitarBuffer.duration.toFixed(1)}s` + (screenBuffer ? ' (+ screen audio)' : '');
-    drawWaveform(guitarBuffer, looperWaveform);
-    const blob = audioBufferToWavBlob(guitarBuffer);
-    looperDownloadBtn.href = URL.createObjectURL(blob);
-    looperDownloadBtn.classList.remove('disabled');
-
-    looperSeekRange.max = looper.duration;
-    looperSeekRange.value = 0;
-    looperSeekRange.disabled = false;
-    looperTimeLabel.textContent = `0:00 / ${formatTime(looper.duration)}`;
+    refreshTakeUI();
 
     looperSourceBtn.disabled = !screenBuffer;
     looperSourceBtn.textContent = 'Source: Guitar';
@@ -746,6 +771,7 @@ looperRecordBtn.addEventListener('click', async () => {
     // Reaching the end without looping stops playback on its own (see Looper._handleEnded) —
     // this just keeps the toggle button's label in sync with that.
     looper.onEnded = () => { looperPlayBtn.innerHTML = '&#9654; Play'; };
+    looper.setVolume(looperVolRange.value / 100);
   }
 
   const captureScreen = looperCaptureScreenAudio.checked;
@@ -760,6 +786,7 @@ looperRecordBtn.addEventListener('click', async () => {
   [looperPlayBtn, looperLoopBtn, looperClearBtn, looperSourceBtn].forEach((b) => (b.disabled = true));
   looperDownloadBtn.classList.add('disabled');
   looperSeekRange.disabled = true;
+  [looperTrimStart, looperTrimEnd, looperTrimBtn, looperTrimResetBtn].forEach((el) => (el.disabled = true));
 });
 
 // A single toggle, same idea as the YouTube player's Play/Pause: shows Play while
@@ -811,6 +838,41 @@ looperClearBtn.addEventListener('click', () => {
   looperSeekRange.value = 0;
   looperSeekRange.disabled = true;
   looperTimeLabel.textContent = '0:00 / 0:00';
+  [looperTrimStart, looperTrimEnd].forEach((r) => { r.max = 0; r.value = 0; });
+  updateTrimLabel();
+});
+
+looperVolRange.addEventListener('input', () => {
+  looperVolValue.textContent = `${looperVolRange.value}%`;
+  if (looper) looper.setVolume(looperVolRange.value / 100);
+});
+
+// Keep start < end so the selection can't invert.
+looperTrimStart.addEventListener('input', () => {
+  if (+looperTrimStart.value > +looperTrimEnd.value) looperTrimStart.value = looperTrimEnd.value;
+  updateTrimLabel();
+});
+looperTrimEnd.addEventListener('input', () => {
+  if (+looperTrimEnd.value < +looperTrimStart.value) looperTrimEnd.value = looperTrimStart.value;
+  updateTrimLabel();
+});
+function afterTrimChange(msg) {
+  cancelAnimationFrame(seekRafId);
+  looperPlayBtn.innerHTML = '&#9654; Play';
+  refreshTakeUI();
+  looperStatus.textContent = msg;
+}
+looperTrimBtn.addEventListener('click', () => {
+  if (!looper || !looper.trim(+looperTrimStart.value, +looperTrimEnd.value)) {
+    looperStatus.textContent = 'Trim selection too short (min 0.05s).';
+    return;
+  }
+  afterTrimChange(`Trimmed to ${looper.duration.toFixed(1)}s`);
+});
+looperTrimResetBtn.addEventListener('click', () => {
+  if (!looper) return;
+  looper.resetTrim();
+  afterTrimChange(`Trim reset — ${looper.duration.toFixed(1)}s`);
 });
 
 // Dragging the scrubber seeks live while playing, or just sets where the next Play
