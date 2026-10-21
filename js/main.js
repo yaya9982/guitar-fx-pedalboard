@@ -69,8 +69,8 @@ const looperSeekRange = $('looperSeekRange');
 const looperTimeLabel = $('looperTimeLabel');
 const looperVolRange = $('looperVolRange');
 const looperVolValue = $('looperVolValue');
-const looperTrimStart = $('looperTrimStart');
-const looperTrimEnd = $('looperTrimEnd');
+const looperWaveWrap = $('looperWaveWrap');
+const looperTrimSel = $('looperTrimSel');
 const looperTrimLabel = $('looperTrimLabel');
 const looperTrimBtn = $('looperTrimBtn');
 const looperTrimResetBtn = $('looperTrimResetBtn');
@@ -728,18 +728,48 @@ function refreshTakeUI() {
   looperSeekRange.disabled = false;
   looperTimeLabel.textContent = `0:00 / ${formatTime(looper.duration)}`;
 
-  [looperTrimStart, looperTrimEnd].forEach((r) => { r.max = looper.duration; r.disabled = false; });
-  looperTrimStart.value = 0;
-  looperTrimEnd.value = looper.duration;
+  trimA = 0; trimB = looper.duration;
+  looperTrimSel.hidden = false;
   updateTrimLabel();
   looperTrimBtn.disabled = false;
   looperTrimResetBtn.disabled = !looper.isTrimmed;
 }
 
 const fmtT = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
+// Trim selection in seconds; the yellow frame over the waveform is positioned from it.
+let trimA = 0;
+let trimB = 0;
+const MIN_TRIM = 0.05;
 function updateTrimLabel() {
-  looperTrimLabel.textContent = `${fmtT(+looperTrimStart.value)} – ${fmtT(+looperTrimEnd.value)}`;
+  const d = looper ? looper.duration : 0;
+  if (d > 0) {
+    looperTrimSel.style.left = `${(trimA / d) * 100}%`;
+    looperTrimSel.style.right = `${(1 - trimB / d) * 100}%`;
+  }
+  const cutS = trimA, cutE = d - trimB;
+  looperTrimLabel.textContent = cutS + cutE < 0.005
+    ? 'Drag the yellow edges on the waveform to trim'
+    : `Keeping ${fmtT(trimA)} – ${fmtT(trimB)} · cutting ${cutS.toFixed(1)}s from start, ${cutE.toFixed(1)}s from end`;
 }
+
+// Apple-style trim handles: drag either end of the frame; position comes from the pointer's
+// fraction of the waveform's width, so it is independent of the stage's display scale.
+looperTrimSel.addEventListener('pointerdown', (e) => {
+  const edge = e.target.dataset.edge;
+  if (!edge || !looper) return;
+  e.preventDefault();
+  e.target.setPointerCapture(e.pointerId);
+  const move = (ev) => {
+    const r = looperWaveWrap.getBoundingClientRect();
+    const t = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)) * looper.duration;
+    if (edge === 'l') trimA = Math.min(t, trimB - MIN_TRIM);
+    else trimB = Math.max(t, trimA + MIN_TRIM);
+    updateTrimLabel();
+  };
+  const up = () => { e.target.removeEventListener('pointermove', move); e.target.removeEventListener('pointerup', up); };
+  e.target.addEventListener('pointermove', move);
+  e.target.addEventListener('pointerup', up);
+});
 
 async function finishRecording() {
   if (isStopping) return;
@@ -786,7 +816,8 @@ looperRecordBtn.addEventListener('click', async () => {
   [looperPlayBtn, looperLoopBtn, looperClearBtn, looperSourceBtn].forEach((b) => (b.disabled = true));
   looperDownloadBtn.classList.add('disabled');
   looperSeekRange.disabled = true;
-  [looperTrimStart, looperTrimEnd, looperTrimBtn, looperTrimResetBtn].forEach((el) => (el.disabled = true));
+  looperTrimSel.hidden = true;
+  [looperTrimBtn, looperTrimResetBtn].forEach((el) => (el.disabled = true));
 });
 
 // A single toggle, same idea as the YouTube player's Play/Pause: shows Play while
@@ -838,8 +869,8 @@ looperClearBtn.addEventListener('click', () => {
   looperSeekRange.value = 0;
   looperSeekRange.disabled = true;
   looperTimeLabel.textContent = '0:00 / 0:00';
-  [looperTrimStart, looperTrimEnd].forEach((r) => { r.max = 0; r.value = 0; });
-  updateTrimLabel();
+  looperTrimSel.hidden = true;
+  looperTrimLabel.textContent = 'Drag the yellow edges on the waveform to trim';
 });
 
 looperVolRange.addEventListener('input', () => {
@@ -847,15 +878,6 @@ looperVolRange.addEventListener('input', () => {
   if (looper) looper.setVolume(looperVolRange.value / 100);
 });
 
-// Keep start < end so the selection can't invert.
-looperTrimStart.addEventListener('input', () => {
-  if (+looperTrimStart.value > +looperTrimEnd.value) looperTrimStart.value = looperTrimEnd.value;
-  updateTrimLabel();
-});
-looperTrimEnd.addEventListener('input', () => {
-  if (+looperTrimEnd.value < +looperTrimStart.value) looperTrimEnd.value = looperTrimStart.value;
-  updateTrimLabel();
-});
 function afterTrimChange(msg) {
   cancelAnimationFrame(seekRafId);
   looperPlayBtn.innerHTML = '&#9654; Play';
@@ -863,7 +885,7 @@ function afterTrimChange(msg) {
   looperStatus.textContent = msg;
 }
 looperTrimBtn.addEventListener('click', () => {
-  if (!looper || !looper.trim(+looperTrimStart.value, +looperTrimEnd.value)) {
+  if (!looper || !looper.trim(trimA, trimB)) {
     looperStatus.textContent = 'Trim selection too short (min 0.05s).';
     return;
   }

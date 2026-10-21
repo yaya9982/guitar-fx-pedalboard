@@ -184,7 +184,13 @@
         </span>
         <button type="button" id="looperSourceBtn" class="looper-btn toggle" disabled title="Choose what plays back: guitar only, or guitar + screen audio mixed together">Source: Guitar</button>
       </div>
-      <canvas id="looperWaveform" class="looper-waveform" width="640" height="90"></canvas>
+      <div class="looper-wave-wrap" id="looperWaveWrap">
+        <canvas id="looperWaveform" class="looper-waveform" width="640" height="90"></canvas>
+        <div id="looperTrimSel" class="trim-sel" hidden>
+          <div class="trim-h l" data-edge="l" title="Drag to trim the start"></div>
+          <div class="trim-h r" data-edge="r" title="Drag to trim the end"></div>
+        </div>
+      </div>
       <div class="looper-seek-row">
         <input type="range" id="looperSeekRange" class="looper-seek" min="0" max="0" step="0.01" value="0" disabled>
         <span id="looperTimeLabel" class="looper-time">0:00 / 0:00</span>
@@ -196,9 +202,7 @@
         </label>
       </div>
       <div class="looper-edit-row">
-        <label>Trim start <input type="range" id="looperTrimStart" min="0" max="0" step="0.01" value="0" disabled></label>
-        <label>end <input type="range" id="looperTrimEnd" min="0" max="0" step="0.01" value="0" disabled></label>
-        <span id="looperTrimLabel" class="looper-time">0:00.0 – 0:00.0</span>
+        <span id="looperTrimLabel" class="looper-time">Drag the yellow edges on the waveform to trim</span>
         <button type="button" id="looperTrimBtn" class="looper-btn" disabled>Trim</button>
         <button type="button" id="looperTrimResetBtn" class="looper-btn" disabled>Reset trim</button>
       </div>
@@ -541,6 +545,6 @@
   </div>
 </template>
 
-<script type="module" src="js/main.js?v=42"></script>
+<script type="module" src="js/main.js?v=43"></script>
 </body>
 </html>

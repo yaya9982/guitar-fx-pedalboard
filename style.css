@@ -1324,6 +1324,13 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 .looper-seek-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 .looper-seek { flex: 1; min-width: 0; }
 .looper-time { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.looper-wave-wrap { position: relative; margin-top: 14px; overflow: hidden; border-radius: 6px; }
+.looper-wave-wrap .looper-waveform { margin-top: 0; }
+.trim-sel { position: absolute; top: 0; bottom: 0; border-top: 3px solid oklch(85% 0.17 95); border-bottom: 3px solid oklch(85% 0.17 95); box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); pointer-events: none; }
+.trim-h { position: absolute; top: -3px; bottom: -3px; width: 14px; background: oklch(85% 0.17 95); pointer-events: auto; cursor: ew-resize; touch-action: none; }
+.trim-h::after { content: ''; position: absolute; top: 50%; left: 50%; width: 2px; height: 22px; margin: -11px 0 0 -1px; background: oklch(25% 0.05 95); border-radius: 1px; }
+.trim-h.l { left: 0; border-radius: 6px 0 0 6px; }
+.trim-h.r { right: 0; border-radius: 0 6px 6px 0; }
 .looper-edit-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700; }
 .looper-edit-row label { display: flex; align-items: center; gap: 8px; }
 .looper-edit-row output { font-family: var(--font-mono); min-width: 40px; }
