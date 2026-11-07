@@ -9,15 +9,16 @@
 <script>
   // Loads the app full-window and renders the default demo board (Clean amp + Compressor + Wah)
   // without needing audio, so the layout can be screenshotted at any window size
-  // (e.g. headless Chrome with --window-size=W,H). Add ?acoustic to use the Acoustic amp instead.
+  // (e.g. headless Chrome with --window-size=W,H). Add ?acoustic (or ?amp=<id>) to use another amp.
   const frame = document.getElementById('app');
   frame.addEventListener('load', async () => {
     const w = frame.contentWindow;
-    const ampId = location.search.includes('acoustic') ? 'acoustic' : 'clean';
+    let ampId = new URLSearchParams(location.search).get('amp') || (location.search.includes('acoustic') ? 'acoustic' : 'clean'); // ?amp=<id>
+    if (!/^[a-z0-9_-]+$/.test(ampId)) ampId = 'clean'; // it's spliced into eval'd code below
     await w.eval(`(async () => {
-      const ui = await import('/js/ui.js?v=8');
-      const pr = await import('/js/pedal-registry.js?v=4');
-      const ar = await import('/js/amp-registry.js?v=6');
+      const ui = await import('/js/ui.js?v=11');
+      const pr = await import('/js/pedal-registry.js?v=5');
+      const ar = await import('/js/amp-registry.js?v=9');
       const mk = (id, getter, kind) => {
         const typeDef = getter(id);
         const params = {}; typeDef.params.forEach((p) => { params[p.key] = p.default; });

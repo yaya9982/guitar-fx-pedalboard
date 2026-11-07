@@ -1,0 +1,177 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Van Halen amp tests</title>
+<style>
+  body { font: 14px/1.5 monospace; background: #111; color: #ddd; padding: 20px; }
+  .pass { color: #4caf50; } .fail { color: #f44336; } .info { color: #888; } h3 { margin-top: 20px; color: #888; }
+</style>
+</head>
+<body>
+<h1>Van Halen (1968 plexi) amp tests</h1>
+<p>Checks the vanhalen amp against the sourced numbers in PEDAL-RESEARCH.md §"Van Halen amp".</p>
+<div id="out">running...</div>
+<script type="module">
+  import { getAmpType, plexiStackCoeffs } from './js/amp-registry.js?v=9';
+  import { generateReverbIR } from './js/ir-synth.js?v=4';
+  import { DEMO_PRESETS } from './js/demo-presets.js?v=3';
+  import { getPedalType } from './js/pedal-registry.js?v=5';
+
+  const out = document.getElementById('out');
+  const lines = [];
+  let fails = 0;
+  const log = (ok, msg) => { if (!ok) fails++; lines.push(`<div class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'} — ${msg}</div>`); };
+  const info = (msg) => lines.push(`<div class="info">${msg}</div>`);
+  const section = (t) => lines.push(`<h3>${t}</h3>`);
+  const db = (x) => 20 * Math.log10(x);
+  const SR = 44100;
+
+  // tap: 'output' (after the cab) or 'precab' (after presence: the amp's own nonlinearity, no
+  // random cab IR — ir-synth's cab IRs are built from fresh noise each page load).
+  async function render(ampId, overrides = {}, { amp = 0.25, hz = 220, seconds = 0.5, tap = 'output' } = {}) {
+    const ctx = new OfflineAudioContext(1, Math.round(SR * seconds), SR);
+    await ctx.audioWorklet.addModule('./js/dynamics-worklet.js');
+    const def = getAmpType(ampId);
+    const n = await def.createNodes(ctx);
+    for (const p of def.params) await p.apply(n.nodes, overrides[p.key] ?? p.default, ctx);
+    const g = ctx.createGain(); g.gain.value = amp;
+    for (const f of [].concat(hz)) { // a number = one sine; an array = a chord, each note at 'amp'
+      const src = ctx.createOscillator(); src.frequency.value = f; src.connect(g); src.start();
+    }
+    g.connect(n.input);
+    const preCab = n.nodes.presenceNode && ampId === 'vanhalen' ? n.nodes.presenceNode : n.nodes.trebleNode;
+    (tap === 'precab' ? preCab : n.output).connect(ctx.destination);
+    const buf = await ctx.startRendering();
+    return buf.getChannelData(0).subarray(Math.round(SR * 0.2)); // skip IR/sag settling
+  }
+  const rms = (d) => Math.sqrt(d.reduce((s, v) => s + v * v, 0) / d.length);
+  function mag(d, f) { // Goertzel-style single bin
+    let re = 0, im = 0;
+    for (let i = 0; i < d.length; i++) { const w = 2 * Math.PI * f * i / SR; re += d[i] * Math.cos(w); im -= d[i] * Math.sin(w); }
+    return Math.hypot(re, im) * 2 / d.length;
+  }
+  const thd = (d, f) => Math.sqrt([2, 3, 4, 5, 6, 7].reduce((s, k) => s + mag(d, f * k) ** 2, 0)) / mag(d, f);
+
+  // 1. Tone stack vs an independent nodal circuit solve (complex admittance matrix, ideal
+  // source/load). Wiring per Yeh & Smith 2006 Fig. 1: mid cap to the mid-pot wiper, bass pot to the
+  // mid-pot top. A plain-rheostat mid wiring disagrees at bass=mid=0, which is how this was pinned down.
+  section('Tone stack: Yeh closed form vs nodal circuit solve');
+  const REF = { // dB at 100 / 400 / 1000 / 3000 Hz, from the nodal solve
+    '1,1,1': [-1.79, -6.01, -3.81, -0.76], '0.5,0.5,0.5': [-1.64, -7.42, -7.68, -4.56],
+    '0,0,1': [-1.09, -6.39, -12.69, -20.88], '1,0,0': [-11.13, -9.75, -6.47, -1.26],
+    '0.3,0.7,0.2': [-2.1, -6.26, -7.15, -5.51],
+  };
+  const ctx0 = new OfflineAudioContext(1, 1, SR);
+  const freqs = new Float32Array([100, 400, 1000, 3000]);
+  for (const [key, ref] of Object.entries(REF)) {
+    const [t, m, l] = key.split(',').map(Number);
+    const { feedforward, feedback } = plexiStackCoeffs(SR, t, m, l);
+    const iir = ctx0.createIIRFilter(feedforward, feedback);
+    const magR = new Float32Array(4), ph = new Float32Array(4);
+    iir.getFrequencyResponse(freqs, magR, ph);
+    const got = [...magR].map((v) => +db(v).toFixed(2));
+    const err = Math.max(...got.map((g, i) => Math.abs(g - ref[i])));
+    log(err < 0.5, `t/m/l=${key}: got ${got.join(', ')} dB, circuit ${ref.join(', ')} (max err ${err.toFixed(2)} dB)`);
+  }
+  { // all-on-10 dip location: ~400 Hz
+    const f = new Float32Array(200).map((_, i) => 50 * Math.pow(400, i / 199)); // 50 Hz..20 kHz
+    const { feedforward, feedback } = plexiStackCoeffs(SR, 1, 1, 1);
+    const magR = new Float32Array(200), ph = new Float32Array(200);
+    ctx0.createIIRFilter(feedforward, feedback).getFrequencyResponse(f, magR, ph);
+    let i = 0; magR.forEach((v, j) => { if (v < magR[i]) i = j; });
+    log(f[i] > 330 && f[i] < 500 && db(magR[i]) < -5.5 && db(magR[i]) > -6.5, `all on 10: dip ${db(magR[i]).toFixed(2)} dB at ${f[i].toFixed(0)} Hz (unloaded circuit: -6.0 dB @ ~400 Hz; a 1M load deepens it to -7.7, ampbooks says -7)`);
+  }
+
+  // 2. Variac: lower volts => quieter and earlier clipping (all supplies scale by V/120).
+  section('Variac (Eddie: 89 V for recording)');
+  const v120 = await render('vanhalen', { variac: 120, gain: 40 }, { amp: 0.1 });
+  const v89 = await render('vanhalen', { variac: 89, gain: 40 }, { amp: 0.1 });
+  const v60 = await render('vanhalen', { variac: 60, gain: 40 }, { amp: 0.1 });
+  info(`RMS dB 120V ${db(rms(v120)).toFixed(1)}, 89V ${db(rms(v89)).toFixed(1)}, 60V ${db(rms(v60)).toFixed(1)}`);
+  info(`THD 120V ${thd(v120, 220).toFixed(3)}, 89V ${thd(v89, 220).toFixed(3)}, 60V ${thd(v60, 220).toFixed(3)}`);
+  log(rms(v89) < rms(v120) && rms(v60) < rms(v89), 'output drops as voltage drops');
+  log(thd(v89, 220) > thd(v120, 220) && thd(v60, 220) > thd(v89, 220), 'distortion rises as voltage drops');
+
+  // 2b. A WaveShaper clamps its input at +-1. That is only a hard (aliasing) edge if the curve is
+  // still sloped there, so both curves must be flat at both ends (slope in output per unit input).
+  section('Shaper curves flat at the +-1 clamp');
+  {
+    const ctx = new OfflineAudioContext(1, 1, SR);
+    await ctx.audioWorklet.addModule('./js/dynamics-worklet.js');
+    const n = (await getAmpType('vanhalen').createNodes(ctx)).nodes;
+    for (const [label, c] of [['preamp', n.preShaper.curve], ['power', n.powerShaper.curve]]) {
+      const step = 2 / (c.length - 1);
+      const lo = Math.abs(c[1] - c[0]) / step, hi = Math.abs(c[c.length - 1] - c[c.length - 2]) / step;
+      log(lo < 0.01 && hi < 0.01, `${label} curve end slopes ${lo.toExponential(1)} / ${hi.toExponential(1)} (< 0.01)`);
+    }
+  }
+
+  // 3. Preamp asymmetry => even harmonics survive the push-pull stage.
+  section('Harmonics');
+  const full = await render('vanhalen', {}, { tap: 'precab' });
+  const h2 = db(mag(full, 440) / mag(full, 220)), h3 = db(mag(full, 660) / mag(full, 220));
+  log(h2 > -35 && h2 < -6, `2nd harmonic ${h2.toFixed(1)} dB re fundamental (asymmetric preamp/cathode follower)`);
+  info(`3rd harmonic ${h3.toFixed(1)} dB`);
+
+  // 4. "Moderate gain": saturation measured as compression — how many dB the output grows when
+  // the input grows 12 dB (12 = clean, ~0 = fully saturated). EQ-independent, unlike THD after a cab.
+  // Compression is read before the cab (deterministic); loudness after it, on an A-power-chord-ish
+  // 4-note signal so one random cab notch can't dominate.
+  section('Gain vs the other amps (default knobs, 0.0625 -> 0.25 sine, pre-cab)');
+  const amps = {}, comp = {};
+  const CHORD = [110, 165, 220, 277];
+  for (const id of ['clean', 'crunch', 'acdc', 'lead', 'vanhalen']) {
+    comp[id] = db(rms(await render(id, {}, { tap: 'precab' }))) - db(rms(await render(id, {}, { amp: 0.0625, tap: 'precab' })));
+    amps[id] = await render(id, {}, { amp: 0.1, hz: CHORD });
+    info(`${id}: +12 dB in -> +${comp[id].toFixed(1)} dB out; chord RMS after cab ${db(rms(amps[id])).toFixed(1)} dB`);
+  }
+  log(comp.vanhalen > comp.lead, 'dimed plexi is less saturated than the Lead/High-Gain amp');
+  log(comp.vanhalen < comp.clean - 3, 'but clearly driven, not clean');
+  const others = ['crunch', 'acdc', 'lead'].map((id) => db(rms(amps[id]))).sort((a, b) => a - b);
+  const lvl = db(rms(amps.vanhalen)) - others[1];
+  // ponytail: every amp's cab IR is built from unseeded noise, so levels swing about +-6 dB per page
+  // load; seed the noise in ir-synth.js if a tighter level check is ever needed.
+  log(Math.abs(lvl) < 8, `loudness within 8 dB of the driven amps' median (${lvl.toFixed(1)} dB)`);
+
+  // 4b. Tone-knob moves swap the IIR node; with the 50 ms crossfade, re-applying the same value
+  // mid-note must leave the waveform essentially unchanged (no click).
+  section('Knob moves do not click');
+  {
+    async function run(swap) {
+      const ctx = new OfflineAudioContext(1, SR, SR);
+      await ctx.audioWorklet.addModule('./js/dynamics-worklet.js');
+      const def = getAmpType('vanhalen'); const n = await def.createNodes(ctx);
+      for (const p of def.params) await p.apply(n.nodes, p.default, ctx);
+      const src = ctx.createOscillator(); src.frequency.value = 200; const g = ctx.createGain(); g.gain.value = 0.1;
+      src.connect(g).connect(n.input); n.nodes.presenceNode.connect(ctx.destination); src.start();
+      if (swap) for (const t of [0.3, 0.5, 0.7]) ctx.suspend(t).then(() => { def.params.find((p) => p.key === 'bass').apply(n.nodes, 100, ctx); ctx.resume(); });
+      return (await ctx.startRendering()).getChannelData(0);
+    }
+    const a0 = await run(false), a1 = await run(true);
+    let peak = 0, diff = 0;
+    for (let i = SR * 0.25; i < SR; i++) { peak = Math.max(peak, Math.abs(a0[i])); diff = Math.max(diff, Math.abs(a1[i] - a0[i])); }
+    log(diff < peak * 0.1, `max deviation from no-swap ${diff.toFixed(3)} vs signal peak ${peak.toFixed(3)} (< 10%)`);
+  }
+
+  // 5. Chamber reverb: pre-delayed onset, ~1.8 s decay.
+  section('Chamber reverb');
+  const ir = (await generateReverbIR(SR, 'chamber')).getChannelData(0);
+  const first = ir.findIndex((v) => Math.abs(v) > 1e-4);
+  log(first / SR > 0.07 && first / SR < 0.09, `onset at ${(first / SR * 1000).toFixed(0)} ms (80 ms pre-delay)`);
+  log(ir.length / SR > 1.7 && ir.length / SR < 1.9, `IR length ${(ir.length / SR).toFixed(2)} s`);
+
+  // 6. Presets only reference real ids and params.
+  section('Demo presets');
+  for (const p of DEMO_PRESETS.filter((x) => x.name.startsWith('Van Halen'))) {
+    const bad = p.state.chain.flatMap((c) => {
+      const def = c.kind === 'amp' ? getAmpType(c.typeId) : getPedalType(c.typeId);
+      if (!def) return [`unknown ${c.typeId}`];
+      return Object.keys(c.params).filter((k) => !def.params.some((q) => q.key === k)).map((k) => `${c.typeId}.${k}`);
+    });
+    log(bad.length === 0, `${p.name}${bad.length ? ': ' + bad.join(', ') : ''}`);
+  }
+
+  lines.unshift(`<h2 class="${fails ? 'fail' : 'pass'}">${fails ? fails + ' FAILED' : 'ALL PASS'}</h2>`);
+  out.innerHTML = lines.join('');
+</script>
+</body>
+</html>

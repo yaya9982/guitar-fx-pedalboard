@@ -104,4 +104,27 @@ export const DEMO_PRESETS = [
       ],
     },
   },
+  {
+    name: 'Van Halen - You Really Got Me',
+    blurb: 'Dimed 1968 plexi on a Variac (89 V) with its built-in Sunset Sound chamber. No pedals documented on this one. Tune down a half step.',
+    state: {
+      inputGainPct: 100, masterVolumePct: 100,
+      noiseGate: { enabled: false, threshold: -48, holdMs: 40, release: 120 },
+      chain: [
+        { kind: 'amp', typeId: 'vanhalen', enabled: true, params: { gain: 100, bass: 100, mid: 100, treble: 100, presence: 100, chamber: 24, variac: 89, level: 100 } },
+      ],
+    },
+  },
+  {
+    name: "Van Halen - Ain't Talkin' 'bout Love",
+    blurb: "Same plexi rig and built-in chamber. Phase 90 at Eddie's 9-10 o'clock setting, left off: switch it on for the solo if you like. Tune down a half step.",
+    state: {
+      inputGainPct: 100, masterVolumePct: 100,
+      noiseGate: { enabled: false, threshold: -48, holdMs: 40, release: 120 },
+      chain: [
+        { kind: 'pedal', typeId: 'phase90', enabled: false, params: { rate: 0.4, depth: 1200, feedback: 30, mix: 50 } },
+        { kind: 'amp', typeId: 'vanhalen', enabled: true, params: { gain: 100, bass: 100, mid: 100, treble: 100, presence: 100, chamber: 24, variac: 89, level: 100 } },
+      ],
+    },
+  },
 ];

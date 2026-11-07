@@ -1032,13 +1032,18 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
    disappeared into it — the thumb stayed visible, but the bar it moves along didn't.
    Recolor the track to each amp's own trim tone, already chosen to read against a dark body. */
 .amp-unit[data-amp-type="acdc"] .amp-knobs input[type="range"]::-webkit-slider-runnable-track,
-.amp-unit[data-amp-type="ledzeppelin"] .amp-knobs input[type="range"]::-webkit-slider-runnable-track {
+.amp-unit[data-amp-type="ledzeppelin"] .amp-knobs input[type="range"]::-webkit-slider-runnable-track,
+.amp-unit[data-amp-type="vanhalen"] .amp-knobs input[type="range"]::-webkit-slider-runnable-track {
   background: var(--pedal-trim);
 }
 .amp-unit[data-amp-type="acdc"] .amp-knobs input[type="range"]::-moz-range-track,
-.amp-unit[data-amp-type="ledzeppelin"] .amp-knobs input[type="range"]::-moz-range-track {
+.amp-unit[data-amp-type="ledzeppelin"] .amp-knobs input[type="range"]::-moz-range-track,
+.amp-unit[data-amp-type="vanhalen"] .amp-knobs input[type="range"]::-moz-range-track {
   background: var(--pedal-trim);
 }
+/* Van Halen has 8 knobs (Chamber, Variac); no column gap and narrower rows fit them on one row. */
+.amp-unit[data-amp-type="vanhalen"] .amp-knobs { gap: 4px 0; }
+.amp-unit[data-amp-type="vanhalen"] .amp-knobs .knob-row { width: 100px; }
 
 /* cloth grille: a plain CSS crosshatch reads as woven fabric without the overhead of
    the dynamic SVG weave pattern ui.js builds for patch cables (that one only exists

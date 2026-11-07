@@ -1,0 +1,128 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Oasis amp fuzz measurements</title>
+<style>
+  body { font: 14px/1.5 monospace; background: #111; color: #ddd; padding: 20px; }
+  .pass { color: #4caf50; } .fail { color: #f44336; } .info { color: #888; } h3 { margin-top: 20px; color: #888; }
+</style>
+</head>
+<body>
+<h1>Oasis amp: why it sounds fuzzy</h1>
+<p>Objective "fuzz" measures for the oasis amp vs the other driven amps, all at default knobs.
+Pre-cab taps (n.nodes.trebleNode) avoid the random cab IR.</p>
+<div id="out">running...</div>
+<script type="module">
+  import { getAmpType } from './js/amp-registry.js?v=9';
+
+  const out = document.getElementById('out');
+  const lines = [];
+  let fails = 0;
+  const log = (ok, msg) => { if (!ok) fails++; lines.push(`<div class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'} — ${msg}</div>`); };
+  const info = (msg) => lines.push(`<div class="info">${msg}</div>`);
+  const section = (t) => lines.push(`<h3>${t}</h3>`);
+  const db = (x) => 20 * Math.log10(x);
+  const SR = 48000;
+  const AMPS = ['crunch', 'acdc', 'ledzeppelin', 'oasis', 'lead'];
+
+  async function render(ampId, hz, amp, { tap = 'precab', seconds = 0.6, overrides = {} } = {}) {
+    const ctx = new OfflineAudioContext(1, Math.round(SR * seconds), SR);
+    await ctx.audioWorklet.addModule('./js/dynamics-worklet.js');
+    const def = getAmpType(ampId);
+    const n = await def.createNodes(ctx);
+    for (const p of def.params) await p.apply(n.nodes, overrides[p.key] ?? p.default, ctx);
+    const g = ctx.createGain(); g.gain.value = amp;
+    for (const f of [].concat(hz)) { const o = ctx.createOscillator(); o.frequency.value = f; o.connect(g); o.start(); }
+    g.connect(n.input);
+    (tap === 'precab' ? (n.nodes.presenceNode && ampId === 'vanhalen' ? n.nodes.presenceNode : n.nodes.trebleNode) : n.output).connect(ctx.destination);
+    const d = (await ctx.startRendering()).getChannelData(0);
+    return d.subarray(Math.round(SR * 0.2)); // 0.4 s analysis window = whole cycles of 10 Hz
+  }
+  const rms = (d) => Math.sqrt(d.reduce((s, v) => s + v * v, 0) / d.length);
+  function mag(d, f) {
+    let re = 0, im = 0;
+    for (let i = 0; i < d.length; i++) { const w = 2 * Math.PI * f * i / SR; re += d[i] * Math.cos(w); im -= d[i] * Math.sin(w); }
+    return Math.hypot(re, im) * 2 / d.length;
+  }
+  // Power at every 10 Hz bin up to fMax, minus the bins in `keep` (a Set of Hz).
+  function residual(d, fMax, keep) {
+    let p = 0; for (let f = 10; f <= fMax; f += 10) if (!keep.has(f)) p += mag(d, f) ** 2; return Math.sqrt(p);
+  }
+  const results = {};
+
+  // 1. Saturation: output growth for +12 dB input (12 = clean).
+  section('1. Compression: +12 dB in -> ? dB out (pre-cab)');
+  for (const id of AMPS) {
+    const c = db(rms(await render(id, 220, 0.25))) - db(rms(await render(id, 220, 0.0625)));
+    results[id] = { comp: c };
+    info(`${id}: +${c.toFixed(2)} dB`);
+  }
+
+  // 2. Harmonic shape: high-order harmonics are what "fuzz" is (square-ish clipping).
+  section('2. Harmonic profile, 220 Hz at 0.1 (pre-cab): H3, H5, H9 and high-order share');
+  for (const id of AMPS) {
+    const d = await render(id, 220, 0.1);
+    const h1 = mag(d, 220);
+    const h = (k) => db(mag(d, 220 * k) / h1);
+    let lo = 0, hi = 0;
+    for (let k = 2; k <= 40; k++) { const p = mag(d, 220 * k) ** 2; if (k <= 5) lo += p; else hi += p; }
+    results[id].hiShare = db(Math.sqrt(hi) / h1);
+    info(`${id}: H3 ${h(3).toFixed(1)}  H5 ${h(5).toFixed(1)}  H9 ${h(9).toFixed(1)} dB; harmonics 6-40 total ${results[id].hiShare.toFixed(1)} dB re H1`);
+  }
+
+  // 3. Intermodulation on a ~major third (110 + 140 Hz): energy at every 10 Hz bin that is not a
+  // harmonic of either note, i.e. sum/difference products: chord mud.
+  section('3. Intermodulation: 110 + 140 Hz (~ a major third) at 0.08 each (pre-cab)');
+  for (const id of AMPS) {
+    const d = await render(id, [110, 140], 0.08);
+    const keep = new Set(); for (let k = 1; k * 10 <= 6000; k++) { if ((k * 10) % 110 === 0 || (k * 10) % 140 === 0) keep.add(k * 10); }
+    const imd = residual(d, 6000, keep), ref = Math.hypot(mag(d, 110), mag(d, 140));
+    results[id].imd = db(imd / ref);
+    info(`${id}: IMD products ${results[id].imd.toFixed(1)} dB re the two fundamentals`);
+  }
+
+  // 4. Fizz: energy above 4 kHz after the cab, relative to 100 Hz-4 kHz (median of 3 renders
+  // would need fresh IRs; one page load shares one IR per amp, so treat as indicative).
+  section('4. Fizz after the cab: >4 kHz energy re 100 Hz-4 kHz (220 Hz at 0.1, indicative)');
+  for (const id of AMPS) {
+    const d = await render(id, 220, 0.1, { tap: 'output' });
+    let lo = 0, hi = 0; for (let k = 1; 220 * k < 20000; k++) { const p = mag(d, 220 * k) ** 2; if (220 * k < 4000) lo += p; else hi += p; }
+    results[id].fizz = db(Math.sqrt(hi / lo));
+    info(`${id}: ${results[id].fizz.toFixed(1)} dB`);
+  }
+
+  // 5. Low-level dynamics (pre-cab): +12 dB in at 0.01 -> 0.04. A crunch still breathes here; a
+  // fuzz is already flat. 6. Pre-cab spectrum of a 220 Hz tone at 0.1: share above 6 kHz ("fizz",
+  // deterministic, no cab IR) and the 1.5-4 kHz "bright" band that keeps it sounding like Oasis.
+  section('5-6. Low-level dynamics and pre-cab spectrum');
+  for (const id of AMPS) {
+    results[id].compLo = db(rms(await render(id, 220, 0.04))) - db(rms(await render(id, 220, 0.01)));
+    const d = await render(id, 220, 0.1);
+    let all = 0, hi = 0, br = 0;
+    for (let k = 1; 220 * k < 20000; k++) { const f = 220 * k, p = mag(d, f) ** 2; all += p; if (f > 6000) hi += p; if (f >= 1500 && f <= 4000) br += p; }
+    results[id].fizzPre = 10 * Math.log10(hi / all); results[id].bright = 10 * Math.log10(br / all);
+    info(`${id}: low-level +12 dB in -> +${results[id].compLo.toFixed(2)} dB; >6 kHz ${results[id].fizzPre.toFixed(1)} dB; 1.5-4 kHz ${results[id].bright.toFixed(1)} dB`);
+  }
+
+  // Targets for "a bit less fuzzy, still Oasis". They come from the same research that proposed
+  // the change, so they confirm direction, not authenticity (research 2026-11-07; baseline before:
+  // low-level +2.73 dB, harmonics 6-40 -13.0 dB, >6 kHz -36.2 dB, 1.5-4 kHz -14.0 dB).
+  section('Targets');
+  const o = results.oasis, ac = results.acdc;
+  log(o.compLo >= 4, `breathes at low level: +${o.compLo.toFixed(2)} dB (>= 4; was 2.73)`);
+  log(o.compLo < ac.compLo, `still more driven than AC/DC (+${ac.compLo.toFixed(2)} dB)`);
+  log(o.hiShare <= -14.5, `fewer high-order harmonics: ${o.hiShare.toFixed(1)} dB (<= -14.5; was -13.0)`);
+  log(o.fizzPre <= -48, `less fizz above 6 kHz: ${o.fizzPre.toFixed(1)} dB (<= -48; was -36.2)`);
+  log(o.bright > ac.bright, `still brighter than AC/DC in 1.5-4 kHz: ${o.bright.toFixed(1)} vs ${ac.bright.toFixed(1)} dB`);
+
+  section('Summary (oasis vs the others)');
+  const others = (key) => AMPS.filter((a) => a !== 'oasis' && a !== 'lead').map((a) => results[a][key]);
+  info(`oasis compression +${results.oasis.comp.toFixed(2)} vs crunch/acdc/zep ${others('comp').map((v) => '+' + v.toFixed(2)).join(' / ')}`);
+  info(`oasis high-harmonic share ${results.oasis.hiShare.toFixed(1)} vs ${others('hiShare').map((v) => v.toFixed(1)).join(' / ')}`);
+  info(`oasis IMD ${results.oasis.imd.toFixed(1)} vs ${others('imd').map((v) => v.toFixed(1)).join(' / ')}`);
+  info(`oasis fizz ${results.oasis.fizz.toFixed(1)} vs ${others('fizz').map((v) => v.toFixed(1)).join(' / ')}`);
+
+  lines.unshift(`<h2 class="${fails ? 'fail' : 'pass'}">${fails ? fails + ' FAILED' : 'ALL PASS'}</h2>`);
+  out.innerHTML = lines.join('');
+</script>
+</body>
+</html>

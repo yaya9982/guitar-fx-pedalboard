@@ -684,6 +684,36 @@
         "rule": "design-system-font",
         "value": "brush script mt",
         "createdAt": "2026-10-01T04:08:30.025Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#b5121b",
+        "createdAt": "2026-11-07T08:32:54.464Z",
+        "reason": "Claude: per-amp signature color (Frankenstrat red); CLAUDE.md says per-type unique colors are established, not drift"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          "test-vanhalen.html"
+        ],
+        "createdAt": "2026-11-07T08:34:43.608Z",
+        "reason": "Claude: dev-only DSP test harness, styles copied from existing test-drive.html"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(62% 0.11 65)",
+        "createdAt": "2026-11-07T08:44:00.699Z",
+        "reason": "Claude: pre-existing Acoustic amp body color (committed before this session); CLAUDE.md says per-amp unique colors are established, not drift"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          "test-oasis.html"
+        ],
+        "createdAt": "2026-11-07T08:59:30.672Z",
+        "reason": "Claude: dev-only DSP test harness, styles copied from existing test-drive.html"
       }
     ]
   }

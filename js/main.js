@@ -1,7 +1,7 @@
-import { AudioEngine } from './audio-engine.js?v=18';
-import { renderChain, renderAmp, showAddMenu, showDemoMenu, showSavePresetPopover, showPresetMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=8';
+import { AudioEngine } from './audio-engine.js?v=21';
+import { renderChain, renderAmp, showAddMenu, showDemoMenu, showSavePresetPopover, showPresetMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=11';
 import { renderPreviewWaveform } from './wave-preview.js';
-import { DEMO_PRESETS } from './demo-presets.js';
+import { DEMO_PRESETS } from './demo-presets.js?v=3';
 import { Tuner, GUITAR_STRINGS, centsFromTarget } from './tuner.js?v=3';
 import { Looper } from './looper.js?v=4';
 import { audioBufferToWavBlob } from './wav-encoder.js';
@@ -926,10 +926,12 @@ async function restoreState(state) {
   // Always loads OFF, regardless of what a preset/demo/autosave saved — the user wants
   // the gate to only ever come on from their own manual toggle, never automatically.
   noiseGateEnabled.checked = false; engine.setNoiseGateEnabled(false);
-  gateThreshold.value = state.noiseGate.threshold;
-  engine.setNoiseGateParam('threshold', state.noiseGate.threshold);
-  engine.setNoiseGateParam('holdMs', state.noiseGate.holdMs);
-  engine.setNoiseGateParam('release', state.noiseGate.release);
+  if (state.noiseGate) { // optional: hand-written or imported states may leave it out
+    gateThreshold.value = state.noiseGate.threshold;
+    engine.setNoiseGateParam('threshold', state.noiseGate.threshold);
+    engine.setNoiseGateParam('holdMs', state.noiseGate.holdMs);
+    engine.setNoiseGateParam('release', state.noiseGate.release);
+  }
   const denoiseOn = !!state.denoise?.enabled;
   const denoiseAmt = state.denoise?.strength ?? 50;
   denoiseEnabled.checked = denoiseOn; engine.setDenoiseEnabled(denoiseOn);

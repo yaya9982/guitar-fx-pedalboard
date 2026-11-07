@@ -40,6 +40,10 @@ export const REVERB_TYPES = {
   plate: { label: 'Plate', decaySeconds: 1.8 },
   hall: { label: 'Hall', decaySeconds: 3.2 },
   spring: { label: 'Spring', decaySeconds: 1.2 },
+  // Sunset Sound Studio 1 live chamber (Van Halen I; engineer Donn Landee's preferred reverb): RCA BX44 mics
+  // and Altec speakers band-limit the return. Decay and pre-delay are listening estimates
+  // (no published numbers) — see PEDAL-RESEARCH.md.
+  chamber: { label: 'Chamber', decaySeconds: 1.8 },
 };
 
 export const generateReverbIR = (sampleRate, type = 'room') => cached(`rev:${sampleRate}:${type}`, () => buildReverbIR(sampleRate, type));
@@ -82,6 +86,16 @@ async function buildReverbIR(sampleRate, type) {
         comb.connect(combGain).connect(envelope);
         comb.connect(combFeedback).connect(comb);
         envelope.connect(ctx.destination);
+        break;
+      }
+      case 'chamber': {
+        const hp = ctx.createBiquadFilter();
+        hp.type = 'highpass'; hp.frequency.value = 250;
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass'; lp.frequency.value = 7000;
+        // pre-delay is a listening guess; the last ~80 ms of tail is cut at ~-58 dB
+        const preDelay = ctx.createDelay(0.2); preDelay.delayTime.value = 0.08;
+        source.connect(hp).connect(lp).connect(envelope).connect(preDelay).connect(ctx.destination);
         break;
       }
       case 'room':

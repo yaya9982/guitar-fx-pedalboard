@@ -327,3 +327,114 @@ repeated searches):**
   existing app pedal ID (Overdrive vs. Distortion) each real pedal (TS9, SD-1, DS-1) is meant to
   target — inferable from context and made explicit in §4's tiers, but worth spelling out
   per-pedal if this document is handed to someone else to implement from.
+
+---
+
+## Van Halen amp (`vanhalen` in amp-registry.js), 2026-11-07
+
+Built for the tones of "You Really Got Me" and "Ain't Talkin' 'bout Love" (*Van Halen*, 1978).
+Three independent research agents, then my own checks; `test-vanhalen.html` tests the code.
+Tags: **[all 3]** = every agent verified it; **[checked]** = settled by my own fetch or
+calculation; **[unverified]** = no primary number exists.
+
+### The rig
+- 1967/68 Marshall 1959 Super Lead, 100 W, 4x EL34, every knob on 10. **[all 3]**
+  guitar.com Van Halen I rig feature ("1967 or '68"); Eddie, Smithsonian/Zocalo talk (via wgsusa.com):
+  "everything all the way up". "Stock" rests on Eddie's later word (Billy Corgan via guitar.com:
+  "it's not true at all"), so it is only as solid as that. The voltage lie he admitted
+  (Esquire 2012, via UCR) was "I raised it up 140 volts"; the real story is that he lowered it.
+- Variac: **about 85-90 V**; the model defaults to 89. **[checked]** Eddie: "for recording the sweet
+  spot seemed to be 89-volts" (recording in general, not tied to an album). Engineer Donn Landee's
+  "between 80 and 85 volts and he would rarely change it" (vhnd.com/?p=37041) sits in the
+  *Women and Children First* part of the interview but describes a habit. Read the two as dial scatter:
+  Variac dials are "famously inaccurate" (Premier Guitar). Reference voltage is ambiguous: Eddie
+  starts from 110 V, Landee from 120 V. The code uses 120, which puts the clip point about 1.2 dB
+  lower than 110 would. The 130-140 V "raised voltage" claims are a myth he retracted.
+- Lower mains scales every supply together (B+, bias, heaters; Premier Guitar), so every stage
+  clips at r = V/120 of normal. **[all 3, mechanism]** Model: input x 1/r into both clippers, output x r.
+- One 4x12 (Celestion G12M Greenbacks most-cited **[unverified]**) with an SM57 (or SM56, per
+  Landee) on the speaker. Greenback datasheet: Fs 75 Hz, range 75–5000 Hz,
+  "broad mid-range attack and restrained top-end" (current reissue datasheet). **[checked by 2 agents]**
+- Reverb: most likely the Sunset Sound Studio 1 **live chamber** (Landee's stated preference: "If
+  possible, I used the chamber in Sunset 1"). He also says they used every reverb Sunset had,
+  generally that chamber or the Studio 2 spring, so nothing song-specific is documented. Guitar
+  "slightly off-center", with "a splash of delayed echo" from the chamber in the other channel: that
+  is journalist Dave Simmons's narration (vhnd.com/?p=17853, checked), not a Landee quote.
+  The "delay" may be an Echoplex/tape slap: BOSS hears "slapback echo" on ATBL and VHND lists an
+  Echoplex **[unverified]**. Not modeled.
+- "You Really Got Me" was played on the Ibanez Destroyer, not the Frankenstrat (guitar.com; Chris
+  Gill, Guitar World 2011). **[confirmed by fact-check]** "Ain't Talkin'": probably the Frankenstrat
+  (rewound PAF). That is **[unverified]**, though it's absent from Gill's Destroyer song list.
+- Effects: none documented on YRGM. On "Ain't Talkin'" the Phase 90 / flanger listing is
+  editorial only, not Eddie's own words **[unverified]**; the electric-sitar double on its solo is
+  certain **[all 3]**. Eddie's Phase 90 setting: "between 9 and 10 o'clock" (Gill, GW 2015), turned on
+  for solos (the "treble boost" quote is **[unverified]**). Tuning: about a half step down (Eb) **[BOSS, ATBL; tab sites for YRGM]**.
+
+### Circuit math
+- Tone stack: Yeh & Smith (DAFx-06) closed form, the same coefficients as CAPS `ToneStack.h`
+  (fetched). Values: 33k slope and 500p/22n/22n are ampbooks' 1987 JMP50 values, assumed the same for
+  a 1959. The 220k treble, 1M bass and 25k mid pots are **[unverified, typical Marshall values]**.
+  One forum report says early plexis used 56k/250p, so a 1967 amp may differ. **[checked math]** I re-derived it with an independent nodal solve and found that Yeh's
+  wiring has the mid cap on the mid-pot wiper and the bass pot on the mid-pot top. With that
+  wiring the nodal solve matches the closed form within 0.12 dB at 5 knob settings. (A plain-
+  rheostat mid wiring disagrees by up to 12 dB at bass = mid = 0.)
+- All on 10: **−6.0 dB at ~420 Hz** unloaded, **−7.7 dB at ~414 Hz** with a 1 MΩ load. The agents'
+  −6.1 dB and −7.9 dB figures were both right for those two load assumptions; ampbooks gives −7 dB.
+  The code uses the unloaded form.
+- Bright channel: 72 Hz coupling HPF; 500 pF bright cap across the mixer resistor, about +4 dB above
+  ~1.1 kHz **[derived by agents B/C; placement unverified]**. Some sources describe a 5000 pF cap across
+  the volume pot instead. That one is shorted out at Volume 10, so it doesn't matter for Eddie's setting.
+- Preamp/cathode follower clip `driveCurve(2.5, 0.25)`: asymmetric, so even harmonics
+  (H2 −21 dB in test). Power stage `driveCurve(1.2, 0.02)`: near-symmetric push-pull. Both are
+  stretched over 4x the WaveShaper's ±1 input range (k x 4, bias / 4, signal / 4). The first
+  version ran these curves right up to the WaveShaper's ±1 input clamp while they were still
+  sloped, so loud notes hit a hard, aliasing edge. The verification audit caught this. The test
+  now checks that both curve ends are flat.
+- Bass knob uses an audio (log) taper, as Yeh states for the Bassman; Treble and Middle are
+  linear. A knob move crossfades the rebuilt tone-stack filter over 50 ms (no click; tested).
+  Presence: +5 dB shelf at 1 kHz **[2 of 3 agents put the corner near 1 kHz; depth unverified]**.
+  Sag: gentle 2:1 compressor (15 ms/200 ms, 6 dB knee), since a solid-state rectifier sags little
+  (Robinette) **[size unverified]**.
+- Gain is calibrated as "moderate": +12 dB in gives +1.6 dB out before the cab, versus 0.3 for
+  the Lead amp and 0.6 for AC/DC (about Crunch's compression). By THD on a hot sine it is as
+  harmonically rich as Lead, so "moderate" means less compressed, not cleaner. All three agents found claims that early EVH gain was modest,
+  but none is a measurement **[unverified]**.
+
+### Listening estimates (no published numbers)
+Chamber: RT60 about 1.74 s (measured; IR length 1.8 s), 80 ms pre-delay (a pure listening guess; see
+the "delayed echo" note above), 250 Hz–7 kHz band.
+It is built into the amp as a send after the cab (the Chamber knob, default 24% = wet about −10 dB),
+because the app's Reverb pedal can only sit before the amp. There it would feed the room through
+the dimed preamp, and the verification test measured a tail about 10 dB louder and distorted. The
+agents' pre-delay estimates differed (20–40 ms vs 80–120 ms); 80 ms is a guess. Tune these by ear against the record. Not modeled: the guitar/chamber stereo
+split (the chain is mono), the pickup differences between the two guitars, and the sitar overdub.
+
+---
+
+## Oasis amp retune (`oasis` in amp-registry.js), 2026-11-07
+
+Request: "just a bit less fuzzy". Three research agents and my own measurements (test-oasis.html)
+agreed on the cause, and three fact-check agents then reviewed the fix.
+
+- **Cause 1: drive.** Small-signal slope (drive x k) at default knobs was 123, near the Lead amp (170)
+  and twice AC/DC (63), so the single tanh sat at its rails: square-ish, dynamics gone. **[all 3 + measured]**
+- **Cause 2: no top-end rolloff.** A +2 dB shelf at 6.5 kHz after the clipper plus one 12 dB/oct cab
+  lowpass passed clipping fizz that a guitar speaker rolls off (Celestion G12M datasheet: 75-5000 Hz).
+  **[all 3]**
+- **Not the cause:** aliasing (−89 dB at 4x oversampling) and treble into the clipper. **[measured by 2]**
+- **History.** Noel: "I used to just turn up the amps as full as I could get them – I never used
+  distortion pedals" (Guitar One, Sept 2002, reprinted on oasis-recordinginfo.co.uk). Amps: Valvestate
+  8080 (Marshall's own history page) plus WEM on *Definitely Maybe* (secondary); AC30, Marshall combos,
+  WEM and Orange on *Morning Glory* (SOS Classic Tracks, Nov 2012). The density came from many
+  overdubbed parts ("maybe three, four, five" per SOS; "loads" per Anjali Dutt) and compression-heavy
+  mastering (SOS; Owen Morris on the Apogee soft limit). Exact gain levels are **[unverified]**: "cranked"
+  is sourced, "moderate" is an inference.
+- **Change.** driveRange [6,20] → [4,14] (−3.2 dB, slope 86); the 6.5 kHz shelf replaced with a 7.5 kHz
+  Butterworth lowpass; makeup 1.2 to restore picked-note level.
+- **Resolved conflict.** The first version used a 5.5 kHz lowpass. All three fact-checks found it made
+  this "bright" amp darker than AC/DC (post-cab centroid 610 vs 657 Hz), which is more than "a bit".
+  The fix is 7.5 kHz, as measured by one fact-check. The research's suggested cut size also differed
+  (−10 dB vs −3 dB); −3 dB was chosen to fit "a bit".
+- **Result** (pre-cab; before → after): low-level growth +2.73 → +4.35 dB; harmonics 6-40 −13.0 → −15.0 dB;
+  energy above 6 kHz −36.2 → −50.3 dB; 1.5-4 kHz band −14.0 → −15.7 dB (AC/DC −16.7). The test targets
+  come from the same research, so they confirm direction, not authenticity. Listen to judge it.
