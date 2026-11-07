@@ -1,7 +1,7 @@
-import { AudioEngine } from './audio-engine.js?v=21';
-import { renderChain, renderAmp, showAddMenu, showDemoMenu, showSavePresetPopover, showPresetMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=11';
+import { AudioEngine } from './audio-engine.js?v=22';
+import { renderChain, renderAmp, showAddMenu, showDemoMenu, showSavePresetPopover, showPresetMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=12';
 import { renderPreviewWaveform } from './wave-preview.js';
-import { DEMO_PRESETS } from './demo-presets.js?v=3';
+import { DEMO_PRESETS } from './demo-presets.js?v=4';
 import { Tuner, GUITAR_STRINGS, centsFromTarget } from './tuner.js?v=3';
 import { Looper } from './looper.js?v=4';
 import { audioBufferToWavBlob } from './wav-encoder.js';

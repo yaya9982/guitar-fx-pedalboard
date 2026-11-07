@@ -11,10 +11,10 @@
 <p>Checks the vanhalen amp against the sourced numbers in PEDAL-RESEARCH.md §"Van Halen amp".</p>
 <div id="out">running...</div>
 <script type="module">
-  import { getAmpType, plexiStackCoeffs } from './js/amp-registry.js?v=9';
-  import { generateReverbIR } from './js/ir-synth.js?v=4';
-  import { DEMO_PRESETS } from './js/demo-presets.js?v=3';
-  import { getPedalType } from './js/pedal-registry.js?v=5';
+  import { getAmpType, plexiStackCoeffs } from './js/amp-registry.js?v=10';
+  import { generateReverbIR } from './js/ir-synth.js?v=5';
+  import { DEMO_PRESETS } from './js/demo-presets.js?v=4';
+  import { getPedalType } from './js/pedal-registry.js?v=6';
 
   const out = document.getElementById('out');
   const lines = [];
@@ -152,12 +152,53 @@
     log(diff < peak * 0.1, `max deviation from no-swap ${diff.toFixed(3)} vs signal peak ${peak.toFixed(3)} (< 10%)`);
   }
 
-  // 5. Chamber reverb: pre-delayed onset, ~1.8 s decay.
-  section('Chamber reverb');
+  // 5. Chamber reverb vs the values measured from the YRGM mix (mid -> side transfer of the
+  // iTunes preview, estimator calibrated by simulation): onset 126 ms, RT60 >=2.5 / ~2.2 / ~1.7 s,
+  // tail flat 400 Hz-6 kHz and down past 8 kHz, wet ~-10 dB re dry in 1-4 kHz (range -7..-13).
+  section('Chamber reverb (measured from the YRGM mix)');
   const ir = (await generateReverbIR(SR, 'chamber')).getChannelData(0);
   const first = ir.findIndex((v) => Math.abs(v) > 1e-4);
-  log(first / SR > 0.07 && first / SR < 0.09, `onset at ${(first / SR * 1000).toFixed(0)} ms (80 ms pre-delay)`);
-  log(ir.length / SR > 1.7 && ir.length / SR < 1.9, `IR length ${(ir.length / SR).toFixed(2)} s`);
+  log(Math.abs(first / SR - 0.126) < 0.003, `onset at ${(first / SR * 1000).toFixed(0)} ms (measured 125-128)`);
+  // Band-filter the IR offline, then fit the Schroeder decay from -5 to -25 dB (T20).
+  async function rt60(lo, hi) {
+    const c = new OfflineAudioContext(1, ir.length, SR), b = c.createBuffer(1, ir.length, SR); b.copyToChannel(ir, 0);
+    const s = c.createBufferSource(); s.buffer = b;
+    const f1 = c.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = Math.sqrt(lo * hi); f1.Q.value = Math.sqrt(lo * hi) / (hi - lo);
+    s.connect(f1).connect(c.destination); s.start();
+    const y = (await c.startRendering()).getChannelData(0);
+    const sch = new Float64Array(y.length); let acc = 0; for (let i = y.length - 1; i >= 0; i--) { acc += y[i] * y[i]; sch[i] = acc; }
+    const t = (dB) => sch.findIndex((v) => 10 * Math.log10(v / sch[0]) < dB) / SR;
+    return { rt: 3 * (t(-25) - t(-5)), energy: sch[0] / (hi - lo) };
+  }
+  for (const [lo, hi, want] of [[400, 800, 2.5], [1400, 2800, 2.2], [4500, 6000, 1.7]]) {
+    const { rt } = await rt60(lo, hi);
+    log(Math.abs(rt - want) / want < 0.15, `RT60 ${lo}-${hi} Hz: ${rt.toFixed(2)} s (measured ${want})`);
+  }
+  const xo = (await rt60(800, 1250)).rt; // crossover region: must sit between its neighbours
+  log(xo > 2.0 && xo < 2.8, `RT60 across the 1 kHz crossover: ${xo.toFixed(2)} s (2.0-2.8)`);
+  // Tail spectrum: energy per Hz in 1/3-octave bands, re the 1-4 kHz mean. Record: flat +-1.5 dB
+  // 400 Hz-6 kHz, about -6.6 dB at 8-10 kHz.
+  const thirds = [400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000];
+  const eb = []; for (const fc of thirds) eb.push((await rt60(fc / 1.122, fc * 1.122)).energy);
+  const ref = eb.slice(4, 11).reduce((x, y) => x + y) / 7, dbs = eb.map((e) => 10 * Math.log10(e / ref)); // 1-4 kHz thirds
+  log(Math.max(...dbs) - Math.min(...dbs) < 3, `tail flat 400 Hz-5 kHz: ${dbs.map((d) => d.toFixed(1)).join(' ')} dB (spread < 3 dB)`);
+  const top = 10 * Math.log10((await rt60(8000 / 1.122, 8000 * 1.122)).energy / ref);
+  log(top < -4 && top > -12, `8 kHz third ${top.toFixed(1)} dB re 1-4 kHz (record about -6.6 at 8-10 kHz)`);
+  // Wet/dry at the default Chamber knob: noise injected after the cab (at outputLevel), 1-4 kHz.
+  async function chamberEnergy(ch) {
+    const c = new OfflineAudioContext(1, SR * 5, SR); await c.audioWorklet.addModule('./js/dynamics-worklet.js');
+    const def = getAmpType('vanhalen'), n = await def.createNodes(c);
+    for (const p of def.params) await p.apply(n.nodes, p.key === 'chamber' ? ch : p.default, c);
+    const b = c.createBuffer(1, SR * 5, SR), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const s = c.createBufferSource(); s.buffer = b;
+    const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1000;
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 4000;
+    s.connect(hp).connect(lp).connect(n.nodes.outputLevel); s.start(); n.output.connect(c.destination);
+    const r = (await c.startRendering()).getChannelData(0); let e = 0; for (let i = SR * 2.5; i < r.length; i++) e += r[i] * r[i]; return e;
+  }
+  const chDef = getAmpType('vanhalen').params.find((p) => p.key === 'chamber').default;
+  const wetDb = 10 * Math.log10((await chamberEnergy(100)) / (await chamberEnergy(0))) + 20 * Math.log10(chDef / (100 - chDef));
+  log(wetDb > -13 && wetDb < -7, `wet/dry at default ${chDef}%: ${wetDb.toFixed(1)} dB (measured ~-10, range -7..-13)`);
 
   // 6. Presets only reference real ids and params.
   section('Demo presets');

@@ -1,5 +1,5 @@
-import { generateCabIR, generateAcousticBodyIR, generateReverbIR } from './ir-synth.js?v=4';
-import { driveCurve } from './pedal-registry.js?v=5';
+import { generateCabIR, generateAcousticBodyIR, generateReverbIR } from './ir-synth.js?v=5';
+import { driveCurve } from './pedal-registry.js?v=6';
 
 function makeBand(ctx, band) {
   const f = ctx.createBiquadFilter();
@@ -406,8 +406,8 @@ export const AMP_TYPES = [
       { key: 'mid', label: 'Middle', min: 0, max: 100, default: 100, apply: (n, v, ctx) => setPlexiStack(n, ctx, { m: v / 100 }) },
       { key: 'treble', label: 'Treble', min: 0, max: 100, default: 100, apply: (n, v, ctx) => setPlexiStack(n, ctx, { t: v / 100 }) },
       { key: 'presence', label: 'Presence', min: 0, max: 100, default: 100, apply: (n, v) => (n.presenceNode.gain.value = (v / 100) * PLEXI.presenceMaxDb) },
-      // 24% = wet about -10 dB under dry; no published number, a listening estimate.
-      { key: 'chamber', label: 'Chamber', min: 0, max: 100, default: 24, unit: '%', apply: (n, v) => { n.wet.gain.value = v / 100; n.dry.gain.value = 1 - v / 100; } },
+      // Default set so wet/dry is ~-10 dB in 1-4 kHz, as measured from the YRGM mix (test-vanhalen.html).
+      { key: 'chamber', label: 'Chamber', min: 0, max: 100, default: 28, unit: '%', apply: (n, v) => { n.wet.gain.value = v / 100; n.dry.gain.value = 1 - v / 100; } },
       { key: 'variac', label: 'Variac', min: 60, max: 120, default: 89, unit: 'V', apply: (n, v) => setVariac(n, v) },
       { key: 'level', label: 'Level', min: 0, max: 150, default: 100, unit: '%', apply: (n, v) => { n.levelPct = v; n.outputLevel.gain.value = v / 100 * PLEXI.makeup; } },
     ],

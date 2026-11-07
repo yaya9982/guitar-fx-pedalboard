@@ -41,9 +41,9 @@ export const REVERB_TYPES = {
   hall: { label: 'Hall', decaySeconds: 3.2 },
   spring: { label: 'Spring', decaySeconds: 1.2 },
   // Sunset Sound Studio 1 live chamber (Van Halen I; engineer Donn Landee's preferred reverb): RCA BX44 mics
-  // and Altec speakers band-limit the return. Decay and pre-delay are listening estimates
-  // (no published numbers) — see PEDAL-RESEARCH.md.
-  chamber: { label: 'Chamber', decaySeconds: 1.8 },
+  // and Altec speakers band-limit the return. Pre-delay, per-band decay and band edges are measured
+  // from the "You Really Got Me" stereo mix (mid -> side transfer) — see PEDAL-RESEARCH.md.
+  chamber: { label: 'Chamber', decaySeconds: 2.8 },
 };
 
 export const generateReverbIR = (sampleRate, type = 'room') => cached(`rev:${sampleRate}:${type}`, () => buildReverbIR(sampleRate, type));
@@ -89,13 +89,22 @@ async function buildReverbIR(sampleRate, type) {
         break;
       }
       case 'chamber': {
-        const hp = ctx.createBiquadFilter();
-        hp.type = 'highpass'; hp.frequency.value = 250;
-        const lp = ctx.createBiquadFilter();
-        lp.type = 'lowpass'; lp.frequency.value = 7000;
-        // pre-delay is a listening guess; the last ~80 ms of tail is cut at ~-58 dB
-        const preDelay = ctx.createDelay(0.2); preDelay.delayTime.value = 0.08;
-        source.connect(hp).connect(lp).connect(envelope).connect(preDelay).connect(ctx.destination);
+        // Measured from the YRGM mix (calibrated estimator, see PEDAL-RESEARCH.md): onset 126 ms,
+        // no onset below 250 Hz, -4 dB by ~7 kHz, RT60 >=2.5 s (250 Hz-1 kHz, loosely bounded),
+        // ~2.2 s (1-4 kHz), ~1.7 s (4-8 kHz). The record's tail is spectrally flat 400 Hz-6 kHz.
+        // The top band's own 1.45 s reads ~1.9 s at 4.5-6 kHz: the 2.2 s band leaks through its slope.
+        const preDelay = ctx.createDelay(0.2); preDelay.delayTime.value = 0.126;
+        preDelay.connect(ctx.destination);
+        const filt = (type, f) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = -3.0103; return b; };
+        for (const [lo, hi, rt60] of [[250, 1000, 2.5], [1000, 4000, 2.2], [4000, 6500, 1.45]]) {
+          // Own noise per band: Butterworth LP/HP powers sum to 1, a shared source would notch the crossovers.
+          const src = ctx.createBufferSource(); src.buffer = makeWhiteNoiseBuffer(ctx, cfg.decaySeconds);
+          const env = ctx.createGain();
+          const g = Math.sqrt(2.2 / rt60); // equal energy per band (energy ~ rt60), as on the record
+          env.gain.setValueAtTime(g, 0); env.gain.setTargetAtTime(0, 0, rt60 / 6.908); // -60 dB at rt60
+          src.connect(filt('highpass', lo)).connect(filt('lowpass', hi)).connect(env).connect(preDelay);
+          src.start(0);
+        }
         break;
       }
       case 'room':

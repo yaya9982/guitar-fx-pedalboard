@@ -400,14 +400,64 @@ calculation; **[unverified]** = no primary number exists.
   harmonically rich as Lead, so "moderate" means less compressed, not cleaner. All three agents found claims that early EVH gain was modest,
   but none is a measurement **[unverified]**.
 
-### Listening estimates (no published numbers)
-Chamber: RT60 about 1.74 s (measured; IR length 1.8 s), 80 ms pre-delay (a pure listening guess; see
-the "delayed echo" note above), 250 Hz–7 kHz band.
-It is built into the amp as a send after the cab (the Chamber knob, default 24% = wet about −10 dB),
-because the app's Reverb pedal can only sit before the amp. There it would feed the room through
-the dimed preamp, and the verification test measured a tail about 10 dB louder and distorted. The
-agents' pre-delay estimates differed (20–40 ms vs 80–120 ms); 80 ms is a guess. Tune these by ear against the record. Not modeled: the guitar/chamber stereo
-split (the chain is mono), the pickup differences between the two guitars, and the sitar overdub.
+### Chamber, measured from the record (2026-11-08)
+Source: Apple's official 30 s iTunes preview of "You Really Got Me" (album *Van Halen*, AAC 256 kbps
+stereo, 44.1 kHz; master unknown). It's kept outside the repo; only these numbers are committed.
+Method: transfer function from mid (L+R) to side (L-R), Welch-averaged, then inverse-FFT per band.
+The dry signal shows at lag 0; the chamber return appears as a step at a fixed lag. Three
+fact-check agents audited the first pass, and its decay and level figures were wrong (see below).
+- Pre-delay: **126 ms** (125-128). Measured in every band from 500 Hz to 8 kHz, in both halves, in
+  both L->R and R->L, and for frame sizes from 2^14 to 2^18. **[verified by all 3 agents]**
+  - Null tests (a decorrelated side channel, a time-shifted mid) show no step.
+  - The negative-lag side is flat, so it isn't the rhythm: at 138.3 bpm a 16th is 108 ms and an 8th triplet 145 ms.
+  - The return is diffuse with no repeats, so it isn't a discrete tape echo with feedback, ADT or a double-track.
+  - 126 ms fits a 15 ips tape delay feeding the chamber send once (Owsinski: 125-175 ms at 15 ips;
+    Ciletti in Mix: about 130 ms). That machine is **[unverified]** for this record.
+- RT60: about **2.2 s** at 1-4 kHz and about **1.7 s** at 4-8 kHz (range 1.3-2.1 s). At 250 Hz-1 kHz it's
+  **at least 2.5 s** and poorly bounded; the music correlates at every lag there.
+  - The first pass gave 2.0 / 1.5 / 1.35 s, but its 1.49 s analysis frame was shorter than the decay,
+    so the Hann taper made decays look too fast.
+  - The corrected figures invert a calibration: simulated chambers of known RT60 were built from the
+    record's own mid channel plus its phase-randomised side channel, then read with the same estimator.
+    Readings were taken at 2^16 and 2^17 frames.
+  - Agents B and C agree on longer mid decays. Agent A's floor-matched simulation said the mid band was
+    fine and the high band about 1.0 s. My like-for-like calibration sided with B and C.
+- Band: no onset step below 250 Hz. The tail is flat within about ±1.5 dB from 400 Hz to 6 kHz, then
+  -4 dB at 6.3-8 kHz and -6.6 dB at 8-10 kHz.
+  - The missing step below 250 Hz doesn't prove there's no chamber there, because bass and kick mask it.
+    The 250 Hz high-pass is a reasonable choice, not a proven one.
+- Wet level: the side-channel tail is about **-14 to -16 dB** per unit of mid at 1-4 kHz, once
+  normalised by bandwidth. The first pass forgot that normalisation and read 10-13 dB too dry.
+  - Allowing for the mid's share gives wet/dry of about **-10 dB** against the whole mix (range -7 to -13).
+  - If only the guitar fed the chamber, the figure is wetter: crediting the guitar with half the mid adds
+    +6 dB, not +3, because the estimator scales the tail by the source's power share squared.
+  - Which sources were sent is **[unverified]**.
+- Panning: inconclusive. In 1-4 kHz, L is 0.3-8 dB louder for the first 14 s and R is 0.2-1.6 dB louder
+  for the rest. At 100-250 Hz, L is louder by 1-6.7 dB throughout.
+  - Sources conflict: Vintage King says "panned to the left channel", while Simmons's narration says
+    "slightly off-center". Landee's rental-car story suggests strongly one-sided.
+
+Implementation (js/ir-synth.js, chamber case):
+- 126 ms pre-delay.
+- Three bands with their own noise, decays and gains:
+
+  | Band | RT60 | Effective, as measured by the test |
+  |---|---|---|
+  | 250 Hz-1 kHz | 2.5 s | about 2.4 s |
+  | 1-4 kHz | 2.2 s | about 2.2 s |
+  | 4-6.5 kHz | 1.45 s | about 1.9 s at 4.5-6 kHz, because the 2.2 s band leaks through its slope |
+
+  - Each band gets its own noise, because a shared source notched the 1 kHz crossover by up to 7 dB.
+  - Gains give equal energy per band, so the tail is flat like the record's.
+- The Chamber default is **28%**, measured at -10.2 dB wet/dry in 1-4 kHz.
+- test-vanhalen.html checks onset, the three RT60s, the 1 kHz crossover, tail flatness, the 8 kHz drop
+  and wet/dry.
+- The chamber sits in the amp as a send after the cab. The app's Reverb pedal can only go before the
+  amp, where it would feed the room through the dimed preamp.
+- The YRGM preset uses 28%. The ATBL preset keeps 24% because that song wasn't measured.
+- The Reverb pedal's "Chamber" type shares this IR.
+- Not modeled: the stereo chamber return (the chain is mono, and this method can't tell a stereo return
+  from a mono one), the pickups and the sitar overdub.
 
 ---
 
