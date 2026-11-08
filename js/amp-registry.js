@@ -1,5 +1,5 @@
-import { generateCabIR, generateAcousticBodyIR, generateReverbIR } from './ir-synth.js?v=5';
-import { driveCurve } from './pedal-registry.js?v=6';
+import { generateCabIR, generateAcousticBodyIR, generateReverbIR } from './ir-synth.js?v=6';
+import { driveCurve } from './pedal-registry.js?v=7';
 
 function makeBand(ctx, band) {
   const f = ctx.createBiquadFilter();
@@ -88,7 +88,7 @@ function ampParams() {
 // Sources and the resolved conflicts are in PEDAL-RESEARCH.md §"Van Halen amp"; checks in
 // test-vanhalen.html.
 // ---------------------------------------------------------------------------
-const PLEXI = {
+export const PLEXI = {
   // Tone stack: 33k slope, 500p / 22n / 22n (ampbooks: 1987 JMP50, assumed the same for a
   // 1959); 220k treble / 1M bass / 25k mid are typical Marshall pots (CAPS's JCM800 preset uses
   // 220k/1M/22k), unverified for a 1968 amp.
@@ -102,7 +102,13 @@ const PLEXI = {
   // input saturates smoothly instead of hitting a hard edge (verification audit, 2026-11-07).
   headroom: 4,
   mainsVolts: 120, // Landee: "85 volts instead of 120" (Eddie counted from 110: ~1.2 dB difference)
-  makeup: 5.2, // ~the driven amps' median level at default knobs, averaged over page loads (test-vanhalen.html)
+  makeup: 4.6, // ~the driven amps' median level at default knobs, averaged over page loads (test-vanhalen.html)
+  // One 4x12 of Celestion G12M Greenbacks + SM57, shaped like Celestion's datasheet: Fs 75 Hz,
+  // +5..9 dB at 2-4 kHz, steep fall above 5 kHz (the IR's lowpass plus cabLP give ~24 dB/oct).
+  // Seed 10: one of the lowest-ripple noise draws, so the cab sounds the same every load. A fit
+  // to the YRGM record was tried and rejected: without a real DI it depends on the test input.
+  cab: { resonanceHz: 2700, resonanceQ: 1, resonanceDb: 7, lowpassHz: 5000, highpassHz: 75, decayMs: 15, reflections: 2, seed: 10 },
+  cabLPHz: 5000,
 };
 
 // Web Audio reads lowpass/highpass Q in dB; Butterworth (1/sqrt 2) is -3.01 dB, not 0.707.
@@ -200,11 +206,10 @@ async function createPlexiNodes(ctx) {
   sag.parameters.get('knee').value = 6; // the worklet default (30 dB) would start compressing ~-29 dB
   sag.parameters.get('attack').value = 0.015;
   sag.parameters.get('release').value = 0.2;
-  // One 4x12 of Celestion G12M Greenbacks + SM57: Fs 75 Hz, broad 2-3.5 kHz lift,
-  // steep fall above 5 kHz (the IR's lowpass plus this one give ~24 dB/oct).
+  // Cab + mic: see PLEXI.cab.
   const cabConvolver = ctx.createConvolver();
-  cabConvolver.buffer = await generateCabIR(ctx.sampleRate, { resonanceHz: 2700, resonanceQ: 1, lowpassHz: 5000, highpassHz: 75, decayMs: 15, reflections: 2 });
-  const cabLP = makeBand(ctx, { type: 'lowpass', freq: 5000, Q: BUTTERWORTH_DB });
+  cabConvolver.buffer = await generateCabIR(ctx.sampleRate, PLEXI.cab);
+  const cabLP = makeBand(ctx, { type: 'lowpass', freq: PLEXI.cabLPHz, Q: BUTTERWORTH_DB });
   const outputLevel = ctx.createGain(); outputLevel.gain.value = PLEXI.makeup;
   // Sunset Sound Studio 1 live chamber as a send after the miked cab, where the studio had it.
   // (The app's Reverb pedal can only sit before the amp, which would put the room through the

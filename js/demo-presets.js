@@ -106,7 +106,7 @@ export const DEMO_PRESETS = [
   },
   {
     name: 'Van Halen - You Really Got Me',
-    blurb: 'Dimed 1967/68 plexi on a Variac (89 V) with its built-in Sunset Sound chamber. No pedals documented on this one. Tune down a half step.',
+    blurb: 'Dimed 1967/68 plexi on a Variac (89 V) with its built-in Sunset Sound chamber. No pedals documented on this one. Tune down a half step, then about 25 cents sharp (A = 446 Hz): that is the pitch of the record.',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
       noiseGate: { enabled: false, threshold: -48, holdMs: 40, release: 120 },

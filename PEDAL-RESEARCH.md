@@ -401,8 +401,11 @@ calculation; **[unverified]** = no primary number exists.
   but none is a measurement **[unverified]**.
 
 ### Chamber, measured from the record (2026-11-08)
-Source: Apple's official 30 s iTunes preview of "You Really Got Me" (album *Van Halen*, AAC 256 kbps
-stereo, 44.1 kHz; master unknown). It's kept outside the repo; only these numbers are committed.
+Source: Apple's official 30 s iTunes preview of "You Really Got Me" (album *Van Halen*, track
+976820537, AAC, stereo, 44.1 kHz). By duration (156.189 s) it is the 2015 Chris Bellman remaster:
+three preview-source research agents agree. Apple's default preview window is 0:45-1:15. Apple's
+Search API terms say previews are "streamed only, and not downloaded, saved, cached"; the user chose
+to keep and analyse the saved copy. It stays outside the repo, and only derived numbers are committed.
 Method: transfer function from mid (L+R) to side (L-R), Welch-averaged, then inverse-FFT per band.
 The dry signal shows at lag 0; the chamber return appears as a step at a fixed lag. Three
 fact-check agents audited the first pass, and its decay and level figures were wrong (see below).
@@ -458,6 +461,43 @@ Implementation (js/ir-synth.js, chamber case):
 - The Reverb pedal's "Chamber" type shares this IR.
 - Not modeled: the stereo chamber return (the chain is mono, and this method can't tell a stereo return
   from a mono one), the pickups and the sitar overdub.
+
+### Tuning, measured from the record (2026-11-08)
+**About +24 cents** above A440 12-TET in the low bands (fundamentals and 2nd harmonics, 40-400 Hz).
+Higher bands and other methods give +21 to +30; the upper bands are likely pulled by inharmonicity or
+other instruments. Three fact-check agents reproduced it, with a comb search, dominant peaks per
+window, and per-channel and per-segment medians. Since the guitar is tuned down a half step, that's
+Eb tuning about a quarter-semitone sharp (A ≈ 446 Hz). The YRGM preset blurb says so.
+- The measurement can't tell a sharp tuning from a sped-up tape. There's no usable mains-hum line to
+  check tape speed.
+- Pitch on the debut album reportedly varies by track (forum readings +8 to +28 cents above Eb,
+  **[unverified]**: the forum returned 403), so this applies to YRGM only.
+- Bug in my first script: weights of log(P/median) can go negative, so its "concentration" can
+  exceed 1, and its 40-160 Hz full-clip result was +30.3. The values above come from the agents'
+  cleaner methods.
+
+### Tone vs the record: tried and rejected (2026-11-08)
+I tried fitting the cab to the record's 1/3-octave spectrum, feeding the amp a synthetic
+Karplus-Strong riff, and three fact-check agents rejected it.
+- **The result depends on the test input.** With a one-pole pickup the old cab read 12-20 dB too
+  bright at 2-5 kHz. With a resonant-pickup model or a physical pluck model, the same amp reads
+  anywhere from +2 to +12 dB, and the fitted cab from 8 dB too bright to 12 dB too dark.
+  Only a real DI recording can settle it, which is what the first YRGM research round said.
+- **The fitted cab contradicted the Greenback datasheet.** It had a broad -10 dB dip at 3.5 kHz.
+  Celestion's chart (celestion.com/productpdf.php?id=899) shows +6 to +8 dB at 2.3-3.2 kHz, about
+  -8.5 dB at 6.3 kHz and about -20 dB at 7-10 kHz, which the previous cab already followed. The dip was
+  really cancelling brightness from the pre-cab stages and from the test signal.
+- **The target is a full mix.** Mid and side differ by up to 6 dB at 3-5 kHz. The side channel is mostly
+  chamber return and cymbals, because L/R coherence is 0.7-0.8, so it cancels much of the guitar too.
+
+Kept from the attempt:
+- The cab is restored to the datasheet shape (+7 dB at 2.7 kHz, Q 1, 5 kHz lowpasses).
+- Its noise is now **seeded** (seed 10, among the lowest-ripple of 60 draws, ranked without using the
+  record). Before, every page load drew a new random IR, which moved single 1/3-octave bands by 3-5 dB.
+- Makeup is 4.6, recalibrated for the seeded IR; the level is still within about ±3 dB of the driven
+  amps' median.
+- test-vanhalen.html section 5b checks the cab against the datasheet shape.
+- Next step: a DI recording of the riff from the user, played through the amp and compared with the record.
 
 ---
 

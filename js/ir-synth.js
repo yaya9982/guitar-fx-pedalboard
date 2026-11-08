@@ -2,11 +2,18 @@
 // Everything here is synthesized in code via OfflineAudioContext at startup —
 // nothing is fetched, so it works fully offline.
 
-function makeWhiteNoiseBuffer(offlineCtx, seconds) {
+// seed: a number gives the same noise every load (mulberry32); undefined uses Math.random.
+function makeWhiteNoiseBuffer(offlineCtx, seconds, seed) {
   const length = Math.max(1, Math.ceil(seconds * offlineCtx.sampleRate));
   const buffer = offlineCtx.createBuffer(1, length, offlineCtx.sampleRate);
   const data = buffer.getChannelData(0);
-  for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+  let s = seed >>> 0;
+  const rand = seed === undefined ? Math.random : () => {
+    s = (s + 0x6d2b79f5) >>> 0; let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  for (let i = 0; i < length; i++) data[i] = rand() * 2 - 1;
   return buffer;
 }
 
@@ -18,10 +25,10 @@ function cached(key, make) {
   return irCache.get(key);
 }
 
-async function render(sampleRate, seconds, build) {
+async function render(sampleRate, seconds, build, seed) {
   const length = Math.max(1, Math.ceil(seconds * sampleRate));
   const offlineCtx = new OfflineAudioContext(1, length, sampleRate);
-  const noise = makeWhiteNoiseBuffer(offlineCtx, seconds);
+  const noise = makeWhiteNoiseBuffer(offlineCtx, seconds, seed);
   const source = offlineCtx.createBufferSource();
   source.buffer = noise;
   const envelope = offlineCtx.createGain();
@@ -130,6 +137,8 @@ async function buildCabIR(sampleRate, opts) {
     highpassHz = 100,
     decayMs = 20,
     reflections = 2,
+    resonanceDb = 7,
+    seed, // set it for a cab that sounds the same on every load
   } = opts;
   const seconds = decayMs / 1000;
   return render(sampleRate, seconds, (ctx, source, envelope) => {
@@ -138,7 +147,7 @@ async function buildCabIR(sampleRate, opts) {
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass'; lp.frequency.value = lowpassHz;
     const resonance = ctx.createBiquadFilter();
-    resonance.type = 'peaking'; resonance.frequency.value = resonanceHz; resonance.Q.value = resonanceQ; resonance.gain.value = 7;
+    resonance.type = 'peaking'; resonance.frequency.value = resonanceHz; resonance.Q.value = resonanceQ; resonance.gain.value = resonanceDb;
 
     source.connect(hp).connect(lp).connect(resonance).connect(envelope);
     envelope.connect(ctx.destination);
@@ -150,7 +159,7 @@ async function buildCabIR(sampleRate, opts) {
       tapGain.gain.value = 0.35 / i;
       resonance.connect(delay).connect(tapGain).connect(envelope);
     }
-  });
+  }, seed);
 }
 
 export const generateAcousticBodyIR = (sampleRate, { direct = true } = {}) => cached(`body:${sampleRate}:${direct}`, () => buildAcousticBodyIR(sampleRate, direct));
