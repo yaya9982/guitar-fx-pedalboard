@@ -1,12 +1,16 @@
 name: Deploy Pages
 
-# Publishes master at the site root, and the van-halen-amp branch at /van-halen-amp/ as a
-# preview. Both are checked out into every build of this file, since the Pages deploy action
-# replaces the whole site each run.
+# Publishes master at the site root and the current test branch (TEST_BRANCH) at /test/.
+# Both are checked out into every build of this file, since the Pages deploy action replaces
+# the whole site each run. To preview a different branch: change TEST_BRANCH, add the branch to
+# the push triggers below and to the github-pages environment's deployment-branch allowlist.
 on:
   push:
     branches: [master, van-halen-amp]
   workflow_dispatch:
+
+env:
+  TEST_BRANCH: van-halen-amp
 
 permissions:
   contents: read
@@ -27,17 +31,17 @@ jobs:
           ref: master
           path: site
 
-      - name: Checkout van-halen-amp preview branch
+      - name: Checkout the test branch into /test/
         uses: actions/checkout@v4
         continue-on-error: true # don't break master's deploy if this branch is later deleted
         with:
-          ref: van-halen-amp
-          path: site/van-halen-amp
+          ref: ${{ env.TEST_BRANCH }}
+          path: site/test
 
       - name: Strip git metadata, disable Jekyll processing
         run: |
           rm -rf site/.git
-          rm -rf site/van-halen-amp/.git
+          rm -rf site/test/.git
           touch site/.nojekyll
 
       - name: Upload Pages artifact

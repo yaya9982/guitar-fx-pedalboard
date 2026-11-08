@@ -14,6 +14,16 @@ python -m http.server 8000
 
 Then open `http://localhost:8000/`.
 
+## Deployment (GitHub Pages)
+
+- `master` deploys to the site root: https://yaya9982.github.io/guitar-fx-pedalboard/
+- The branch being tested always deploys to **`/test/`**, never to a path named after the branch
+  or the update: https://yaya9982.github.io/guitar-fx-pedalboard/test/
+- `.github/workflows/pages.yml` sets which branch that is (`TEST_BRANCH`). To test another branch:
+  change `TEST_BRANCH`, add the branch to the workflow's push triggers, and add it to the
+  github-pages environment's deployment-branch allowlist. Each deploy replaces the whole site, so
+  master's copy of the workflow needs the same `/test/` step, or a push to master drops the preview.
+
 ## File map
 
 - `js/pedal-registry.js` / `js/amp-registry.js` — effect definitions. Each entry is a plain
