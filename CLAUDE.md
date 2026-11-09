@@ -221,11 +221,12 @@ Everything is handled in `js/presets.js`, wired up in `js/main.js`'s `restoreSta
 
 ## Deployment
 
-GitHub Pages via `.github/workflows/pages.yml`, deploys `master` to the site root.
+GitHub Pages via `.github/workflows/pages.yml`, deploys `master` to the site root. Branch
+previews always go to `/test/` (see "Deployment (GitHub Pages)" above), never `/branch-name/`.
 
-For a branch preview at `/branch-name/`:
-1. Add the branch to the workflow's trigger list and add a checkout step for it into
-   `site/branch-name/` (alongside the existing master checkout into `site/`).
+To preview a branch at `/test/`:
+1. Set `TEST_BRANCH` in the workflow to it and add it to the trigger list (the checkout into
+   `site/test/` already exists).
 2. **Also** add the branch to the `github-pages` environment's deployment-branch allowlist —
    repo Settings → Environments → github-pages → Deployment branches, or via
    `gh api repos/<owner>/<repo>/environments/github-pages/deployment-branch-policies -f name='branch-name' -f type='branch'`.
@@ -240,7 +241,7 @@ replaces the whole site on every run rather than updating incrementally.
 ### Merging a feature branch back to master and retiring its preview
 
 Once a branch's work is done and approved, to merge it into master, get it live at the site
-root, and remove its separate `/branch-name/` preview:
+root, and remove its `/test/` preview:
 
 1. **Merge the branch into master as usual** (`git merge` or a PR). Since the branch's own
    commits modified `.github/workflows/pages.yml` to add its preview checkout step, merging
@@ -251,7 +252,7 @@ root, and remove its separate `/branch-name/` preview:
    checkout step, so master goes back to just deploying itself to the site root.
 3. **Push master.** This triggers a fresh deploy that rebuilds the site from master only —
    since the official Pages deploy action replaces the whole site every run, the old
-   `/branch-name/` subfolder simply isn't included anymore and disappears from the live site
+   `/test/` subfolder simply isn't included anymore and disappears from the live site
    once this deploy completes (no separate "delete" step needed for the site content itself).
 4. **Remove the branch from the `github-pages` environment's deployment-branch allowlist** —
    repo Settings → Environments → github-pages → Deployment branches (or

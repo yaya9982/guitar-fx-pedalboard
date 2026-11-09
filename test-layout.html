@@ -16,9 +16,9 @@
     let ampId = new URLSearchParams(location.search).get('amp') || (location.search.includes('acoustic') ? 'acoustic' : 'clean'); // ?amp=<id>
     if (!/^[a-z0-9_-]+$/.test(ampId)) ampId = 'clean'; // it's spliced into eval'd code below
     await w.eval(`(async () => {
-      const ui = await import('/js/ui.js?v=13');
+      const ui = await import('/js/ui.js?v=14');
       const pr = await import('/js/pedal-registry.js?v=7');
-      const ar = await import('/js/amp-registry.js?v=11');
+      const ar = await import('/js/amp-registry.js?v=14');
       const mk = (id, getter, kind) => {
         const typeDef = getter(id);
         const params = {}; typeDef.params.forEach((p) => { params[p.key] = p.default; });

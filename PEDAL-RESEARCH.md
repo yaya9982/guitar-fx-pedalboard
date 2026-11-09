@@ -498,6 +498,59 @@ Kept from the attempt:
   amps' median.
 - test-vanhalen.html section 5b checks the cab against the datasheet shape.
 - Next step: a DI recording of the riff from the user, played through the amp and compared with the record.
+- (Superseded 2026-11-09: the cab, makeup and section 5b changed, see the next section.)
+
+### Cab vs the user's recording (2026-11-09)
+The user recorded the riff through an amp they like, a 6.8 s clip of the output only (kept outside the
+repo in `../sources/`, only derived numbers here). It follows the tab: four phrases with mutes between
+them, each alternating a low Gb single note (about 94.9 Hz) with Ab5 hits (root about 105.5 Hz, Ab2
+about +28 cents, the same tuning as the record). The Gb carries about half the energy, which my first
+pass missed and fact-check A caught. The aim: make the plexi's power chords sound like it.
+- **What the clip shows.** 1/3-octave spectrum of the loud frames, re the 1-4 kHz mean: flat within
+  about ±3.5 dB from 160 Hz to 5 kHz, then -11 at 6.3 kHz, -17 at 8, -21 at 10 and -33 at 12.5. Crest
+  factor in 50 ms windows is about 10.5 dB, so heavily saturated.
+- **What was wrong with the old cab.** Its 100-250 Hz level was 6-12 dB below 1 kHz (average -8.4). That
+  was not a speaker trait. A 15 ms noise-burst IR has only 1-3 cycles of noise at those frequencies, and
+  across seeds 100-299 the 100-250 Hz average runs from -18 to +12 dB. Fact-checks disagreed on how much
+  is built in: A measured about 3 dB of design loss plus about 6 dB from seed 10; C simulated 60 seeds and
+  found about -11 to -15 dB on average (the 2 ms envelope smears the highpass null upward), ±5 dB per seed.
+  Either way it came from the burst method, not from a speaker. It also had a +6 dB hump at
+  2-2.5 kHz that the clip doesn't have.
+- **How the target was made robust to the missing DI.** This time the input wasn't a toy model.
+  It was 8 modal string DIs (velocity pickup at the bridge, pluck at 0.12 or 0.2 of the string, a loaded
+  humbucker resonance at 2.5 or 4 kHz with Q 2, peak 0.25 or 0.5). The amp's pre-cab spectrum varied by
+  at most 4.7 dB per band across them. With Karplus-Strong toy inputs it had varied by 20 dB, which is what
+  sank the record fit. The DIs play the tab's pattern (Gb note, Ab5 hits). Cab target = clip minus the
+  pre-cab output, averaged over the 8 DIs. ("Robust" was overclaimed, see below.) Adding the Gb moved the target by 2 dB or less. Bands holding
+  no partials (63, 80, 125 and 250 Hz) are left out.
+- **New cab.** Fixed biquads, no noise IR: HP 60 Hz, peak 4.6 kHz +7.8 dB Q 1.5, LP 8.14 kHz Q 0.5,
+  LP 12 kHz Butterworth. The fit wanted the HP at 40 Hz or lower, but the clip has no data below 100 Hz,
+  so 60 Hz guards against flub. A Q 3 peak fitted 0.1 dB better and was turned down as likely to whistle.
+  Makeup went from 4.6 to 0.145 (the filters pass about unity, the noise IR did not), which puts the level
+  0.5 dB from the driven amps' median.
+- **How far to trust it (fact-check C).** The fit holds for a bridge humbucker at medium drive. That
+  matches Eddie's Frankenstein, which had one bridge humbucker, but it is still an assumption about the
+  user's guitar. Over a wider family of inputs (neck humbucker, single coils, palm mute, other pick
+  attacks and levels), only 630 Hz-4 kHz stays put: every variant wants +3.4 to +7.7 dB at 4 kHz. The
+  target moves 14-19 dB at 63-200 Hz (about 10 dB with bridge pickups only) and 10-14 dB at 5-12.5 kHz.
+  So the presence lift is solid; read the bass and the treble rolloff as ±5 dB, pending the user's
+  pickup and gain or a DI. The modal DI's pick transients (every mode starting at full level) also feed the
+  treble fit. The 1.2-2.3 dB figures below are in-sample.
+- **Result.** The cab is within 1.6 dB rms of the corrected target. On the full output against the
+  clip (Ab5-only DIs), the error is 1.2-2.3 dB rms, against 12.7 for the old cab. Crest factor is 9.8-10.0
+  against the clip's 10.5 (fact-check: 10.57). A refit to the corrected target gained only 0.15 dB rms,
+  and only by adding a resonant Q 2 lowpass, so the cab was kept.
+- **Not matched.** (1) Gap bands: the clip still has 8-14 dB more energy at 125 and 250 Hz, between
+  the partials (pick and fret noise, slides, pitch wobble, or the amp's own effect), and a cab filter can't
+  add that. The Gb note accounts for the 80 Hz band. Part of the 125 Hz excess is intermodulation from notes
+  overlapping, which the test DI cuts off. (2) Stereo: the clip is panned (L 10 dB over R, flat across the
+  band), which accounts for side -4.4 dB re mid. Under that is a stereo reverb or room, about -14 dB re dry
+  with T60 about 1.8 s. That is close to the built-in chamber (about -10 dB, 2.2 s), so no change. (3)
+  Envelope: below 1 kHz the clip is less steady than the model, so this isn't missing compression. Above
+  1 kHz the model has 7-14 dB pick overshoots that the clip lacks, and that comes from the test DI. (4) The clip's 1 kHz third sits 2-3 dB under
+  its neighbours, which is likely partial layout, not the cab.
+- test-vanhalen.html section 5b now checks the cab against this target. Each third must be within its DI
+  spread, with a minimum of 2.5 dB, plus 0.5 dB because 8 DIs only estimate the spread.
 
 ---
 

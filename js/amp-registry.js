@@ -102,13 +102,20 @@ export const PLEXI = {
   // input saturates smoothly instead of hitting a hard edge (verification audit, 2026-11-07).
   headroom: 4,
   mainsVolts: 120, // Landee: "85 volts instead of 120" (Eddie counted from 110: ~1.2 dB difference)
-  makeup: 4.6, // ~the driven amps' median level at default knobs, averaged over page loads (test-vanhalen.html)
-  // One 4x12 of Celestion G12M Greenbacks + SM57, shaped like Celestion's datasheet: Fs 75 Hz,
-  // +5..9 dB at 2-4 kHz, steep fall above 5 kHz (the IR's lowpass plus cabLP give ~24 dB/oct).
-  // Seed 10: one of the lowest-ripple noise draws, so the cab sounds the same every load. A fit
-  // to the YRGM record was tried and rejected: without a real DI it depends on the test input.
-  cab: { resonanceHz: 2700, resonanceQ: 1, resonanceDb: 7, lowpassHz: 5000, highpassHz: 75, decayMs: 15, reflections: 2, seed: 10 },
-  cabLPHz: 5000,
+  makeup: 0.145, // ~the driven amps' median level at default knobs, averaged over page loads (test-vanhalen.html)
+  // Cab + mic, fitted to the user's own recording of the YRGM riff through their amp (2026-11-09):
+  // flat 100 Hz-2.5 kHz, +5 dB at 4-5 kHz re 1 kHz, ~15 dB/oct fall above 6 kHz. Fixed filters,
+  // not a noise-burst IR, whose 15 ms burst made 100-250 Hz both bass-light by design and random per
+  // seed. Fit within 1.6 dB rms of the target over 8 modelled bridge-humbucker DIs playing the tab. The
+  // 3-5 kHz lift holds for any pickup; bass and >5 kHz are +-5 dB pending the user's pickup/gain or a DI
+  // (PEDAL-RESEARCH.md, "Cab vs the user's recording"). Web Audio Q units: LP/HP in dB, peaking linear.
+  // The makeup above was re-measured with this chain (it passes ~unity; the noise IR did not).
+  cab: [
+    { type: 'highpass', freq: 60, Q: -3.0103 }, // the fit wants <=40 Hz, but the clip has no data below 100
+    { type: 'peaking', freq: 4600, Q: 1.5, gain: 7.8 },
+    { type: 'lowpass', freq: 8140, Q: -6.0206 }, // Q 0.5
+    { type: 'lowpass', freq: 12000, Q: -3.0103 },
+  ],
 };
 
 // Web Audio reads lowpass/highpass Q in dB; Butterworth (1/sqrt 2) is -3.01 dB, not 0.707.
@@ -207,9 +214,8 @@ async function createPlexiNodes(ctx) {
   sag.parameters.get('attack').value = 0.015;
   sag.parameters.get('release').value = 0.2;
   // Cab + mic: see PLEXI.cab.
-  const cabConvolver = ctx.createConvolver();
-  cabConvolver.buffer = await generateCabIR(ctx.sampleRate, PLEXI.cab);
-  const cabLP = makeBand(ctx, { type: 'lowpass', freq: PLEXI.cabLPHz, Q: BUTTERWORTH_DB });
+  const cab = PLEXI.cab.map((b) => makeBand(ctx, b));
+  cab.reduce((a, b) => a.connect(b));
   const outputLevel = ctx.createGain(); outputLevel.gain.value = PLEXI.makeup;
   // Sunset Sound Studio 1 live chamber as a send after the miked cab, where the studio had it.
   // (The app's Reverb pedal can only sit before the amp, which would put the room through the
@@ -222,7 +228,7 @@ async function createPlexiNodes(ctx) {
   input.connect(inputHP).connect(bright).connect(preGain).connect(variacIn).connect(preShaper)
     .connect(dcBlock).connect(stackIn);
   stackOut.connect(powerGain).connect(powerShaper).connect(sag).connect(variacOut).connect(presenceNode)
-    .connect(cabConvolver).connect(cabLP).connect(outputLevel);
+    .connect(cab[0]); cab[cab.length - 1].connect(outputLevel);
   outputLevel.connect(chamberDry).connect(output);
   outputLevel.connect(chamber).connect(chamberWet).connect(output);
   // Variac in normalized units: the guitar hits a preamp ceiling r times lower (x 1/r in);
