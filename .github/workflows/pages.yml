@@ -1,9 +1,9 @@
 name: Deploy Pages
 
-# Publishes master at the site root.
+# Publishes master at the site root and the test2 branch preview at /test2/.
 on:
   push:
-    branches: [master]
+    branches: [master, test2]
   workflow_dispatch:
 
 permissions:
@@ -25,9 +25,15 @@ jobs:
           ref: master
           path: site
 
+      - name: Checkout test2 preview
+        uses: actions/checkout@v4
+        with:
+          ref: test2
+          path: site/test2
+
       - name: Strip git metadata, disable Jekyll processing
         run: |
-          rm -rf site/.git
+          rm -rf site/.git site/test2/.git
           touch site/.nojekyll
 
       - name: Upload Pages artifact

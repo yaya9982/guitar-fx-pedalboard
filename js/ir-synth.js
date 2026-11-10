@@ -6,7 +6,15 @@ function makeWhiteNoiseBuffer(offlineCtx, seconds) {
   const length = Math.max(1, Math.ceil(seconds * offlineCtx.sampleRate));
   const buffer = offlineCtx.createBuffer(1, length, offlineCtx.sampleRate);
   const data = buffer.getChannelData(0);
-  for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+  // Fixed-seed PRNG (mulberry32), not Math.random(): a cab IR is only ~15ms of noise, so a
+  // fresh random draw gave every amp a different tone and loudness on each page load.
+  let a = 0x9E3779B9;
+  for (let i = 0; i < length; i++) {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    data[i] = (((t ^ (t >>> 14)) >>> 0) / 4294967296) * 2 - 1;
+  }
   return buffer;
 }
 

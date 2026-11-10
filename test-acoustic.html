@@ -20,12 +20,12 @@
   const db = (a, b) => (20 * Math.log10(a / b)).toFixed(1);
   const ratios = [];
   for (const amp of [0.05, 0.1, 0.3]) for (const hz of [110, 196, 330]) {
-    const [ac, ad, cl] = [await level('acoustic', hz, amp), await level('acdc', hz, amp), await level('clean', hz, amp)];
+    const [ac, ad, cl] = [await level('acoustic', hz, amp), await level('crunch', hz, amp), await level('clean', hz, amp)];
     ratios.push(ad / ac);
-    lines.push(`in ${amp} ${hz}Hz: acoustic ${ac.toFixed(4)} acdc ${ad.toFixed(4)} clean ${cl.toFixed(4)} | acdc-acoustic ${db(ad, ac)} dB, clean-acoustic ${db(cl, ac)} dB`);
+    lines.push(`in ${amp} ${hz}Hz: acoustic ${ac.toFixed(4)} crunch ${ad.toFixed(4)} clean ${cl.toFixed(4)} | crunch-acoustic ${db(ad, ac)} dB, clean-acoustic ${db(cl, ac)} dB`);
   }
   ratios.sort((a, b) => a - b);
-  lines.push(`MEDIAN makeup needed to match AC/DC: ${ratios[4].toFixed(2)}x`);
+  lines.push(`MEDIAN makeup needed to match Crunch: ${ratios[4].toFixed(2)}x`);
 
   // ---- body response: frequency-response checks against the published targets ----
   async function gainDb(hz, knobs = {}) {

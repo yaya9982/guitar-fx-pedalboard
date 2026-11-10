@@ -1,5 +1,5 @@
 import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=4';
-import { AMP_TYPES } from './amp-registry.js?v=6';
+import { AMP_TYPES } from './amp-registry.js?v=7';
 
 function stepFor(param) {
   if (param.step !== undefined) return param.step;
@@ -563,7 +563,6 @@ export function buildAddMenu(onPick) {
 
   const ampGroups = [
     { title: 'Amps', items: AMP_TYPES.filter((a) => a.group === 'standard' || a.group === 'acoustic'), color: 'oklch(70% 0.08 80)' },
-    { title: 'Signature', items: AMP_TYPES.filter((a) => a.group === 'signature'), color: 'oklch(75% 0.13 85)' },
   ];
   const ampNote = document.createElement('div');
   ampNote.className = 'add-menu-note';

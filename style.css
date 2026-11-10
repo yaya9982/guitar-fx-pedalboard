@@ -1027,18 +1027,6 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 .amp-knobs .knob-row { width: 110px; }
 .amp-knobs .knob-dial-wrap { zoom: 1.55; }
 .amp-knobs .knob-row label { color: color-mix(in oklch, var(--pedal-trim) 80%, white 20%); }
-/* AC/DC and Led Zeppelin both have a near-black --pedal-accent (their control-panel
-   fill), so the range slider's own near-black track (see input[type="range"] above)
-   disappeared into it — the thumb stayed visible, but the bar it moves along didn't.
-   Recolor the track to each amp's own trim tone, already chosen to read against a dark body. */
-.amp-unit[data-amp-type="acdc"] .amp-knobs input[type="range"]::-webkit-slider-runnable-track,
-.amp-unit[data-amp-type="ledzeppelin"] .amp-knobs input[type="range"]::-webkit-slider-runnable-track {
-  background: var(--pedal-trim);
-}
-.amp-unit[data-amp-type="acdc"] .amp-knobs input[type="range"]::-moz-range-track,
-.amp-unit[data-amp-type="ledzeppelin"] .amp-knobs input[type="range"]::-moz-range-track {
-  background: var(--pedal-trim);
-}
 
 /* cloth grille: a plain CSS crosshatch reads as woven fabric without the overhead of
    the dynamic SVG weave pattern ui.js builds for patch cables (that one only exists
@@ -1078,21 +1066,6 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   overflow: hidden;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.35));
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 1px 2px rgba(0, 0, 0, 0.6);
-}
-/* Per-signature-amp plate color, requested independently of the tolex/panel/trim
-   palette above — light badge colors distinct enough to need their own dark label
-   color (see the .pedal-label overrides below), not the trim-tinted light text that
-   works on the plate's default near-black background. */
-.amp-unit[data-amp-type="acdc"] .amp-plate { background: oklch(87% 0.06 25); }
-.amp-unit[data-amp-type="ledzeppelin"] .amp-plate { background: oklch(88% 0.006 260); }
-.amp-unit[data-amp-type="oasis"] .amp-plate { background: oklch(98% 0.003 90); }
-.amp-unit[data-amp-type="direstraits"] .amp-plate { background: oklch(88% 0.05 250); }
-.amp-unit[data-amp-type="acdc"] .amp-plate .pedal-label,
-.amp-unit[data-amp-type="ledzeppelin"] .amp-plate .pedal-label,
-.amp-unit[data-amp-type="oasis"] .amp-plate .pedal-label,
-.amp-unit[data-amp-type="direstraits"] .amp-plate .pedal-label {
-  color: oklch(20% 0.015 260);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 /* Signature amps only (see renderAmp in js/ui.js): the plate becomes a click target for
    swapping in a custom logo PNG, stored per amp type in localStorage. */

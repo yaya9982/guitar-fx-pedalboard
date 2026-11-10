@@ -28,18 +28,6 @@ export const DEMO_PRESETS = [
     },
   },
   {
-    name: 'AC/DC Crunch',
-    blurb: 'Tight comp into the AC/DC signature amp',
-    state: {
-      inputGainPct: 100, masterVolumePct: 100,
-      noiseGate: { enabled: true, threshold: -46, holdMs: 40, release: 120 },
-      chain: [
-        { kind: 'pedal', typeId: 'compressor', enabled: true, params: { threshold: -18, ratio: 3, level: 100 } },
-        { kind: 'amp', typeId: 'acdc', enabled: true, params: { gain: 60, presence: 60, level: 100 } },
-      ],
-    },
-  },
-  {
     name: 'Ambient Clean',
     blurb: 'Chorus + long hall reverb + delay over a Clean amp',
     state: {
@@ -62,18 +50,6 @@ export const DEMO_PRESETS = [
       chain: [
         { kind: 'pedal', typeId: 'distortion', enabled: true, params: { drive: 80, mid: -6, level: 100 } },
         { kind: 'amp', typeId: 'lead', enabled: true, params: { gain: 80, presence: 65, level: 100 } },
-      ],
-    },
-  },
-  {
-    name: 'Dire Straits Glass',
-    blurb: 'Barely-there chorus over the clean compressed Dire Straits amp',
-    state: {
-      inputGainPct: 100, masterVolumePct: 100,
-      noiseGate: { enabled: true, threshold: -52, holdMs: 60, release: 150 },
-      chain: [
-        { kind: 'amp', typeId: 'direstraits', enabled: true, params: { gain: 45, presence: 55, level: 100 } },
-        { kind: 'pedal', typeId: 'chorus', enabled: true, params: { rate: 0.8, depth: 2.5, mix: 22 } },
       ],
     },
   },
@@ -101,6 +77,170 @@ export const DEMO_PRESETS = [
         { kind: 'pedal', typeId: 'autowah', enabled: true, params: { rate: 3.5, depth: 650 } },
         { kind: 'pedal', typeId: 'compressor', enabled: true, params: { threshold: -22, ratio: 5, level: 100 } },
         { kind: 'amp', typeId: 'clean', enabled: true, params: { gain: 30, presence: 50, level: 100 } },
+      ],
+    },
+  },
+  // Band setups, built from the classic amp models and existing pedals. The engine always
+  // runs the amp last, so it is listed last. Sources: BAND-PRESETS-RESEARCH.md.
+  {
+    name: "AC/DC",
+    blurb: 'Back in Black rhythm: no drive pedals, a mild clean boost into a loud, mid-forward Plexi',
+    state: {
+      inputGainPct: 100, masterVolumePct: 100,
+      noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
+      chain: [
+        { kind: 'pedal', typeId: 'boost', enabled: true, params: { level: 130, tone: 0 } },
+        { kind: 'amp', typeId: 'plexi', enabled: true, params: { gain: 65, bass: 45, mid: 62, treble: 60, presence: 50, level: 100 } },
+      ],
+    },
+  },
+  {
+    name: "Led Zeppelin",
+    blurb: 'Whole Lotta Love: boosted Plexi with fat lows and an Echoplex-style tape slap',
+    state: {
+      inputGainPct: 100, masterVolumePct: 100,
+      noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
+      chain: [
+        { kind: 'pedal', typeId: 'boost', enabled: true, params: { level: 130, tone: 3 } },
+        { kind: 'pedal', typeId: 'tapedelay', enabled: true, params: { time: 120, feedback: 15, wobble: 20, mix: 18 } },
+        { kind: 'amp', typeId: 'plexi', enabled: true, params: { gain: 70, bass: 60, mid: 58, treble: 62, presence: 58, level: 100 } },
+      ],
+    },
+  },
+  {
+    name: "Van Halen: You Really Got Me",
+    blurb: 'Brown sound rhythm: Plexi flat out, a little tape echo and plate, no modulation',
+    state: {
+      inputGainPct: 100, masterVolumePct: 100,
+      noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
+      chain: [
+        { kind: 'pedal', typeId: 'boost', enabled: true, params: { level: 150, tone: 0 } },
+        { kind: 'pedal', typeId: 'tapedelay', enabled: true, params: { time: 250, feedback: 15, wobble: 20, mix: 8 } },
+        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'plate', mix: 15 } },
+        { kind: 'amp', typeId: 'plexi', enabled: true, params: { gain: 95, bass: 55, mid: 60, treble: 55, presence: 50, level: 100 } },
+      ],
+    },
+  },
+  {
+    name: "Van Halen: Eruption",
+    blurb: 'Brown sound lead: slow Phase 90 into the dimed Plexi, tape echo and plate',
+    state: {
+      inputGainPct: 100, masterVolumePct: 100,
+      noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
+      chain: [
+        { kind: 'pedal', typeId: 'phase90', enabled: true, params: { rate: 0.35, depth: 1200, feedback: 30, mix: 50 } },
+        { kind: 'pedal', typeId: 'boost', enabled: true, params: { level: 150, tone: 0 } },
+        { kind: 'pedal', typeId: 'tapedelay', enabled: true, params: { time: 250, feedback: 18, wobble: 20, mix: 15 } },
+        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'plate', mix: 18 } },
+        { kind: 'amp', typeId: 'plexi', enabled: true, params: { gain: 95, bass: 55, mid: 60, treble: 55, presence: 50, level: 100 } },
+      ],
+    },
+  },
+  {
+    name: "Jimi Hendrix: Purple Haze",
+    blurb: 'Fuzz Face into a Plexi; switch on the Pitch Shifter (octave up, the Octavia) for the solo',
+    state: {
+      inputGainPct: 100, masterVolumePct: 100,
+      noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
+      chain: [
+        { kind: 'pedal', typeId: 'fuzzface', enabled: true, params: { fuzz: 85, tone: 55, level: 80 } },
+        { kind: 'pedal', typeId: 'pitchshift', enabled: false, params: { semitones: 12, mix: 35 } },
+        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'spring', mix: 12 } },
+        { kind: 'amp', typeId: 'plexi', enabled: true, params: { gain: 35, bass: 50, mid: 58, treble: 62, presence: 58, level: 50 } },
+      ],
+    },
+  },
+  {
+    name: "Guns N\' Roses: Sweet Child O\' Mine",
+    blurb: 'Slash lead: hot-rodded Brit 800 with the mids up, long delay and plate; switch on the Cry Baby for the solo',
+    state: {
+      inputGainPct: 100, masterVolumePct: 100,
+      noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
+      chain: [
+        { kind: 'pedal', typeId: 'crybaby', enabled: false, params: { position: 1200, level: 160 } },
+        { kind: 'pedal', typeId: 'delay', enabled: true, params: { time: 425, feedback: 25, tone: 4000, mix: 15 } },
+        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'plate', mix: 15 } },
+        { kind: 'amp', typeId: 'brit800', enabled: true, params: { gain: 45, bass: 52, mid: 60, treble: 58, presence: 45, level: 100 } },
+      ],
+    },
+  },
+  {
+    name: "Metallica",
+    blurb: 'Hetfield rhythm, the way players copy it: Tube Screamer as a clean push into the Mark IIC+',
+    state: {
+      inputGainPct: 100, masterVolumePct: 100,
+      noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
+      chain: [
+        { kind: 'pedal', typeId: 'ts9', enabled: true, params: { drive: 5, tone: 58, level: 145 } },
+        { kind: 'amp', typeId: 'markiic', enabled: true, params: { gain: 50, bass: 50, mid: 40, treble: 55, presence: 55, level: 100 } },
+      ],
+    },
+  },
+  {
+    name: "The Smiths: Heaven Knows",
+    blurb: 'Marr jangle: light compression, bright Blackface clean, subtle CE-2 chorus and spring reverb',
+    state: {
+      inputGainPct: 100, masterVolumePct: 100,
+      noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
+      chain: [
+        { kind: 'pedal', typeId: 'compressor', enabled: true, params: { threshold: -24, ratio: 3, attack: 10, release: 200, level: 105 } },
+        { kind: 'pedal', typeId: 'ce2', enabled: true, params: { rate: 0.6, depth: 3, feedback: 10, mix: 30 } },
+        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'spring', mix: 20 } },
+        { kind: 'amp', typeId: 'blackface', enabled: true, params: { gain: 40, bass: 45, mid: 50, treble: 65, presence: 55, level: 150 } },
+      ],
+    },
+  },
+  {
+    name: "Pink Floyd: Time",
+    blurb: 'Gilmour solo: Fuzz Face into a loud DR103, Echorec-style 320 ms repeats and plate',
+    state: {
+      inputGainPct: 100, masterVolumePct: 100,
+      noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
+      chain: [
+        { kind: 'pedal', typeId: 'fuzzface', enabled: true, params: { fuzz: 90, tone: 55, level: 14 } },
+        { kind: 'pedal', typeId: 'tapedelay', enabled: true, params: { time: 320, feedback: 30, wobble: 10, mix: 28 } },
+        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'plate', mix: 18 } },
+        { kind: 'amp', typeId: 'dr103', enabled: true, params: { gain: 50, bass: 55, mid: 50, treble: 58, presence: 55, level: 100 } },
+      ],
+    },
+  },
+  {
+    name: "Dire Straits: Sultans of Swing",
+    blurb: 'Knopfler clean: Dyna Comp into a bright Blackface with a little spring reverb',
+    state: {
+      inputGainPct: 100, masterVolumePct: 100,
+      noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
+      chain: [
+        { kind: 'pedal', typeId: 'vintagecomp', enabled: true, params: { sensitivity: 35 } },
+        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'spring', mix: 15 } },
+        { kind: 'amp', typeId: 'blackface', enabled: true, params: { gain: 30, bass: 45, mid: 55, treble: 65, presence: 58, level: 100 } },
+      ],
+    },
+  },
+  {
+    name: "Eric Clapton: 80s Strat",
+    blurb: 'A popular fan recipe: mid-boost EQ into a Tube Screamer and a cranked Blackface, large room reverb',
+    state: {
+      inputGainPct: 100, masterVolumePct: 100,
+      noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
+      chain: [
+        { kind: 'pedal', typeId: 'ge7', enabled: true, params: { band3: 3, band4: 7, band5: 5 } },
+        { kind: 'pedal', typeId: 'ts9', enabled: true, params: { drive: 60, tone: 32, level: 100 } },
+        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'room', mix: 32 } },
+        { kind: 'amp', typeId: 'blackface', enabled: true, params: { gain: 100, bass: 47, mid: 50, treble: 74, presence: 0, level: 45 } },
+      ],
+    },
+  },
+  {
+    name: "Oasis",
+    blurb: 'Noel rhythm wall: Tube Screamer pushing a cranked AC30, a touch of Space Echo',
+    state: {
+      inputGainPct: 100, masterVolumePct: 100,
+      noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
+      chain: [
+        { kind: 'pedal', typeId: 'ts9', enabled: true, params: { drive: 20, tone: 55, level: 120 } },
+        { kind: 'pedal', typeId: 'tapedelay', enabled: true, params: { time: 110, feedback: 15, wobble: 20, mix: 10 } },
+        { kind: 'amp', typeId: 'ac30', enabled: true, params: { gain: 85, bass: 55, mid: 62, treble: 58, presence: 55, level: 65 } },
       ],
     },
   },

@@ -854,7 +854,9 @@ async function restoreState(state) {
 
   engine.clearChain();
   for (const inst of state.chain) {
-    const instanceId = await engine.addToChain(inst.kind, inst.typeId, inst.params);
+    // Saved states may still name the removed band amps; fall back to the nearest standard one.
+    const typeId = { acdc: 'crunch', ledzeppelin: 'crunch', oasis: 'crunch', direstraits: 'clean' }[inst.typeId] || inst.typeId;
+    const instanceId = await engine.addToChain(inst.kind, typeId, inst.params);
     if (!inst.enabled) engine.toggleEnabled(instanceId);
   }
   refreshChainUI();

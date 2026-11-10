@@ -1,4 +1,4 @@
-import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js?v=3';
+import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js?v=4';
 import { driveCurve } from './pedal-registry.js?v=4';
 
 function makeBand(ctx, band) {
@@ -93,7 +93,7 @@ export const AMP_TYPES = [
     blurb: 'Bright, transparent headroom with no breakup — a blank canvas for pedals.',
     about: 'Signal passes through a wide-headroom gain stage that stays under the clipping threshold at any setting, so no distortion harmonics get added — only a flat-ish EQ curve and the cabinet\'s own frequency response shape the tone. Clean is a headroom-y, mostly transparent amp voicing with very light natural compression and no real breakup, even when pushed. It\'s a blank canvas — ideal for building your tone entirely from pedals in front of it, or for genuinely clean rhythm/jazz tones.',
     createNodes: (ctx) => createAmpNodes(ctx, {
-      driveRange: [0.4, 1.6], curveK: 1.5, oversample: 'none', makeup: 8, // ~+18dB, matches AC/DC default RMS at ~0.1 input; tune by ear
+      driveRange: [0.4, 1.6], curveK: 1.5, oversample: 'none', makeup: 60, // calibrated with test-ampcal.html to match Crunch/Lead at ~0.1 input (was 8); tune by ear
       preEQ: [{ type: 'highpass', freq: 60 }],
       postEQ: [
         { type: 'peaking', freq: 3000, Q: 1, gain: 2 },
@@ -141,97 +141,111 @@ export const AMP_TYPES = [
   },
 
   // ---------------------------------------------------------------------
-  // Signature extras — band-inspired voicings, layered on top of the standard library.
+  // Classic amp families. Voicing facts (tone-stack scoop, speaker range, gain structure) are
+  // sourced in BAND-PRESETS-RESEARCH.md; the numbers are estimates fitted to those facts, and
+  // makeup values are calibrated with test-presets.html. Tune by ear.
   // ---------------------------------------------------------------------
   {
-    id: 'acdc', label: 'AC/DC', group: 'signature', color: '#fe0100', accent: '#0d0503', trim: '#ac9e72',
-    blurb: 'Tight, aggressive Marshall-plexi-style crunch — the sound of classic hard rock rhythm.',
-    about: 'Signal hits a tight, fairly symmetric clipping curve with a highpassed low end and a boosted upper-mid peak, keeping each note of a chord distinct instead of smearing together under gain. AC/DC-inspired voicing evokes a tight, aggressive Marshall plexi-style crunch — punchy mids, controlled low end, and just enough grit for driving hard-rock rhythm without turning to mush on chords.',
+    id: 'blackface', label: 'Blackface', group: 'standard', color: 'oklch(30% 0.01 250)',
+    blurb: 'Scooped, sparkling American clean that only breaks up when you crank it.',
+    about: 'A small American combo in the Princeton/Deluxe Reverb mould: a tone stack that dips the mids around 500 Hz, a bright top, and a soft, nearly symmetric clip that stays clean through most of the Gain range and turns to a sweet breakup near the top.',
     createNodes: (ctx) => createAmpNodes(ctx, {
-      // oversample 4x (was 2x) — its drive range peaks nearly as high as Lead's, and 2x
-      // wasn't enough headroom to avoid audible aliasing/"static" on the clipped harmonics.
-      driveRange: [3, 14], curveK: 7, oversample: '4x',
-      preEQ: [{ type: 'highpass', freq: 80 }, { type: 'peaking', freq: 800, Q: 1, gain: 4 }],
+      driveRange: [0.5, 10], curveK: 2, oversample: '2x', makeup: 5,
+      preEQ: [{ type: 'highpass', freq: 70 }],
       postEQ: [
-        { type: 'peaking', freq: 3000, Q: 1.2, gain: 5 },
-        { type: 'peaking', freq: 500, Q: 1, gain: -2 },
-        { type: 'lowshelf', freq: 100, gain: -3 },
-        { type: 'highshelf', freq: 6000, gain: -2 },
-      ],
-      presenceBandIndex: 0, presenceMaxDb: 6,
-      // resonanceQ eased from 3 to 2.4 — the narrower peak was ringing right where aliasing
-      // artifacts sit, compounding the "static" character.
-      cab: { resonanceHz: 2800, resonanceQ: 2.4, lowpassHz: 5000, highpassHz: 100, decayMs: 15, reflections: 2 },
-    }),
-    params: ampParams(),
-  },
-  {
-    id: 'ledzeppelin', label: 'Led Zeppelin', group: 'signature', color: '#a7a195', accent: '#030207', trim: '#fdf7e7',
-    blurb: 'Looser, bluesier vintage crunch with a fuller, woodier low end.',
-    about: 'Signal is pushed through a deliberately asymmetric clipping curve (a slight DC bias skews the waveform unevenly), which generates even-order harmonics for a softer, "sagging" breakup instead of a tight symmetric crunch, under a broad woody midrange bump. Led Zeppelin-inspired voicing goes for a looser, bluesier vintage Marshall/Supro-style crunch — fuller low end, a broad woody midrange bump, and a slightly asymmetric, "sagging" drive character rather than a tight, aggressive one.',
-    createNodes: (ctx) => createAmpNodes(ctx, {
-      // oversample 4x (was 2x) and curveBias eased (was 0.05) — the asymmetric clip that
-      // gives this amp its "looser" character also generates more intermodulation mud
-      // between simultaneous notes than a symmetric curve; less bias + more anti-aliasing
-      // headroom keeps chords readable without fully sanitizing the vintage sag character.
-      driveRange: [2, 10], curveK: 5, curveBias: 0.035, oversample: '4x',
-      // highpass raised 50Hz -> 65Hz — less uncontrolled low end hitting the drive stage,
-      // which is the main source of "boxy"/undefined mud specifically on chords.
-      preEQ: [{ type: 'highpass', freq: 65 }, { type: 'peaking', freq: 300, Q: 0.8, gain: 3 }],
-      postEQ: [
-        { type: 'peaking', freq: 650, Q: 0.7, gain: 2.5 },
-        { type: 'peaking', freq: 2200, Q: 1, gain: 2 },
-        { type: 'lowshelf', freq: 100, gain: 2 },
-      ],
-      presenceBandIndex: 1, presenceMaxDb: 6,
-      cab: { resonanceHz: 2200, resonanceQ: 1.8, lowpassHz: 4500, highpassHz: 90, decayMs: 23, reflections: 3 },
-    }),
-    params: ampParams(),
-  },
-  {
-    id: 'oasis', label: 'Oasis', group: 'signature', color: '#dec182', accent: '#3e7474', trim: '#a3b49a',
-    blurb: 'Big, bright Britpop crunch — driven enough to feel massive, tuned to keep chords readable.',
-    about: 'Signal is driven hot into saturation for a thick, bright rhythm crunch, but the gain ceiling and EQ are deliberately reined in from a full "wall of sound" so strummed chords stay legible rather than turning into a wash — a lot of gain on several simultaneous notes creates intermodulation mush, and cutting mids (the classic scooped-metal move) removes the band chord-tone separation actually lives in. Oasis-inspired voicing goes for a bright, driven Marshall JCM rhythm tone built for chord-heavy Britpop strumming (Wonderwall, Don\'t Look Back in Anger, Champagne Supernova) rather than layered lead-guitar walls.',
-    createNodes: (ctx) => createAmpNodes(ctx, {
-      // driveRange/curveK pulled back from an earlier [8,30]/k=12 (the hottest, most
-      // scooped config of the four signature amps) specifically because that combo
-      // shredded chord clarity — great for single-note riffs, mud on strummed chords.
-      driveRange: [6, 20], curveK: 9, oversample: '4x',
-      // tighter highpass (75Hz, was 70) keeps low strings from smearing into the clipper
-      preEQ: [{ type: 'highpass', freq: 75 }, { type: 'peaking', freq: 1000, Q: 1, gain: 3 }],
-      postEQ: [
-        // presence peak eased (was +6dB) — the old setting sat right on top of chord
-        // overtones and read as harsh/undefined once several notes were ringing together
-        { type: 'peaking', freq: 3800, Q: 1, gain: 4 },
-        // mid scoop nearly removed (was -3dB) — mids are where chord-tone separation
-        // lives; scooping them is what made strummed chords unreadable
-        { type: 'peaking', freq: 500, Q: 1, gain: -1 },
-        { type: 'lowshelf', freq: 90, gain: 2 },
-        { type: 'highshelf', freq: 6500, gain: 2 },
+        { type: 'peaking', freq: 3500, Q: 1, gain: 2 },
+        { type: 'peaking', freq: 500, Q: 0.8, gain: -4 },
+        { type: 'highshelf', freq: 6000, gain: 2 },
       ],
       presenceBandIndex: 0, presenceMaxDb: 5,
-      // tighter cab response (Q 2.4->2.0, decay 20ms->16ms) — a longer resonant ring
-      // blurs the onset of several simultaneous notes into each other
-      cab: { resonanceHz: 3200, resonanceQ: 2, lowpassHz: 5200, highpassHz: 100, decayMs: 16, reflections: 3 },
+      cab: { resonanceHz: 2600, resonanceQ: 1.7, lowpassHz: 5500, highpassHz: 85, decayMs: 14, reflections: 1 },
     }),
     params: ampParams(),
   },
   {
-    id: 'direstraits', label: 'Dire Straits', group: 'signature', color: '#6c90f9', accent: '#91838e', trim: '#dcddee',
-    blurb: 'Glassy, clean, compressed Strat tone with a distinctive "quack."',
-    about: 'Signal barely reaches the clipping threshold at all — the input gain stage is set very low, so almost no distortion harmonics are added. Instead a built-in compressor evens out picking dynamics and a scooped-mid, boosted-treble EQ curve produces the glassy "quack." Dire Straits-inspired voicing is a near-clean, subtly compressed tone with a glassy top end and the scooped-mid "quack" character associated with a single-coil Strat played clean. Barely any distortion — the character comes from the EQ shape and built-in compression, not grit.',
+    id: 'plexi', label: 'Plexi', group: 'standard', color: 'oklch(28% 0.02 60)',
+    blurb: 'Loud, mid-forward British stack: clean at low Gain, roaring when turned up.',
+    about: 'A non-master-volume British 100-watt head in the Super Lead mould. A simple preamp with two gain stages, so it is not a high-gain amp: low Gain is nearly clean, and the crunch arrives as you turn it up, with an upper-mid bite and a 4x12 that rolls off above 5 kHz.',
     createNodes: (ctx) => createAmpNodes(ctx, {
-      driveRange: [0.6, 3], curveK: 2.5, oversample: '2x',
-      preEQ: [{ type: 'highpass', freq: 60 }, { type: 'peaking', freq: 2500, Q: 1, gain: 1 }],
+      driveRange: [0.6, 12], curveK: 3, oversample: '2x', makeup: 1.6,
+      preEQ: [{ type: 'highpass', freq: 80 }, { type: 'peaking', freq: 800, Q: 0.8, gain: 3 }],
       postEQ: [
-        { type: 'peaking', freq: 3500, Q: 1, gain: 4 },
-        { type: 'peaking', freq: 550, Q: 1.4, gain: -3 },
-        { type: 'highshelf', freq: 8000, gain: 2 },
-        { type: 'lowshelf', freq: 100, gain: -1 },
+        { type: 'peaking', freq: 2400, Q: 1, gain: 4 },
+        { type: 'lowshelf', freq: 110, gain: 1 },
+        { type: 'highshelf', freq: 6500, gain: -2 },
       ],
       presenceBandIndex: 0, presenceMaxDb: 6,
-      builtInCompressor: { ratio: 4, threshold: -24, attack: 0.005, release: 0.15 },
-      cab: { resonanceHz: 3700, resonanceQ: 2, lowpassHz: 6800, highpassHz: 100, decayMs: 12, reflections: 1 },
+      cab: { resonanceHz: 2400, resonanceQ: 2.2, lowpassHz: 5000, highpassHz: 100, decayMs: 18, reflections: 2 },
+    }),
+    params: ampParams(),
+  },
+  {
+    id: 'brit800', label: 'Brit 800', group: 'standard', color: 'oklch(22% 0.01 60)',
+    blurb: 'Master-volume British head: tighter and hotter than the Plexi, short of full metal.',
+    about: 'A master-volume British head in the JCM800 2203 mould. An extra preamp gain stage gives it more gain and a harder edge than the Plexi, with snarling upper mids. It sits between Crunch and Lead.',
+    createNodes: (ctx) => createAmpNodes(ctx, {
+      driveRange: [1.2, 18], curveK: 7, oversample: '4x',
+      preEQ: [{ type: 'highpass', freq: 100 }, { type: 'peaking', freq: 1000, Q: 0.9, gain: 3 }],
+      postEQ: [
+        { type: 'peaking', freq: 2800, Q: 1, gain: 5 },
+        { type: 'lowshelf', freq: 100, gain: -1 },
+        { type: 'highshelf', freq: 6000, gain: -1 },
+      ],
+      presenceBandIndex: 0, presenceMaxDb: 7,
+      cab: { resonanceHz: 2800, resonanceQ: 2.2, lowpassHz: 5000, highpassHz: 100, decayMs: 18, reflections: 2 },
+    }),
+    params: ampParams(),
+  },
+  {
+    id: 'ac30', label: 'AC30', group: 'standard', color: 'oklch(35% 0.04 40)',
+    blurb: 'Chimey British combo: jangly cleans that slide smoothly into a gritty breakup.',
+    about: 'A British combo in the AC30 Top Boost mould: no mid control, no negative feedback, and a cathode-biased class AB output stage, so it chimes in the upper mids, runs light in the lows, and breaks up early and gradually with a slightly asymmetric clip.',
+    createNodes: (ctx) => createAmpNodes(ctx, {
+      driveRange: [0.8, 9], curveK: 3.5, curveBias: 0.03, oversample: '2x', makeup: 2.5,
+      preEQ: [{ type: 'highpass', freq: 110 }, { type: 'peaking', freq: 1400, Q: 0.8, gain: 2 }],
+      postEQ: [
+        { type: 'peaking', freq: 3200, Q: 1.1, gain: 4 },
+        { type: 'lowshelf', freq: 120, gain: -2 },
+        { type: 'highshelf', freq: 7000, gain: 1.5 },
+      ],
+      presenceBandIndex: 0, presenceMaxDb: 6,
+      cab: { resonanceHz: 3000, resonanceQ: 2.2, lowpassHz: 5200, highpassHz: 110, decayMs: 15, reflections: 1 },
+    }),
+    params: ampParams(),
+  },
+  {
+    id: 'dr103', label: 'DR103', group: 'standard', color: 'oklch(25% 0.005 250)',
+    blurb: 'Huge British clean headroom with full mids: a loud, firm platform for fuzz and delay.',
+    about: 'A 100-watt British head in the Hiwatt DR103 mould, built for headroom rather than distortion: big, punchy cleans, a full low end and present mids, with only a light edge at the top of the Gain range.',
+    createNodes: (ctx) => createAmpNodes(ctx, {
+      driveRange: [0.4, 4], curveK: 2, oversample: '2x', makeup: 7,
+      preEQ: [{ type: 'highpass', freq: 55 }],
+      postEQ: [
+        { type: 'peaking', freq: 3200, Q: 1, gain: 2 },
+        { type: 'lowshelf', freq: 100, gain: 1.5 },
+        { type: 'peaking', freq: 1000, Q: 0.8, gain: 1.5 },
+      ],
+      presenceBandIndex: 0, presenceMaxDb: 5,
+      cab: { resonanceHz: 2800, resonanceQ: 1.8, lowpassHz: 5400, highpassHz: 80, decayMs: 16, reflections: 2 },
+    }),
+    params: ampParams(),
+  },
+  {
+    id: 'markiic', label: 'Mark IIC+', group: 'standard', color: 'oklch(20% 0.01 280)',
+    blurb: 'Tight, saturated California lead with the graphic-EQ V: the thrash rhythm sound.',
+    about: 'A cascaded-gain California head in the Mark IIC+ mould. Bass is cut before the gain stages so palm mutes stay tight, the lead channel is saturated throughout, and a post-gain five-band V curve (80, 240, 750, 2200, 6600 Hz) scoops 750 Hz and lifts the rest.',
+    createNodes: (ctx) => createAmpNodes(ctx, {
+      driveRange: [5, 28], curveK: 10, oversample: '4x',
+      preEQ: [{ type: 'highpass', freq: 135 }, { type: 'peaking', freq: 1000, Q: 1, gain: 3 }],
+      postEQ: [
+        { type: 'peaking', freq: 2200, Q: 0.9, gain: 3 },
+        { type: 'lowshelf', freq: 80, gain: 3 },
+        { type: 'peaking', freq: 240, Q: 0.7, gain: 1 },
+        { type: 'peaking', freq: 750, Q: 0.7, gain: -6 },
+        { type: 'highshelf', freq: 6600, gain: 3 },
+      ],
+      presenceBandIndex: 0, presenceMaxDb: 8,
+      cab: { resonanceHz: 3200, resonanceQ: 2.4, lowpassHz: 5000, highpassHz: 100, decayMs: 16, reflections: 2 },
     }),
     params: ampParams(),
   },
