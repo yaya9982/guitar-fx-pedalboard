@@ -233,16 +233,20 @@ export const AMP_TYPES = [
   {
     id: 'markiic', label: 'Mark IIC+', group: 'standard', color: 'oklch(20% 0.01 280)',
     blurb: 'Tight, saturated California lead with the graphic-EQ V: the thrash rhythm sound.',
-    about: 'A cascaded-gain California head in the Mark IIC+ mould. Bass is cut before the gain stages so palm mutes stay tight, the lead channel is saturated throughout, and a post-gain five-band V curve (80, 240, 750, 2200, 6600 Hz) scoops 750 Hz and lifts the rest.',
+    about: 'A cascaded-gain California head in the Mark IIC+ mould. Bass is cut before the gain stages so palm mutes stay tight, the lead channel is saturated throughout, and a post-gain five-band graphic EQ (80, 240, 750, 2200, 6600 Hz) is set to the classic thrash curve: lows lifted, a deep 750 Hz scoop, slight cuts at 240 and 2200 Hz, a small lift at 6600 Hz.',
     createNodes: (ctx) => createAmpNodes(ctx, {
       driveRange: [5, 28], curveK: 10, oversample: '4x',
       preEQ: [{ type: 'highpass', freq: 135 }, { type: 'peaking', freq: 1000, Q: 1, gain: 3 }],
+      // Index 0 is the Presence band (its gain is set by the knob). The rest is the post-gain
+      // five-band graphic EQ (80/240/750/2200/6600 Hz) set to the thrash curve from the
+      // Tone Master Pro Metallica screenshot: +2.5, -1.4, -10.9, -2.8, +2.0 dB.
       postEQ: [
-        { type: 'peaking', freq: 2200, Q: 0.9, gain: 3 },
-        { type: 'lowshelf', freq: 80, gain: 3 },
-        { type: 'peaking', freq: 240, Q: 0.7, gain: 1 },
-        { type: 'peaking', freq: 750, Q: 0.7, gain: -6 },
-        { type: 'highshelf', freq: 6600, gain: 3 },
+        { type: 'peaking', freq: 4000, Q: 1, gain: 0 },
+        { type: 'lowshelf', freq: 80, gain: 2.5 },
+        { type: 'peaking', freq: 240, Q: 0.7, gain: -1.4 },
+        { type: 'peaking', freq: 750, Q: 0.7, gain: -10.9 },
+        { type: 'peaking', freq: 2200, Q: 0.9, gain: -2.8 },
+        { type: 'highshelf', freq: 6600, gain: 2 },
       ],
       presenceBandIndex: 0, presenceMaxDb: 8,
       cab: { resonanceHz: 3200, resonanceQ: 2.4, lowpassHz: 5000, highpassHz: 100, decayMs: 16, reflections: 2 },

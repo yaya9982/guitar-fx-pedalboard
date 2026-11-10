@@ -80,30 +80,32 @@ export const DEMO_PRESETS = [
       ],
     },
   },
-  // Band setups, built from the classic amp models and existing pedals. The engine always
-  // runs the amp last, so it is listed last. Sources: BAND-PRESETS-RESEARCH.md.
+  // Band setups, built from the classic amp models and existing pedals. The engine always runs
+  // the amp last, so it is listed last. Where a Tone Master Pro screenshot exists, its knob values are
+  // copied (percent knobs map straight across; level/output knobs map 50% = unity). Notes: BAND-PRESETS-RESEARCH.md.
   {
-    name: "AC/DC",
-    blurb: 'Back in Black rhythm: no drive pedals, a mild clean boost into a loud, mid-forward Plexi',
+    name: "AC/DC: Thunderstruck",
+    blurb: 'Angus rig from the video: a nearly clean Klon-style boost into a mid-forward Plexi, big plate reverb',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
       noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
       chain: [
-        { kind: 'pedal', typeId: 'boost', enabled: true, params: { level: 130, tone: 0 } },
-        { kind: 'amp', typeId: 'plexi', enabled: true, params: { gain: 65, bass: 45, mid: 62, treble: 60, presence: 50, level: 100 } },
+        { kind: 'pedal', typeId: 'klon', enabled: true, params: { gain: 8, treble: -3.4, level: 152 } },
+        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'plate', mix: 25 } },
+        { kind: 'amp', typeId: 'plexi', enabled: true, params: { gain: 70, bass: 35, mid: 76, treble: 50, presence: 63, level: 78 } },
       ],
     },
   },
   {
     name: "Led Zeppelin",
-    blurb: 'Whole Lotta Love: boosted Plexi with fat lows and an Echoplex-style tape slap',
+    blurb: 'Jimmy Page recipe from the video: Tube Screamer-style drive into a cranked Princeton-style Blackface (a stand-in for the Supro), big room reverb',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
       noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
       chain: [
-        { kind: 'pedal', typeId: 'boost', enabled: true, params: { level: 130, tone: 3 } },
-        { kind: 'pedal', typeId: 'tapedelay', enabled: true, params: { time: 120, feedback: 15, wobble: 20, mix: 18 } },
-        { kind: 'amp', typeId: 'plexi', enabled: true, params: { gain: 70, bass: 60, mid: 58, treble: 62, presence: 58, level: 100 } },
+        { kind: 'pedal', typeId: 'ts9', enabled: true, params: { drive: 29, tone: 40, level: 138 } },
+        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'room', mix: 45 } },
+        { kind: 'amp', typeId: 'blackface', enabled: true, params: { gain: 100, bass: 53, mid: 50, treble: 64, presence: 0, level: 58 } },
       ],
     },
   },
@@ -138,41 +140,58 @@ export const DEMO_PRESETS = [
   },
   {
     name: "Jimi Hendrix: Purple Haze",
-    blurb: 'Fuzz Face into a Plexi; switch on the Pitch Shifter (octave up, the Octavia) for the solo',
+    blurb: 'Recipe from the video: mid-lift EQ, treble boost and germanium fuzz into a Plexi with bass and mids pulled back; switch on the Pitch Shifter (octave up) for the solo',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
       noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
       chain: [
-        { kind: 'pedal', typeId: 'fuzzface', enabled: true, params: { fuzz: 85, tone: 55, level: 80 } },
+        { kind: 'pedal', typeId: 'ge7', enabled: true, params: { band2: 1.4, band5: 4.5 } },
+        { kind: 'pedal', typeId: 'boost', enabled: true, params: { level: 150, tone: 6 } },
+        { kind: 'pedal', typeId: 'fuzzface', enabled: true, params: { fuzz: 50, tone: 50, level: 150 } },
         { kind: 'pedal', typeId: 'pitchshift', enabled: false, params: { semitones: 12, mix: 35 } },
-        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'spring', mix: 12 } },
-        { kind: 'amp', typeId: 'plexi', enabled: true, params: { gain: 35, bass: 50, mid: 58, treble: 62, presence: 58, level: 50 } },
+        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'spring', mix: 45 } },
+        { kind: 'amp', typeId: 'plexi', enabled: true, params: { gain: 35, bass: 18, mid: 28, treble: 69, presence: 68, level: 58 } },
       ],
     },
   },
   {
-    name: "Guns N\' Roses: Sweet Child O\' Mine",
-    blurb: 'Slash lead: hot-rodded Brit 800 with the mids up, long delay and plate; switch on the Cry Baby for the solo',
+    name: "Guns N' Roses: Sweet Child O' Mine",
+    blurb: 'Slash riff tone from the video: treble boost into a hot Brit 800 with the treble up, light tape echo; Cry Baby off until the solo',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
       noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
       chain: [
         { kind: 'pedal', typeId: 'crybaby', enabled: false, params: { position: 1200, level: 160 } },
-        { kind: 'pedal', typeId: 'delay', enabled: true, params: { time: 425, feedback: 25, tone: 4000, mix: 15 } },
-        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'plate', mix: 15 } },
-        { kind: 'amp', typeId: 'brit800', enabled: true, params: { gain: 45, bass: 52, mid: 60, treble: 58, presence: 45, level: 100 } },
+        { kind: 'pedal', typeId: 'boost', enabled: true, params: { level: 174, tone: 6 } },
+        { kind: 'pedal', typeId: 'tapedelay', enabled: true, params: { time: 500, feedback: 10, wobble: 20, mix: 8 } },
+        { kind: 'amp', typeId: 'brit800', enabled: true, params: { gain: 50, bass: 61, mid: 55, treble: 89, presence: 50, level: 94 } },
+      ],
+    },
+  },
+  {
+    name: "Red Hot Chili Peppers: Can't Stop",
+    blurb: 'Frusciante tone from the video: gentle 1176-style compression and a treble boost into a Plexi with the mids up, spring reverb',
+    state: {
+      inputGainPct: 100, masterVolumePct: 100,
+      noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
+      chain: [
+        { kind: 'pedal', typeId: 'compressor', enabled: true, params: { threshold: -20, ratio: 4, attack: 1, release: 400, level: 100 } },
+        { kind: 'pedal', typeId: 'boost', enabled: true, params: { level: 159, tone: 6 } },
+        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'spring', mix: 26 } },
+        { kind: 'amp', typeId: 'plexi', enabled: true, params: { gain: 50, bass: 53, mid: 69, treble: 50, presence: 64, level: 109 } },
       ],
     },
   },
   {
     name: "Metallica",
-    blurb: 'Hetfield rhythm, the way players copy it: Tube Screamer as a clean push into the Mark IIC+',
+    blurb: 'Hetfield tone from the video: low-drive Tube Screamer push into a Mark IIC+ with the mids at zero and the 750 Hz graphic-EQ scoop, a touch of room',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
       noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
       chain: [
-        { kind: 'pedal', typeId: 'ts9', enabled: true, params: { drive: 5, tone: 58, level: 145 } },
-        { kind: 'amp', typeId: 'markiic', enabled: true, params: { gain: 50, bass: 50, mid: 40, treble: 55, presence: 55, level: 100 } },
+        { kind: 'pedal', typeId: 'ts9', enabled: true, params: { drive: 5, tone: 50, level: 100 } },
+        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'room', mix: 6 } },
+        { kind: 'amp', typeId: 'markiic', enabled: true, params: { gain: 90, bass: 18, mid: 0, treble: 90, presence: 18, level: 150 } },
       ],
     },
   },
@@ -192,15 +211,18 @@ export const DEMO_PRESETS = [
   },
   {
     name: "Pink Floyd: Time",
-    blurb: 'Gilmour solo: Fuzz Face into a loud DR103, Echorec-style 320 ms repeats and plate',
+    blurb: 'Gilmour recipe from the video (2000s era): two compressors and a mild overdrive into a Hiwatt-style DR103, tape echo and a big hall; switch on the Big Muff for the solo',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
       noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
       chain: [
-        { kind: 'pedal', typeId: 'fuzzface', enabled: true, params: { fuzz: 90, tone: 55, level: 14 } },
-        { kind: 'pedal', typeId: 'tapedelay', enabled: true, params: { time: 320, feedback: 30, wobble: 10, mix: 28 } },
-        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'plate', mix: 18 } },
-        { kind: 'amp', typeId: 'dr103', enabled: true, params: { gain: 50, bass: 55, mid: 50, treble: 58, presence: 55, level: 100 } },
+        { kind: 'pedal', typeId: 'vintagecomp', enabled: true, params: { sensitivity: 30 } },
+        { kind: 'pedal', typeId: 'cs3', enabled: true, params: { threshold: -30, attackRelease: 50, level: 100 } },
+        { kind: 'pedal', typeId: 'overdrive', enabled: true, params: { drive: 34, tone: 40, level: 50 } },
+        { kind: 'pedal', typeId: 'bigmuff', enabled: false, params: { sustain: 60, tone: 40, level: 100 } },
+        { kind: 'pedal', typeId: 'tapedelay', enabled: true, params: { time: 350, feedback: 15, wobble: 20, mix: 29 } },
+        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'hall', mix: 32 } },
+        { kind: 'amp', typeId: 'dr103', enabled: true, params: { gain: 57, bass: 31, mid: 42, treble: 48, presence: 48, level: 92 } },
       ],
     },
   },
@@ -219,28 +241,29 @@ export const DEMO_PRESETS = [
   },
   {
     name: "Eric Clapton: 80s Strat",
-    blurb: 'A popular fan recipe: mid-boost EQ into a Tube Screamer and a cranked Blackface, large room reverb',
+    blurb: 'Fan recipe from the video: mid-boost EQ into a Tube Screamer and a cranked Princeton-style Blackface, large room reverb',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
       noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
       chain: [
-        { kind: 'pedal', typeId: 'ge7', enabled: true, params: { band3: 3, band4: 7, band5: 5 } },
-        { kind: 'pedal', typeId: 'ts9', enabled: true, params: { drive: 60, tone: 32, level: 100 } },
+        { kind: 'pedal', typeId: 'ge7', enabled: true, params: { band3: 2.6, band4: 7.4, band5: 5.4 } },
+        { kind: 'pedal', typeId: 'ts9', enabled: true, params: { drive: 60, tone: 32, level: 180 } },
         { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'room', mix: 32 } },
-        { kind: 'amp', typeId: 'blackface', enabled: true, params: { gain: 100, bass: 47, mid: 50, treble: 74, presence: 0, level: 45 } },
+        { kind: 'amp', typeId: 'blackface', enabled: true, params: { gain: 100, bass: 47, mid: 50, treble: 74, presence: 0, level: 33 } },
       ],
     },
   },
   {
     name: "Oasis",
-    blurb: 'Noel rhythm wall: Tube Screamer pushing a cranked AC30, a touch of Space Echo',
+    blurb: 'Noel and Gem Archer from the video: Klon-style drive into a Bluesbreaker-style Plexi, Memory Man echo, room reverb',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
       noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
       chain: [
-        { kind: 'pedal', typeId: 'ts9', enabled: true, params: { drive: 20, tone: 55, level: 120 } },
-        { kind: 'pedal', typeId: 'tapedelay', enabled: true, params: { time: 110, feedback: 15, wobble: 20, mix: 10 } },
-        { kind: 'amp', typeId: 'ac30', enabled: true, params: { gain: 85, bass: 55, mid: 62, treble: 58, presence: 55, level: 65 } },
+        { kind: 'pedal', typeId: 'klon', enabled: true, params: { gain: 40, treble: 3.4, level: 138 } },
+        { kind: 'pedal', typeId: 'analogdelay', enabled: true, params: { time: 350, feedback: 50, mix: 27 } },
+        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'room', mix: 38 } },
+        { kind: 'amp', typeId: 'plexi', enabled: true, params: { gain: 46, bass: 40, mid: 44, treble: 70, presence: 64, level: 106 } },
       ],
     },
   },
