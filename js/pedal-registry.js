@@ -58,6 +58,10 @@ export function tremoloWaveCurve(t, samples = 4096) {
 
 // Shared param appliers/nodes — these were copy-pasted per pedal.
 const setMix = (n, v) => { n.wet.gain.value = v / 100; n.dry.gain.value = 1 - v / 100; };
+// Delay/reverb pedals: the dry signal stays at full level and the wet signal tops out at 30% (about -10 dB),
+// so echoes and reverb sit well behind the guitar even at Mix 100. Toned down on request; raise TIME_WET_MAX to bring them back.
+const TIME_WET_MAX = 0.3;
+const setTimeMix = (n, v) => { n.wet.gain.value = TIME_WET_MAX * v / 100; n.dry.gain.value = 1; };
 const setLevel = (n, v) => (n.level.gain.value = v / 100);
 
 // Chorus and Flanger are the same topology (LFO-modulated delay + feedback + dry/wet), differing only in constants.
@@ -862,7 +866,7 @@ export const PEDAL_TYPES = [
       { key: 'time', label: 'Time', min: 20, max: 2000, default: 350, unit: 'ms', apply: (n, v, ctx) => n.delay.delayTime.linearRampToValueAtTime(v / 1000, ctx.currentTime + 0.05) },
       { key: 'feedback', label: 'Feedback', min: 0, max: 90, default: 35, unit: '%', apply: (n, v) => (n.feedback.gain.value = v / 100) },
       { key: 'tone', label: 'Tone', min: 1000, max: 8000, default: 4000, unit: 'Hz', apply: (n, v) => (n.toneFilter.frequency.value = v) },
-      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 35, unit: '%', apply: setMix },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 35, unit: '%', apply: setTimeMix },
     ],
   },
   {
@@ -884,7 +888,7 @@ export const PEDAL_TYPES = [
         options: Object.keys(REVERB_TYPES).map((id) => ({ value: id, label: REVERB_TYPES[id].label })),
         apply: async (n, v, ctx) => { n.convolver.buffer = await generateReverbIR(ctx.sampleRate, v); n.currentType = v; },
       },
-      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 30, unit: '%', apply: setMix },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 30, unit: '%', apply: setTimeMix },
     ],
   },
   {
@@ -909,7 +913,7 @@ export const PEDAL_TYPES = [
     },
     params: [
       { key: 'feedback', label: 'Feedback', min: 0, max: 85, default: 55, unit: '%', apply: (n, v) => (n.feedback.gain.value = v / 100) },
-      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 40, unit: '%', apply: setMix },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 40, unit: '%', apply: setTimeMix },
     ],
   },
   {
@@ -932,7 +936,7 @@ export const PEDAL_TYPES = [
     },
     params: [
       { key: 'sensitivity', label: 'Sensitivity', min: 0.2, max: 4, default: 1.5, apply: (n, v) => (n.follower.parameters.get('sensitivity').value = v) },
-      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 60, unit: '%', apply: setMix },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 60, unit: '%', apply: setTimeMix },
     ],
   },
   {
@@ -955,7 +959,7 @@ export const PEDAL_TYPES = [
     params: [
       { key: 'time', label: 'Time', min: 20, max: 2000, default: 350, unit: 'ms', apply: (n, v, ctx) => n.delay.delayTime.linearRampToValueAtTime(v / 1000, ctx.currentTime + 0.05) },
       { key: 'feedback', label: 'Feedback', min: 0, max: 90, default: 40, unit: '%', apply: (n, v) => (n.feedback.gain.value = v / 100) },
-      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 35, unit: '%', apply: setMix },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 35, unit: '%', apply: setTimeMix },
     ],
   },
   {
@@ -983,7 +987,7 @@ export const PEDAL_TYPES = [
       { key: 'time', label: 'Time', min: 20, max: 2000, default: 350, unit: 'ms', apply: (n, v, ctx) => n.delay.delayTime.linearRampToValueAtTime(v / 1000, ctx.currentTime + 0.05) },
       { key: 'feedback', label: 'Feedback', min: 0, max: 90, default: 38, unit: '%', apply: (n, v) => (n.feedback.gain.value = v / 100) },
       { key: 'wobble', label: 'Wobble', min: 0, max: 100, default: 40, unit: '%', apply: (n, v) => (n.wobbleDepth.gain.value = (v / 100) * 0.003) },
-      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 35, unit: '%', apply: setMix },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 35, unit: '%', apply: setTimeMix },
     ],
   },
 
