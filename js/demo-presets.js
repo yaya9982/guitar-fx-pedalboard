@@ -211,18 +211,18 @@ export const DEMO_PRESETS = [
   },
   {
     name: "Pink Floyd: Time",
-    blurb: 'Gilmour recipe from the video (2000s era): two compressors and a mild overdrive into a Hiwatt-style DR103, tape echo and a big hall; switch on the Big Muff for the solo',
+    blurb: 'Gilmour recipe from the video (2000s era): two compressors and a pushed overdrive into a cranked Hiwatt-style DR103, tape echo and a big hall; switch on the Big Muff for the solo',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
       noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
       chain: [
         { kind: 'pedal', typeId: 'vintagecomp', enabled: true, params: { sensitivity: 30 } },
         { kind: 'pedal', typeId: 'cs3', enabled: true, params: { threshold: -30, attackRelease: 50, level: 100 } },
-        { kind: 'pedal', typeId: 'overdrive', enabled: true, params: { drive: 34, tone: 40, level: 50 } },
+        { kind: 'pedal', typeId: 'overdrive', enabled: true, params: { drive: 70, tone: 45, level: 120 } },
         { kind: 'pedal', typeId: 'bigmuff', enabled: false, params: { sustain: 60, tone: 40, level: 100 } },
         { kind: 'pedal', typeId: 'tapedelay', enabled: true, params: { time: 350, feedback: 15, wobble: 20, mix: 29 } },
         { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'hall', mix: 32 } },
-        { kind: 'amp', typeId: 'dr103', enabled: true, params: { gain: 57, bass: 31, mid: 42, treble: 48, presence: 48, level: 92 } },
+        { kind: 'amp', typeId: 'dr103', enabled: true, params: { gain: 90, bass: 31, mid: 42, treble: 48, presence: 48, level: 22 } },
       ],
     },
   },
@@ -255,13 +255,12 @@ export const DEMO_PRESETS = [
   },
   {
     name: "Oasis",
-    blurb: 'Noel and Gem Archer from the video: Klon-style drive into a Bluesbreaker-style Plexi, Memory Man echo, room reverb',
+    blurb: 'Noel and Gem Archer from the video: Klon-style drive into a Bluesbreaker-style Plexi, room reverb',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
       noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
       chain: [
         { kind: 'pedal', typeId: 'klon', enabled: true, params: { gain: 40, treble: 3.4, level: 138 } },
-        { kind: 'pedal', typeId: 'analogdelay', enabled: true, params: { time: 350, feedback: 50, mix: 27 } },
         { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'room', mix: 38 } },
         { kind: 'amp', typeId: 'plexi', enabled: true, params: { gain: 46, bass: 40, mid: 44, treble: 70, presence: 64, level: 106 } },
       ],
