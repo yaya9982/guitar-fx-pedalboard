@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Guitar FX Pedalboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="style.css?v=39">
+<link rel="stylesheet" href="style.css?v=40">
 <script>
   (function () {
     var root = document.documentElement;
@@ -189,10 +189,27 @@
         </span>
         <button type="button" id="looperSourceBtn" class="looper-btn toggle" disabled title="Choose what plays back: guitar only, or guitar + screen audio mixed together">Source: Guitar</button>
       </div>
-      <canvas id="looperWaveform" class="looper-waveform" width="640" height="90"></canvas>
+      <div class="looper-wave-wrap" id="looperWaveWrap">
+        <canvas id="looperWaveform" class="looper-waveform" width="640" height="90"></canvas>
+        <div id="looperTrimSel" class="trim-sel" hidden>
+          <div class="trim-h l" data-edge="l" title="Drag to trim the start"></div>
+          <div class="trim-h r" data-edge="r" title="Drag to trim the end"></div>
+        </div>
+      </div>
       <div class="looper-seek-row">
         <input type="range" id="looperSeekRange" class="looper-seek" min="0" max="0" step="0.01" value="0" disabled>
         <span id="looperTimeLabel" class="looper-time">0:00 / 0:00</span>
+      </div>
+      <div class="looper-edit-row">
+        <label>Volume
+          <input type="range" id="looperVolRange" min="0" max="150" value="100" title="Loop playback volume (does not affect the downloaded file)">
+          <output id="looperVolValue">100%</output>
+        </label>
+      </div>
+      <div class="looper-edit-row">
+        <span id="looperTrimLabel" class="looper-time">Drag the yellow edges on the waveform to trim</span>
+        <button type="button" id="looperTrimBtn" class="looper-btn" disabled>Trim</button>
+        <button type="button" id="looperTrimResetBtn" class="looper-btn" disabled>Reset trim</button>
       </div>
       <div id="looperStatus" class="looper-status">No recording yet.</div>
 
@@ -533,6 +550,6 @@
   </div>
 </template>
 
-<script type="module" src="js/main.js?v=44"></script>
+<script type="module" src="js/main.js?v=45"></script>
 </body>
 </html>
