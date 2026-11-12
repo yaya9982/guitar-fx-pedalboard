@@ -88,6 +88,7 @@ export const PEDAL_TYPES = [
   // ----- DYNAMICS -----
   {
     id: 'compressor', label: 'Compressor', category: 'dynamics', color: 'oklch(64% 0.03 250)',
+    skin: { src: 'img/compressor.webp', aspect: '400 / 723' },
     blurb: 'Evens out your dynamics — squashes loud notes and lifts quiet ones for a smoother, more consistent volume.',
     about: 'A compressor automatically reduces the volume of anything that crosses a threshold, then applies makeup gain to bring the overall level back up. The result is smoother, more consistent playing — quieter notes sustain longer and pick attacks feel less spiky. Classic for funk/country chicken-pickin\' and for tightening up a solo.',
     createNodes(ctx) {
