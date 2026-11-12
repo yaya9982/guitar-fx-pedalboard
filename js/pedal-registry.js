@@ -631,6 +631,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'phase90', label: 'Phase 90', category: 'modulation', color: 'oklch(72% 0.18 55)', brand: 'mxr', brandLabel: 'MXR',
+    skin: { src: 'img/phase90.webp', aspect: '400 / 732' },
     blurb: 'The MXR Phase 90\'s real 4-stage circuit — 2 sweeping notches instead of the generic Phaser\'s 3.',
     about: 'Modeled on the MXR Phase 90: 4 JFET-based phase-shifting stages create 2 sweeping notches (confirmed directly from a circuit teardown), vs. the generic Phaser\'s 6 stages/3 notches.',
     createNodes(ctx) {
