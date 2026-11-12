@@ -366,6 +366,13 @@ export class AudioEngine {
     return inst.enabled;
   }
 
+  setEnabledStates(states) {
+    for (const inst of [...this.chain, this.amp.instance]) {
+      if (inst && states.has(inst.instanceId)) inst.enabled = states.get(inst.instanceId);
+    }
+    this._rebuildChain();
+  }
+
   async setParam(instanceId, key, value) {
     const inst = this.chain.find((i) => i.instanceId === instanceId)
       || (this.amp.instance?.instanceId === instanceId ? this.amp.instance : null);

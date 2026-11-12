@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Guitar FX Pedalboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="style.css?v=32">
+<link rel="stylesheet" href="style.css?v=39">
 <script>
   (function () {
     var root = document.documentElement;
@@ -54,6 +54,7 @@
 
   <section id="panel-board" class="panel active">
     <div class="board-toolbar">
+      <div id="presetNameBox" class="preset-name-box" hidden aria-live="polite"></div>
       <div class="control input-trim">
         <label for="inputGainRange">
           Input Trim
@@ -111,6 +112,10 @@
         </div>
       </div>
       <div class="toolbar-right">
+        <div class="control scenes-ctrl">
+          <label title="Press 1-5 (or click) to switch to a saved pedal combination. Set saves which pedals are currently on. Space turns everything on.">Quick Stomp</label>
+          <div id="sceneSlots" class="scene-slots"></div>
+        </div>
         <div class="control wave-preview">
           <label>Signal Preview</label>
           <canvas id="waveCanvas" width="320" height="52" class="scope" title="How a plain sine wave would hypothetically look after your current pedal chain"></canvas>
@@ -528,6 +533,6 @@
   </div>
 </template>
 
-<script type="module" src="js/main.js?v=41"></script>
+<script type="module" src="js/main.js?v=44"></script>
 </body>
 </html>

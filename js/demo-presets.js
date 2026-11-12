@@ -85,19 +85,21 @@ export const DEMO_PRESETS = [
   // copied (percent knobs map straight across; level/output knobs map 50% = unity). Notes: BAND-PRESETS-RESEARCH.md.
   {
     name: "AC/DC: Thunderstruck",
-    blurb: 'Angus rig from the video: a nearly clean Klon-style boost into a mid-forward Plexi, big plate reverb',
+    artist: true,
+    blurb: 'Angus rig from the video: a nearly clean Klon-style boost into a mid-forward Plexi, a light plate reverb',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
       noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
       chain: [
         { kind: 'pedal', typeId: 'klon', enabled: true, params: { gain: 8, treble: -3.4, level: 152 } },
-        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'plate', mix: 25 } },
+        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'plate', mix: 12 } },
         { kind: 'amp', typeId: 'plexi', enabled: true, params: { gain: 70, bass: 35, mid: 76, treble: 50, presence: 63, level: 78 } },
       ],
     },
   },
   {
     name: "Led Zeppelin",
+    artist: true,
     blurb: 'Jimmy Page recipe from the video: Tube Screamer-style drive into a cranked Princeton-style Blackface (a stand-in for the Supro), big room reverb',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
@@ -111,6 +113,7 @@ export const DEMO_PRESETS = [
   },
   {
     name: "Van Halen: You Really Got Me",
+    artist: true,
     blurb: 'Brown sound rhythm: Plexi flat out, a little tape echo and plate, no modulation',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
@@ -125,6 +128,7 @@ export const DEMO_PRESETS = [
   },
   {
     name: "Van Halen: Eruption",
+    artist: true,
     blurb: 'Brown sound lead: slow Phase 90 into the dimed Plexi, tape echo and plate',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
@@ -140,6 +144,7 @@ export const DEMO_PRESETS = [
   },
   {
     name: "Jimi Hendrix: Purple Haze",
+    artist: true,
     blurb: 'Recipe from the video: mid-lift EQ, treble boost and germanium fuzz into a Plexi with bass and mids pulled back; switch on the Pitch Shifter (octave up) for the solo',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
@@ -156,6 +161,7 @@ export const DEMO_PRESETS = [
   },
   {
     name: "Guns N' Roses: Sweet Child O' Mine",
+    artist: true,
     blurb: 'Slash riff tone from the video: treble boost into a hot Brit 800 with the treble up, light tape echo; Cry Baby off until the solo',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
@@ -170,6 +176,7 @@ export const DEMO_PRESETS = [
   },
   {
     name: "Red Hot Chili Peppers: Can't Stop",
+    artist: true,
     blurb: 'Frusciante tone from the video: gentle 1176-style compression and a treble boost into a Plexi with the mids up, spring reverb',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
@@ -184,6 +191,7 @@ export const DEMO_PRESETS = [
   },
   {
     name: "Metallica",
+    artist: true,
     blurb: 'Hetfield tone from the video: low-drive Tube Screamer push into a Mark IIC+ with the mids at zero and the 750 Hz graphic-EQ scoop, a touch of room',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
@@ -197,6 +205,7 @@ export const DEMO_PRESETS = [
   },
   {
     name: "The Smiths: Heaven Knows",
+    artist: true,
     blurb: 'Marr jangle: light compression, bright Blackface clean, subtle CE-2 chorus and spring reverb',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
@@ -211,6 +220,7 @@ export const DEMO_PRESETS = [
   },
   {
     name: "Pink Floyd: Time",
+    artist: true,
     blurb: 'Gilmour recipe from the video (2000s era): two compressors and a pushed overdrive into a cranked Hiwatt-style DR103, tape echo and a big hall; switch on the Big Muff for the solo',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
@@ -228,6 +238,7 @@ export const DEMO_PRESETS = [
   },
   {
     name: "Dire Straits: Sultans of Swing",
+    artist: true,
     blurb: 'Knopfler clean: Dyna Comp into a bright Blackface with a little spring reverb',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
@@ -241,6 +252,7 @@ export const DEMO_PRESETS = [
   },
   {
     name: "Eric Clapton: 80s Strat",
+    artist: true,
     blurb: 'Fan recipe from the video: mid-boost EQ into a Tube Screamer and a cranked Princeton-style Blackface, large room reverb',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
@@ -255,6 +267,7 @@ export const DEMO_PRESETS = [
   },
   {
     name: "Oasis",
+    artist: true,
     blurb: 'Noel and Gem Archer from the video: Klon-style drive into a Bluesbreaker-style Plexi, room reverb',
     state: {
       inputGainPct: 100, masterVolumePct: 100,

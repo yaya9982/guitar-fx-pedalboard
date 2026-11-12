@@ -627,7 +627,7 @@ export function showDemoMenu(anchorEl, demos, onPick) {
   document.querySelectorAll('.demo-menu').forEach((m) => m.remove());
   const menu = document.createElement('div');
   menu.className = 'demo-menu';
-  demos.forEach((demo) => {
+  const addItem = (demo, parent) => {
     const btn = document.createElement('button');
     btn.className = 'demo-menu-item';
     const name = document.createElement('span');
@@ -636,8 +636,29 @@ export function showDemoMenu(anchorEl, demos, onPick) {
     blurb.className = 'demo-blurb'; blurb.textContent = demo.blurb;
     btn.appendChild(name); btn.appendChild(blurb);
     btn.addEventListener('click', () => { onPick(demo); menu.remove(); });
-    menu.appendChild(btn);
-  });
+    parent.appendChild(btn);
+  };
+  demos.filter((d) => !d.artist).forEach((d) => addItem(d, menu));
+
+  // Artist-inspired setups live in their own collapsed, separately scrolling list.
+  const artists = demos.filter((d) => d.artist);
+  if (artists.length) {
+    const toggle = document.createElement('button');
+    toggle.className = 'demo-menu-item demo-group-toggle';
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.textContent = '▸ Artist Inspired';
+    const sub = document.createElement('div');
+    sub.className = 'demo-submenu';
+    sub.hidden = true;
+    artists.forEach((d) => addItem(d, sub));
+    toggle.addEventListener('click', () => {
+      sub.hidden = !sub.hidden;
+      toggle.setAttribute('aria-expanded', String(!sub.hidden));
+      toggle.textContent = (sub.hidden ? '▸' : '▾') + ' Artist Inspired';
+    });
+    menu.appendChild(toggle);
+    menu.appendChild(sub);
+  }
   placeFloating(menu, anchorEl, 320);
 
   const closeOnOutside = (e) => {

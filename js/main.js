@@ -1,7 +1,7 @@
-import { AudioEngine } from './audio-engine.js?v=19';
-import { renderChain, renderAmp, showAddMenu, showDemoMenu, showSavePresetPopover, showPresetMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=8';
+import { AudioEngine } from './audio-engine.js?v=21';
+import { renderChain, renderAmp, showAddMenu, showDemoMenu, showSavePresetPopover, showPresetMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=9';
 import { renderPreviewWaveform } from './wave-preview.js';
-import { DEMO_PRESETS } from './demo-presets.js';
+import { DEMO_PRESETS } from './demo-presets.js?v=2';
 import { Tuner, GUITAR_STRINGS, centsFromTarget } from './tuner.js?v=3';
 import { Looper } from './looper.js?v=3';
 import { audioBufferToWavBlob } from './wav-encoder.js';
@@ -182,8 +182,89 @@ drumVolRange.addEventListener('input', () => { if (drumBus) drumBus.gain.value =
 document.addEventListener('keydown', (e) => {
   const tag = document.activeElement?.tagName;
   if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if ($('panel-board').classList.contains('active')) return; // number keys belong to Quick Stomp there
   const pad = DRUM_PADS.find((p) => p.key === e.key);
   if (pad) { e.preventDefault(); triggerDrumPad(pad.id); }
+});
+
+// ---------------------------------------------------------------------------
+// Quick Stomp: saved on/off combinations of the pedals already on the board, recalled by
+// key (like stomping several footswitches at once). A scene stores on/off per pedal as
+// "typeId#n" (n-th pedal of that type), since instanceIds change on every reload.
+// ---------------------------------------------------------------------------
+
+const SCENES_KEY = 'guitarfx.scenes.v1';
+const SCENE_COUNT = 5;
+// Keys 1-5 recall slots on the Pedalboard tab (the drum pads' 1-8 keys only apply on the
+// other tabs, see the handler above); Space turns every pedal on.
+const SCENE_KEYS = ['1', '2', '3', '4', '5'];
+const sceneSlotsEl = $('sceneSlots');
+let scenes = [];
+try { scenes = JSON.parse(localStorage.getItem(SCENES_KEY)) || []; } catch (e) { /* ignore */ }
+let activeScene = -1;
+
+function sceneEntries() {
+  const seen = {};
+  return engine.getChainSnapshot().map((e) => ({ id: e.instanceId, enabled: e.enabled, key: `${e.typeId}#${seen[e.typeId] = (seen[e.typeId] ?? -1) + 1}` }));
+}
+
+function setScene(i) {
+  scenes[i] = Object.fromEntries(sceneEntries().map((e) => [e.key, e.enabled]));
+  localStorage.setItem(SCENES_KEY, JSON.stringify(scenes));
+  activeScene = i;
+  renderSceneSlots();
+}
+
+function recallScene(i) {
+  if (!engine.isReady || !scenes[i]) return;
+  const states = new Map(sceneEntries().filter((e) => e.key in scenes[i]).map((e) => [e.id, scenes[i][e.key]]));
+  engine.setEnabledStates(states);
+  activeScene = i;
+  refreshChainUI(); autosave(); renderSceneSlots();
+}
+
+function allOn() {
+  if (!engine.isReady) return;
+  engine.setEnabledStates(new Map(sceneEntries().map((e) => [e.id, true])));
+  activeScene = -1;
+  refreshChainUI(); autosave(); renderSceneSlots();
+}
+
+function renderSceneSlots() {
+  sceneSlotsEl.innerHTML = '';
+  const all = document.createElement('button');
+  all.type = 'button'; all.className = 'mute-btn scene-all'; all.textContent = 'All On · Space';
+  all.title = 'Turn every pedal and the amp on';
+  all.addEventListener('click', allOn);
+  sceneSlotsEl.append(all);
+  for (let i = 0; i < SCENE_COUNT; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'scene-slot' + (scenes[i] ? ' has-scene' : '') + (i === activeScene ? ' active' : '');
+    const go = document.createElement('button');
+    go.type = 'button'; go.className = 'mute-btn'; go.disabled = !scenes[i];
+    go.textContent = String(i + 1);
+    go.addEventListener('click', () => recallScene(i));
+    const set = document.createElement('button');
+    set.type = 'button'; set.className = 'mute-btn scene-set'; set.textContent = 'Set';
+    set.title = 'Save the current on/off pedals to this slot';
+    set.addEventListener('click', () => { if (engine.isReady) setScene(i); });
+    slot.append(go, set);
+    sceneSlotsEl.append(slot);
+  }
+}
+renderSceneSlots();
+
+document.addEventListener('keydown', (e) => {
+  const i = e.key === ' ' ? -2 : SCENE_KEYS.indexOf(e.key);
+  if (i === -1 || e.repeat) return;
+  const tag = document.activeElement?.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if (!$('panel-board').classList.contains('active')) return;
+  // A just-clicked pedal/toolbar button keeps focus, and Space would re-click it —
+  // drop focus so the key always means "recall a slot".
+  if (tag === 'BUTTON') document.activeElement.blur();
+  e.preventDefault(); // Space would otherwise scroll the page
+  if (i === -2) allOn(); else recallScene(i);
 });
 
 // ---------------------------------------------------------------------------
@@ -503,7 +584,7 @@ addPedalBtn.addEventListener('click', () => {
 
 demoSetupsBtn.addEventListener('click', () => {
   showDemoMenu(demoSetupsBtn, DEMO_PRESETS, async (demo) => {
-    await restoreState(demo.state);
+    await restoreState(demo.state, demo.name);
     autosave();
   });
 });
@@ -511,6 +592,7 @@ demoSetupsBtn.addEventListener('click', () => {
 clearSetupBtn.addEventListener('click', () => {
   engine.clearChain();
   refreshChainUI();
+  showPresetName('');
   autosave();
 });
 
@@ -832,7 +914,14 @@ function autosave() {
   autosaveTimer = setTimeout(() => { if (engine.isReady) saveAutosave(buildStateObject(engine)); }, 400);
 }
 
-async function restoreState(state) {
+const presetNameBox = document.getElementById('presetNameBox');
+function showPresetName(name) {
+  presetNameBox.textContent = name || '';
+  presetNameBox.hidden = !name;
+}
+
+async function restoreState(state, name) {
+  showPresetName(name);
   inputGainRange.value = state.inputGainPct; engine.setInputGainPct(state.inputGainPct);
   const muted = !!state.inputMuted;
   engine.setInputMuted(muted);
@@ -871,13 +960,13 @@ presetSaveBtn.addEventListener('click', () => {
 
 presetBrowseBtn.addEventListener('click', () => {
   showPresetMenu(presetBrowseBtn, loadPresetList(), {
-    onLoad: async (preset) => { await restoreState(preset.state); autosave(); },
+    onLoad: async (preset) => { await restoreState(preset.state, preset.name); autosave(); },
     onDelete: (name) => deletePreset(name),
     onExport: () => { if (engine.isReady) exportStateAsFile(buildStateObject(engine)); },
     onImport: async (file) => {
       try {
         const state = await importStateFromFile(file);
-        await restoreState(state);
+        await restoreState(state, file.name.replace(/\.json$/i, ''));
         autosave();
       } catch (err) {
         alert('Could not read that preset file: ' + err.message);

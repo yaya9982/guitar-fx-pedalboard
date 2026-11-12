@@ -267,6 +267,14 @@ main { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-lg) var(--
   margin-bottom: 16px;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 18px -12px rgba(0, 0, 0, 0.7);
 }
+.board-toolbar { position: relative; }
+.preset-name-box {
+  position: absolute; top: var(--space-md); left: var(--space-md); max-width: 360px;
+  padding: 3px 10px; border: 1px solid var(--border); border-radius: 4px;
+  background: var(--panel-2); color: var(--brass); font-size: 12px; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.preset-name-box[hidden] { display: none; }
 .board-toolbar .control { display: flex; flex-direction: column; gap: 5px; min-width: 100px; }
 .board-toolbar label {
   font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700;
@@ -371,6 +379,12 @@ main { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-lg) var(--
 .demo-menu-item:focus-visible { outline: 2px solid var(--brass); }
 .demo-menu-item .demo-name { font-size: 12.5px; font-weight: 700; display: block; }
 .demo-menu-item .demo-blurb { font-size: 11px; color: var(--text-dim); display: block; margin-top: 2px; }
+.demo-group-toggle { font-size: 12.5px; font-weight: 700; }
+.demo-submenu {
+  display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto;
+  padding: 4px 0 4px 10px; border-left: 2px solid oklch(60% 0.14 330);
+}
+.demo-submenu[hidden] { display: none; }
 
 .mini-toggle { position: relative; display: inline-block; width: 36px; height: 19px; }
 /* pulls the Noise Gate/Denoise switches up closer to their own label, since those
@@ -942,8 +956,10 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   width: 100%;
   /* Wide head-unit proportion (see amp_marshall.webp) so full board width doesn't turn
      into an absurdly tall panel — one variable, tune here if the shape needs adjusting. */
-  max-width: 900px; margin-left: auto; margin-right: auto;
-  aspect-ratio: var(--amp-aspect, 3.3 / 1);
+  /* Combo proportion: the extra height all goes to the speaker grille (.amp-grille flex-grows),
+     the control panel stays content-sized. */
+  max-width: 1300px; margin-left: auto; margin-right: auto;
+  aspect-ratio: var(--amp-aspect, 2 / 1);
   display: flex; flex-direction: column;
   border-radius: 18px; /* the doc's largest documented radius step (4xl), matching a much-bigger-than-pedal unit */
   padding: 16px 24px 0;
@@ -1511,3 +1527,14 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   background: rgba(14, 8, 4, 0.78);
 }
 .guitar-corner-knobs .knob-row input[type="range"] { width: 100%; }
+
+/* Quick Stomp scene slots */
+.scene-slots { display: flex; gap: 6px; }
+.scene-slot { display: flex; flex-direction: column; gap: 3px; }
+.scene-slot .scene-set { font-size: 0.7em; opacity: 0.75; }
+.scene-slot.has-scene > button:first-child { border-color: var(--brass); }
+.scene-slot.active > button:first-child { outline: 2px solid var(--brass); outline-offset: 1px; }
+.scene-slots .scene-all { align-self: flex-start; white-space: nowrap; }
+
+/* HUD bar (board toolbar): every text in Arial. Kept last so it wins over earlier single-class font rules. */
+.board-toolbar, .board-toolbar * { font-family: Arial, Helvetica, sans-serif; }
