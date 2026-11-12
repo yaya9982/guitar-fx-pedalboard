@@ -399,6 +399,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'bigmuff', label: 'Big Muff Pi', category: 'drive', color: 'oklch(80% 0.01 260)', brand: 'ehx', brandLabel: 'electro-harmonix',
+    skin: { src: 'img/bigmuff.webp', aspect: '400 / 658' },
     blurb: 'Two clipping stages (soft, then hard) feeding a scooped-mid tone crossfade — the Electro-Harmonix Big Muff Pi.',
     about: 'Modeled on the Electro-Harmonix Big Muff Pi: 2 cascaded clipping stages (the first "softly clips," the second "repeats the operation... creating the hard clip," confirmed via a direct circuit teardown), feeding a real passive-style Tone control that crossfades between a lowpass and a highpass branch rather than one simple filter — which is what produces its ~13.5dB scooped-mid dip at center.',
     createNodes(ctx) {
