@@ -268,7 +268,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'ds1', label: 'DS-1', category: 'drive', color: 'oklch(70% 0.18 50)', brand: 'boss', brandLabel: 'BOSS',
-    skin: { src: 'img/ds1.webp', aspect: '400 / 718' },
+    skin: { src: 'img/ds1.webp?v=2', aspect: '400 / 935' },
     blurb: 'A hard, asymmetric shunt-clip with an asymmetric booster feeding it — the Boss DS-1.',
     about: 'Modeled on the Boss DS-1: diodes shunt the signal to AC ground for a hard-clipping character, fed by an asymmetric booster stage. Only 3 knobs (Dist/Tone/Level), matching the real pedal — no separate Mid control.',
     createNodes(ctx) {
@@ -872,7 +872,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'reverb', label: 'Reverb', category: 'time', color: 'oklch(45% 0.13 320)',
-    skin: { src: 'img/reverb.jpg', aspect: '347 / 608' },
+    skin: { src: 'img/reverb.jpg?v=2', aspect: '347 / 612' },
     blurb: 'Simulates the natural echo of a room, hall, or spring tank — adds space and depth.',
     about: 'Reverb simulates the reflections of a physical space, from a tight practice room to a huge hall to a classic spring tank. It doesn\'t repeat like delay — instead it blurs into a smooth wash that gives your tone a sense of size and depth.',
     async createNodes(ctx) {
