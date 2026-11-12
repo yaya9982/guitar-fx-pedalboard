@@ -550,6 +550,7 @@ export const PEDAL_TYPES = [
   // ----- MODULATION -----
   {
     id: 'chorus', label: 'Chorus', category: 'modulation', color: 'oklch(70% 0.13 235)',
+    skin: { src: 'img/chorus.webp', aspect: '400 / 841' },
     blurb: 'Thick, shimmery doubling — like two guitars playing slightly out of tune together.',
     about: 'Chorus splits your signal, delays and pitch-modulates one copy, and blends it back with the dry signal, creating a lush, shimmering, slightly detuned doubling effect. Classic for clean 80s rhythm tones and adding width/shimmer to a clean or lightly-driven sound.',
     createNodes(ctx) {
