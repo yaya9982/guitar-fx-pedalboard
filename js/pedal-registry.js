@@ -361,6 +361,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'rat2', label: 'Rat 2', category: 'drive', color: 'oklch(24% 0.01 260)',
+    skin: { src: 'img/rat2.webp', aspect: '400 / 718' },
     blurb: 'A harder-clipping op-amp fuzz-drive with a much wider Filter sweep than a typical tone knob.',
     about: 'Modeled on the ProCo Rat 2: an LM308 op-amp driving silicon diodes shunted across the feedback path for a harder clip than a typical overdrive, plus its "Filter" knob\'s real, unusually wide 475Hz-32kHz lowpass sweep.',
     createNodes(ctx) {
