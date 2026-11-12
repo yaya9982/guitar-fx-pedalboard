@@ -850,6 +850,7 @@ export const PEDAL_TYPES = [
   // ----- TIME-BASED -----
   {
     id: 'delay', label: 'Delay', category: 'time', color: 'oklch(62% 0.15 55)',
+    skin: { src: 'img/delay.webp', aspect: '400 / 750' },
     blurb: 'Distinct echoes that repeat and fade — classic slap-back to ambient trailing repeats.',
     about: 'Delay records your signal and plays it back after a set time, repeating and fading with each pass. Short times give a tight slap-back (rockabilly), medium times give rhythmic echoes, and long times with high feedback build up into a wash of trailing repeats.',
     createNodes(ctx) {
