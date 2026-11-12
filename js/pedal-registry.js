@@ -233,6 +233,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'sd1', label: 'SD-1', category: 'drive', color: 'oklch(88% 0.17 95)', brand: 'boss', brandLabel: 'BOSS',
+    skin: { src: 'img/sd1.webp', aspect: '400 / 799' },
     blurb: 'Like the TS9 but comparatively scooped and asymmetric — the Boss Super Overdrive.',
     about: 'Modeled on the Boss SD-1 Super Overdrive: same asinh-family clipping curve family as the TS9, but with confirmed asymmetric clipping (a small DC bias) and a comparatively scooped midrange rather than the TS9\'s more pronounced mids.',
     createNodes(ctx) {
