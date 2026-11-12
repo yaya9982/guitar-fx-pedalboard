@@ -664,6 +664,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'tremolo', label: 'Tremolo', category: 'modulation', color: 'oklch(65% 0.12 185)',
+    skin: { src: 'img/tremolo.webp', aspect: '400 / 726' },
     blurb: 'Rhythmic volume pulsing — the sound turns up and down in a steady wave.',
     about: 'Tremolo rapidly and rhythmically raises and lowers your volume, creating a pulsing, throbbing effect. Simple but iconic — surf rock, spaghetti-western twang, and dreamy indie tones all lean on tremolo.',
     createNodes(ctx) {

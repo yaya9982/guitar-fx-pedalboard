@@ -15,9 +15,9 @@
     const w = frame.contentWindow;
     const ampId = location.search.includes('acoustic') ? 'acoustic' : 'clean';
     await w.eval(`(async () => {
-      const ui = await import('/js/ui.js?v=24');
-      const pr = await import('/js/pedal-registry.js?v=18');
-      const ar = await import('/js/amp-registry.js?v=22');
+      const ui = await import('/js/ui.js?v=25');
+      const pr = await import('/js/pedal-registry.js?v=19');
+      const ar = await import('/js/amp-registry.js?v=23');
       const mk = (id, getter, kind) => {
         const typeDef = getter(id);
         const params = {}; typeDef.params.forEach((p) => { params[p.key] = p.default; });
