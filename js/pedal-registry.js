@@ -112,6 +112,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'vintagecomp', label: 'Dyna Comp', category: 'dynamics', color: 'oklch(55% 0.21 25)', brand: 'mxr', brandLabel: 'MXR',
+    skin: { src: 'img/vintagecomp.webp', aspect: '400 / 739' },
     blurb: 'A single-pole ~1.5s envelope follower with just one knob — the MXR Dyna Comp\'s slow, simple squash.',
     about: 'Modeled on the MXR Dyna Comp: a CA3080 OTA driven by a single-pole envelope detector with a confirmed ~1.5s time constant (calculated from its own C8/R13 values), not the independently-adjustable fast attack/release of a modern compressor. Just one Sensitivity knob, no ratio/knee/attack/release controls, matching the real pedal.',
     createNodes(ctx) {
