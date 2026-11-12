@@ -1538,6 +1538,69 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 }
 .guitar-corner-knobs .knob-row input[type="range"] { width: 100%; }
 
+/* ---------- Reverb: photo skin ----------
+   img/reverb.jpg (347x608, AI-generated via Gemini, cropped to the enclosure) replaces the
+   drawn enclosure; the live controls sit on the photo's printed parts. Positions are % of
+   the photo, measured from the file. Exact type match, so Shimmer Reverb is untouched. */
+.pedal-stompbox[data-pedal-type="reverb"] {
+  width: 200px; min-width: 0; aspect-ratio: 347 / 608; padding: 0;
+  display: block; border: 0; border-radius: 9px;
+  background: url("img/reverb.jpg") center / 100% 100% no-repeat;
+}
+.pedal-stompbox[data-pedal-type="reverb"] .screw,
+.pedal-stompbox[data-pedal-type="reverb"] .pedal-title-stack,
+.pedal-stompbox[data-pedal-type="reverb"] .pedal-knobs::before,
+.pedal-stompbox[data-pedal-type="reverb"] .knob-ticks,
+.pedal-stompbox[data-pedal-type="reverb"] .knob-row:has(> select) > label { display: none; }
+.pedal-stompbox[data-pedal-type="reverb"] .stompbox-grip-row { position: absolute; top: 2px; left: 0; right: 0; z-index: 2; }
+.pedal-stompbox[data-pedal-type="reverb"] .stompbox-plate {
+  position: absolute; top: 4px; right: 6px; width: auto; z-index: 3;
+  padding: 0; margin: 0; border: 0;
+}
+.pedal-stompbox[data-pedal-type="reverb"] .stompbox-plate::after { display: none; }
+/* unwrap the knob layout so each control is placed against the card itself */
+.pedal-stompbox[data-pedal-type="reverb"] .pedal-knobs,
+.pedal-stompbox[data-pedal-type="reverb"] .knob-row,
+.pedal-stompbox[data-pedal-type="reverb"] .stompbox-foot-row { display: contents; }
+.pedal-stompbox[data-pedal-type="reverb"] .pedal-knobs > *,
+.pedal-stompbox[data-pedal-type="reverb"] .knob-row > * { position: absolute; z-index: 2; }
+
+/* Type: covers the printed "HALL / PLATE" (the app has 4 types, not 2) */
+.pedal-stompbox[data-pedal-type="reverb"] .pedal-select {
+  left: 4%; top: 11.4%; width: 44%; padding: 1px 3px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  background: oklch(16% 0.04 310); color: oklch(96% 0.01 310);
+  border: 1px solid oklch(8% 0.02 310);
+}
+/* Mix: live dial over the photo's MIX knob (hides its fixed pointer); the photo's own tick ring stays */
+.pedal-stompbox[data-pedal-type="reverb"] .knob-dial-wrap {
+  left: 74.4%; top: 25.2%; zoom: 1.6;
+  transform: translate(-50%, -50%);
+}
+.pedal-stompbox[data-pedal-type="reverb"] .knob-row:has(> input[type="range"]) > label {
+  left: 74.6%; top: 44%; width: auto; transform: translateX(-50%); font-size: 0;
+}
+.pedal-stompbox[data-pedal-type="reverb"] .knob-row .knob-value { font-size: 11px; }
+.pedal-stompbox[data-pedal-type="reverb"] .knob-row input[type="range"] { left: 18%; top: 48.6%; width: 64%; }
+
+/* Bypass: invisible button over the photo's footswitch; the photo's LED is printed lit, so
+   bypassed shows a dark lens over it instead */
+.pedal-stompbox[data-pedal-type="reverb"] .pedal-footswitch {
+  position: absolute; left: 49.9%; top: 87.2%; transform: translate(-50%, -50%);
+  width: 56px; height: 56px; border: 0; background: transparent; box-shadow: none; z-index: 2;
+}
+.pedal-stompbox[data-pedal-type="reverb"] .pedal-footswitch:active { transform: translate(-50%, calc(-50% + 1px)); box-shadow: none; }
+.pedal-stompbox[data-pedal-type="reverb"] .pedal-footswitch .led,
+.pedal-stompbox[data-pedal-type="reverb"]:not(.disabled-pedal) .pedal-footswitch .led {
+  top: calc(50% - 47px); left: calc(50% + 55px); transform: translate(-50%, -50%);
+  width: 20px; height: 20px; border: 0; box-shadow: none; background: transparent;
+}
+.pedal-stompbox[data-pedal-type="reverb"] .pedal-footswitch .led::after { display: none; }
+.pedal-stompbox[data-pedal-type="reverb"].disabled-pedal .pedal-footswitch .led {
+  background: radial-gradient(circle at 40% 35%, oklch(30% 0.05 25), oklch(12% 0.02 25) 70%);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
 /* Quick Stomp scene slots */
 .scene-slots { display: flex; gap: 6px; }
 .scene-slot { display: flex; flex-direction: column; gap: 3px; }

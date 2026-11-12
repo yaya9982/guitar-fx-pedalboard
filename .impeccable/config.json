@@ -684,6 +684,24 @@
         "rule": "design-system-font",
         "value": "brush script mt",
         "createdAt": "2026-10-01T04:08:30.025Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(16% 0.04 310)",
+        "createdAt": "2026-11-12T13:11:57.636Z",
+        "reason": "project CLAUDE.md: per-pedal unique oklch colors are established; reverb photo-skin colors sampled to match img/reverb.jpg"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(96% 0.01 310)",
+        "createdAt": "2026-11-12T13:11:57.816Z",
+        "reason": "project CLAUDE.md: per-pedal unique oklch colors are established; reverb photo-skin colors sampled to match img/reverb.jpg"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "oklch(30% 0.05 25)",
+        "createdAt": "2026-11-12T13:11:57.981Z",
+        "reason": "project CLAUDE.md: per-pedal unique oklch colors are established; reverb photo-skin colors sampled to match img/reverb.jpg"
       }
     ]
   }
