@@ -489,6 +489,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'crybaby', label: 'Cry Baby', category: 'filter', color: 'oklch(18% 0.01 260)', shape: 'wedge',
+    skin: { src: 'img/crybaby.webp', aspect: '400 / 1037' },
     blurb: 'A vocal wah tuned to the real Dunlop GCB-95\'s exact sweep range.',
     about: 'Modeled on the Dunlop Cry Baby GCB-95: a fixed 450Hz-1600Hz resonant sweep (the real circuit\'s L1/C2 values, confirmed from a teardown) with no exposed resonance knob, since the real pedal doesn\'t have one — just Treadle and Level.',
     createNodes(ctx) {
