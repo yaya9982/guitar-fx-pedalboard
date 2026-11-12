@@ -88,7 +88,7 @@ export const PEDAL_TYPES = [
   // ----- DYNAMICS -----
   {
     id: 'compressor', label: 'Compressor', category: 'dynamics', color: 'oklch(64% 0.03 250)',
-    skin: { src: 'img/compressor.webp', aspect: '400 / 723' },
+    skin: { src: 'img/compressor.webp?v=3', aspect: '400 / 723' },
     blurb: 'Evens out your dynamics — squashes loud notes and lifts quiet ones for a smoother, more consistent volume.',
     about: 'A compressor automatically reduces the volume of anything that crosses a threshold, then applies makeup gain to bring the overall level back up. The result is smoother, more consistent playing — quieter notes sustain longer and pick attacks feel less spiky. Classic for funk/country chicken-pickin\' and for tightening up a solo.',
     createNodes(ctx) {
@@ -112,7 +112,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'vintagecomp', label: 'Dyna Comp', category: 'dynamics', color: 'oklch(55% 0.21 25)', brand: 'mxr', brandLabel: 'MXR',
-    skin: { src: 'img/vintagecomp.webp', aspect: '400 / 739' },
+    skin: { src: 'img/vintagecomp.webp?v=3', aspect: '400 / 739' },
     blurb: 'A single-pole ~1.5s envelope follower with just one knob — the MXR Dyna Comp\'s slow, simple squash.',
     about: 'Modeled on the MXR Dyna Comp: a CA3080 OTA driven by a single-pole envelope detector with a confirmed ~1.5s time constant (calculated from its own C8/R13 values), not the independently-adjustable fast attack/release of a modern compressor. Just one Sensitivity knob, no ratio/knee/attack/release controls, matching the real pedal.',
     createNodes(ctx) {
@@ -199,7 +199,7 @@ export const PEDAL_TYPES = [
   // ----- DRIVE -----
   {
     id: 'overdrive', label: 'Overdrive', category: 'drive', color: 'oklch(76% 0.15 85)',
-    skin: { src: 'img/overdrive.webp', aspect: '400 / 710' },
+    skin: { src: 'img/overdrive.webp?v=3', aspect: '400 / 710' },
     blurb: 'Warm, dynamic grit that cleans up when you play softer — classic blues/rock crunch.',
     about: 'Overdrive gently rounds off the peaks of your signal for a warm, tube-like breakup. It\'s touch-sensitive — dig in and it growls, back off your picking and it cleans up — making it the go-to for blues, classic rock rhythm, and pushing an amp that\'s already got some grit.',
     createNodes(ctx) {
@@ -217,7 +217,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'ts9', label: 'TS9', category: 'drive', color: 'oklch(78% 0.18 145)', brand: 'ibanez', brandLabel: 'Ibanez',
-    skin: { src: 'img/ts9.webp', aspect: '400 / 731' },
+    skin: { src: 'img/ts9.webp?v=3', aspect: '400 / 731' },
     blurb: 'The Ibanez Tube Screamer\'s gentler, longer clipping shoulder — smoother breakup than a generic overdrive.',
     about: 'Modeled on the Ibanez TS9/TS808: two diodes clip symmetrically in an op-amp feedback loop, which follows an asinh-family curve rather than tanh — a much more gradual onset into saturation that never fully hard-saturates. The result breaks up more gently and smoothly than the generic Overdrive.',
     createNodes(ctx) {
@@ -235,7 +235,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'sd1', label: 'SD-1', category: 'drive', color: 'oklch(88% 0.17 95)', brand: 'boss', brandLabel: 'BOSS',
-    skin: { src: 'img/sd1.webp', aspect: '400 / 799' },
+    skin: { src: 'img/sd1.webp?v=3', aspect: '400 / 799' },
     blurb: 'Like the TS9 but comparatively scooped and asymmetric — the Boss Super Overdrive.',
     about: 'Modeled on the Boss SD-1 Super Overdrive: same asinh-family clipping curve family as the TS9, but with confirmed asymmetric clipping (a small DC bias) and a comparatively scooped midrange rather than the TS9\'s more pronounced mids.',
     createNodes(ctx) {
@@ -273,7 +273,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'ds1', label: 'DS-1', category: 'drive', color: 'oklch(70% 0.18 50)', brand: 'boss', brandLabel: 'BOSS',
-    skin: { src: 'img/ds1.webp?v=2', aspect: '400 / 935' },
+    skin: { src: 'img/ds1.webp?v=3', aspect: '400 / 935' },
     blurb: 'A hard, asymmetric shunt-clip with an asymmetric booster feeding it — the Boss DS-1.',
     about: 'Modeled on the Boss DS-1: diodes shunt the signal to AC ground for a hard-clipping character, fed by an asymmetric booster stage. Only 3 knobs (Dist/Tone/Level), matching the real pedal — no separate Mid control.',
     createNodes(ctx) {
@@ -364,7 +364,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'rat2', label: 'Rat 2', category: 'drive', color: 'oklch(24% 0.01 260)',
-    skin: { src: 'img/rat2.webp', aspect: '400 / 718' },
+    skin: { src: 'img/rat2.webp?v=3', aspect: '400 / 718' },
     blurb: 'A harder-clipping op-amp fuzz-drive with a much wider Filter sweep than a typical tone knob.',
     about: 'Modeled on the ProCo Rat 2: an LM308 op-amp driving silicon diodes shunted across the feedback path for a harder clip than a typical overdrive, plus its "Filter" knob\'s real, unusually wide 475Hz-32kHz lowpass sweep.',
     createNodes(ctx) {
@@ -403,7 +403,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'bigmuff', label: 'Big Muff Pi', category: 'drive', color: 'oklch(80% 0.01 260)', brand: 'ehx', brandLabel: 'electro-harmonix',
-    skin: { src: 'img/bigmuff.webp', aspect: '400 / 658' },
+    skin: { src: 'img/bigmuff.webp?v=3', aspect: '400 / 658' },
     blurb: 'Two clipping stages (soft, then hard) feeding a scooped-mid tone crossfade — the Electro-Harmonix Big Muff Pi.',
     about: 'Modeled on the Electro-Harmonix Big Muff Pi: 2 cascaded clipping stages (the first "softly clips," the second "repeats the operation... creating the hard clip," confirmed via a direct circuit teardown), feeding a real passive-style Tone control that crossfades between a lowpass and a highpass branch rather than one simple filter — which is what produces its ~13.5dB scooped-mid dip at center.',
     createNodes(ctx) {
@@ -493,7 +493,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'crybaby', label: 'Cry Baby', category: 'filter', color: 'oklch(18% 0.01 260)', shape: 'wedge',
-    skin: { src: 'img/crybaby.webp', aspect: '400 / 1037' },
+    skin: { src: 'img/crybaby.webp?v=3', aspect: '400 / 1037' },
     blurb: 'A vocal wah tuned to the real Dunlop GCB-95\'s exact sweep range.',
     about: 'Modeled on the Dunlop Cry Baby GCB-95: a fixed 450Hz-1600Hz resonant sweep (the real circuit\'s L1/C2 values, confirmed from a teardown) with no exposed resonance knob, since the real pedal doesn\'t have one — just Treadle and Level.',
     createNodes(ctx) {
@@ -554,7 +554,7 @@ export const PEDAL_TYPES = [
   // ----- MODULATION -----
   {
     id: 'chorus', label: 'Chorus', category: 'modulation', color: 'oklch(70% 0.13 235)',
-    skin: { src: 'img/chorus.webp', aspect: '400 / 841' },
+    skin: { src: 'img/chorus.webp?v=3', aspect: '400 / 841' },
     blurb: 'Thick, shimmery doubling — like two guitars playing slightly out of tune together.',
     about: 'Chorus splits your signal, delays and pitch-modulates one copy, and blends it back with the dry signal, creating a lush, shimmering, slightly detuned doubling effect. Classic for clean 80s rhythm tones and adding width/shimmer to a clean or lightly-driven sound.',
     createNodes(ctx) {
@@ -633,7 +633,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'phase90', label: 'Phase 90', category: 'modulation', color: 'oklch(72% 0.18 55)', brand: 'mxr', brandLabel: 'MXR',
-    skin: { src: 'img/phase90.webp', aspect: '400 / 732' },
+    skin: { src: 'img/phase90.webp?v=3', aspect: '400 / 732' },
     blurb: 'The MXR Phase 90\'s real 4-stage circuit — 2 sweeping notches instead of the generic Phaser\'s 3.',
     about: 'Modeled on the MXR Phase 90: 4 JFET-based phase-shifting stages create 2 sweeping notches (confirmed directly from a circuit teardown), vs. the generic Phaser\'s 6 stages/3 notches.',
     createNodes(ctx) {
@@ -665,7 +665,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'tremolo', label: 'Tremolo', category: 'modulation', color: 'oklch(65% 0.12 185)',
-    skin: { src: 'img/tremolo.webp', aspect: '400 / 726' },
+    skin: { src: 'img/tremolo.webp?v=3', aspect: '400 / 726' },
     blurb: 'Rhythmic volume pulsing — the sound turns up and down in a steady wave.',
     about: 'Tremolo rapidly and rhythmically raises and lowers your volume, creating a pulsing, throbbing effect. Simple but iconic — surf rock, spaghetti-western twang, and dreamy indie tones all lean on tremolo.',
     createNodes(ctx) {
@@ -860,7 +860,7 @@ export const PEDAL_TYPES = [
   // ----- TIME-BASED -----
   {
     id: 'delay', label: 'Delay', category: 'time', color: 'oklch(62% 0.15 55)',
-    skin: { src: 'img/delay.webp', aspect: '400 / 750' },
+    skin: { src: 'img/delay.webp?v=3', aspect: '400 / 750' },
     blurb: 'Distinct echoes that repeat and fade — classic slap-back to ambient trailing repeats.',
     about: 'Delay records your signal and plays it back after a set time, repeating and fading with each pass. Short times give a tight slap-back (rockabilly), medium times give rhythmic echoes, and long times with high feedback build up into a wash of trailing repeats.',
     createNodes(ctx) {
@@ -884,7 +884,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'reverb', label: 'Reverb', category: 'time', color: 'oklch(45% 0.13 320)',
-    skin: { src: 'img/reverb.jpg?v=2', aspect: '347 / 612' },
+    skin: { src: 'img/reverb.jpg?v=3', aspect: '347 / 612' },
     blurb: 'Simulates the natural echo of a room, hall, or spring tank — adds space and depth.',
     about: 'Reverb simulates the reflections of a physical space, from a tight practice room to a huge hall to a classic spring tank. It doesn\'t repeat like delay — instead it blurs into a smooth wash that gives your tone a sense of size and depth.',
     async createNodes(ctx) {
