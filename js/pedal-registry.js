@@ -199,6 +199,7 @@ export const PEDAL_TYPES = [
   // ----- DRIVE -----
   {
     id: 'overdrive', label: 'Overdrive', category: 'drive', color: 'oklch(76% 0.15 85)',
+    skin: { src: 'img/overdrive.webp', aspect: '400 / 710' },
     blurb: 'Warm, dynamic grit that cleans up when you play softer — classic blues/rock crunch.',
     about: 'Overdrive gently rounds off the peaks of your signal for a warm, tube-like breakup. It\'s touch-sensitive — dig in and it growls, back off your picking and it cleans up — making it the go-to for blues, classic rock rhythm, and pushing an amp that\'s already got some grit.',
     createNodes(ctx) {
