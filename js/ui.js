@@ -1,5 +1,5 @@
-import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=5';
-import { AMP_TYPES } from './amp-registry.js?v=9';
+import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=6';
+import { AMP_TYPES } from './amp-registry.js?v=10';
 
 function stepFor(param) {
   if (param.step !== undefined) return param.step;
@@ -83,6 +83,18 @@ function buildParamRow(paramDef, value, onChange) {
     onChange(v);
   });
   row.appendChild(input);
+
+  // Turn the knob itself: drag up/down (200px = full sweep) drives the same range input.
+  dialWrap.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    dialWrap.setPointerCapture(e.pointerId);
+    const y0 = e.clientY, v0 = parseFloat(input.value), span = paramDef.max - paramDef.min;
+    dialWrap.onpointermove = (ev) => {
+      input.value = Math.min(paramDef.max, Math.max(paramDef.min, v0 + (y0 - ev.clientY) * span / 200));
+      input.dispatchEvent(new Event('input'));
+    };
+    dialWrap.onpointerup = dialWrap.onpointercancel = () => { dialWrap.onpointermove = null; };
+  });
 
   valueSpan.tabIndex = 0;
   valueSpan.title = 'Click to type an exact value';
@@ -335,6 +347,12 @@ export function renderChain(engine, container, template, callbacks) {
     if (inst.typeDef.accent) card.style.setProperty('--pedal-accent', inst.typeDef.accent);
     if (inst.typeDef.trim) card.style.setProperty('--pedal-trim', inst.typeDef.trim);
     if (inst.typeDef.shape) card.classList.add(`pedal-stompbox--${inst.typeDef.shape}`);
+    // Photo skin (real-looking pedal image): style.css places the live controls over it per type.
+    if (inst.typeDef.skin) {
+      card.classList.add('photo-skin');
+      card.style.setProperty('--skin-img', `url("${inst.typeDef.skin.src}")`);
+      card.style.setProperty('--skin-aspect', inst.typeDef.skin.aspect);
+    }
     if (inst.kind === 'amp') {
       card.classList.add('amp-card');
     } else if (inst.typeDef.category) {

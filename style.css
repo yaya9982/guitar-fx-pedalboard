@@ -1538,68 +1538,111 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 }
 .guitar-corner-knobs .knob-row input[type="range"] { width: 100%; }
 
-/* ---------- Reverb: photo skin ----------
-   img/reverb.jpg (347x608, AI-generated via Gemini, cropped to the enclosure) replaces the
-   drawn enclosure; the live controls sit on the photo's printed parts. Positions are % of
-   the photo, measured from the file. Exact type match, so Shimmer Reverb is untouched. */
-.pedal-stompbox[data-pedal-type="reverb"] {
-  width: 200px; min-width: 0; aspect-ratio: 347 / 608; padding: 0;
-  display: block; border: 0; border-radius: 9px;
-  background: url("img/reverb.jpg") center / 100% 100% no-repeat;
+/* ---------- Photo skins (real-looking pedals, branch "real") ----------
+   A pedal definition with `skin: { src, aspect }` gets .photo-skin plus --skin-img /
+   --skin-aspect (renderChain in ui.js). The photo replaces the drawn enclosure; the live
+   controls are unwrapped (display: contents) and placed over the photo's printed parts
+   in % of the card, per pedal type below. Positions are measured from each image file.
+   Bypass: the footswitch button itself is zero-size; its ::before is the hit area
+   (--fs-x/y/w/h/r) so it can be a round stomp button or a full Boss-style treadle, and the
+   LED (--led-x/y/d) is placed on the photo's LED, which is printed lit — bypassed shows a
+   dark lens over it. Images are AI-generated (Gemini), cropped to the enclosure. */
+.pedal-stompbox.photo-skin {
+  --skin-w: 200px; --skin-h: calc(200px / (var(--skin-aspect)));
+  width: 200px; min-width: 0; aspect-ratio: var(--skin-aspect); padding: 0;
+  display: block; border: 0; border-radius: 0; box-shadow: none;
+  background: var(--skin-img) center / 100% 100% no-repeat;
+  filter: drop-shadow(0 10px 9px rgba(0, 0, 0, 0.6));
 }
-.pedal-stompbox[data-pedal-type="reverb"] .screw,
-.pedal-stompbox[data-pedal-type="reverb"] .pedal-title-stack,
-.pedal-stompbox[data-pedal-type="reverb"] .pedal-knobs::before,
-.pedal-stompbox[data-pedal-type="reverb"] .knob-ticks,
-.pedal-stompbox[data-pedal-type="reverb"] .knob-row:has(> select) > label { display: none; }
-.pedal-stompbox[data-pedal-type="reverb"] .stompbox-grip-row { position: absolute; top: 2px; left: 0; right: 0; z-index: 2; }
-.pedal-stompbox[data-pedal-type="reverb"] .stompbox-plate {
-  position: absolute; top: 4px; right: 6px; width: auto; z-index: 3;
+.pedal-stompbox.photo-skin.disabled-pedal { filter: drop-shadow(0 10px 9px rgba(0, 0, 0, 0.6)) saturate(0.35) brightness(0.72); }
+.photo-skin .screw,
+.photo-skin .pedal-title-stack,
+.photo-skin .pedal-knobs::before,
+.photo-skin .knob-ticks,
+.photo-skin .stompbox-plate::after,
+.photo-skin .knob-row:has(> select) > label { display: none; }
+.photo-skin .stompbox-grip-row { position: absolute; top: var(--grip-y, 2px); left: 0; right: 0; z-index: 3; }
+.photo-skin .stompbox-plate {
+  position: absolute; top: var(--plate-y, 4px); right: 6px; width: auto; z-index: 3;
   padding: 0; margin: 0; border: 0;
 }
-.pedal-stompbox[data-pedal-type="reverb"] .stompbox-plate::after { display: none; }
-/* unwrap the knob layout so each control is placed against the card itself */
-.pedal-stompbox[data-pedal-type="reverb"] .pedal-knobs,
-.pedal-stompbox[data-pedal-type="reverb"] .knob-row,
-.pedal-stompbox[data-pedal-type="reverb"] .stompbox-foot-row { display: contents; }
-.pedal-stompbox[data-pedal-type="reverb"] .pedal-knobs > *,
-.pedal-stompbox[data-pedal-type="reverb"] .knob-row > * { position: absolute; z-index: 2; }
+.photo-skin .pedal-knobs,
+.photo-skin .knob-row,
+.photo-skin .stompbox-foot-row { display: contents; }
+.photo-skin .pedal-knobs > *,
+.photo-skin .knob-row > * { position: absolute; z-index: 2; }
+/* Knobs: the photo's own knob, cut from the skin image (centre --kx/--ky in px, diameter
+   --kd) and rotated by the value, so the printed pointer is the live one. Turned by dragging
+   (buildParamRow); the range input stays for keyboard use but is visually hidden. */
+.photo-skin .knob-dial-wrap {
+  left: var(--kx); top: var(--ky); width: var(--kd); height: var(--kd); zoom: 1;
+  transform: translate(-50%, -50%); cursor: ns-resize; touch-action: none;
+}
+.pedal-stompbox.photo-skin .knob-dial {
+  width: 100%; height: 100%; box-shadow: none;
+  background: var(--skin-img) calc(var(--kd) / 2 - var(--kx)) calc(var(--kd) / 2 - var(--ky)) / var(--skin-w) var(--skin-h) no-repeat;
+  transform: rotate(var(--knob-angle));
+}
+.pedal-stompbox.photo-skin .knob-dial::after,
+.photo-skin .knob-pointer { display: none; }
+.photo-skin .knob-row > input[type="range"] { left: 0; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.photo-skin .knob-row:has(> input:focus-visible) .knob-dial { outline: 2px solid var(--brass); outline-offset: 2px; }
+.photo-skin .knob-row > label { width: auto; transform: translateX(-50%); font-size: 0; }
+.photo-skin .knob-row .knob-value { font-size: 11px; }
+.photo-skin .pedal-select { padding: 1px 3px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
 
-/* Type: covers the printed "HALL / PLATE" (the app has 4 types, not 2) */
-.pedal-stompbox[data-pedal-type="reverb"] .pedal-select {
-  left: 4%; top: 11.4%; width: 44%; padding: 1px 3px;
-  font-size: 10px; font-weight: 700; text-transform: uppercase;
-  background: oklch(16% 0.04 310); color: oklch(96% 0.01 310);
-  border: 1px solid oklch(8% 0.02 310);
+.photo-skin .pedal-footswitch,
+.photo-skin .pedal-footswitch:active {
+  position: static; width: 0; height: 0; padding: 0; border: 0;
+  background: none; box-shadow: none; transform: none;
 }
-/* Mix: live dial over the photo's MIX knob (hides its fixed pointer); the photo's own tick ring stays */
-.pedal-stompbox[data-pedal-type="reverb"] .knob-dial-wrap {
-  left: 74.4%; top: 25.2%; zoom: 1.6;
-  transform: translate(-50%, -50%);
+.photo-skin .pedal-footswitch::before {
+  content: ""; position: absolute; z-index: 2; cursor: pointer;
+  left: var(--fs-x); top: var(--fs-y); width: var(--fs-w); height: var(--fs-h);
+  border-radius: var(--fs-r, 50%);
+  transition: background 0.08s var(--ease-out), box-shadow 0.08s var(--ease-out);
 }
-.pedal-stompbox[data-pedal-type="reverb"] .knob-row:has(> input[type="range"]) > label {
-  left: 74.6%; top: 44%; width: auto; transform: translateX(-50%); font-size: 0;
+.photo-skin .pedal-footswitch:active::before {
+  background: rgba(0, 0, 0, 0.16); box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.55);
 }
-.pedal-stompbox[data-pedal-type="reverb"] .knob-row .knob-value { font-size: 11px; }
-.pedal-stompbox[data-pedal-type="reverb"] .knob-row input[type="range"] { left: 18%; top: 48.6%; width: 64%; }
-
-/* Bypass: invisible button over the photo's footswitch; the photo's LED is printed lit, so
-   bypassed shows a dark lens over it instead */
-.pedal-stompbox[data-pedal-type="reverb"] .pedal-footswitch {
-  position: absolute; left: 49.9%; top: 87.2%; transform: translate(-50%, -50%);
-  width: 56px; height: 56px; border: 0; background: transparent; box-shadow: none; z-index: 2;
+.photo-skin .pedal-footswitch:focus-visible { outline: none; }
+.photo-skin .pedal-footswitch:focus-visible::before { outline: 2px solid var(--brass); outline-offset: 3px; }
+.pedal-stompbox.photo-skin .pedal-footswitch .led {
+  left: var(--led-x); top: var(--led-y); width: var(--led-d, 20px); height: var(--led-d, 20px);
+  transform: translate(-50%, -50%); border: 0; box-shadow: none; background: transparent; z-index: 2;
 }
-.pedal-stompbox[data-pedal-type="reverb"] .pedal-footswitch:active { transform: translate(-50%, calc(-50% + 1px)); box-shadow: none; }
-.pedal-stompbox[data-pedal-type="reverb"] .pedal-footswitch .led,
-.pedal-stompbox[data-pedal-type="reverb"]:not(.disabled-pedal) .pedal-footswitch .led {
-  top: calc(50% - 47px); left: calc(50% + 55px); transform: translate(-50%, -50%);
-  width: 20px; height: 20px; border: 0; box-shadow: none; background: transparent;
-}
-.pedal-stompbox[data-pedal-type="reverb"] .pedal-footswitch .led::after { display: none; }
-.pedal-stompbox[data-pedal-type="reverb"].disabled-pedal .pedal-footswitch .led {
+.photo-skin .pedal-footswitch .led::after { display: none; }
+.pedal-stompbox.photo-skin.disabled-pedal .pedal-footswitch .led {
   background: radial-gradient(circle at 40% 35%, oklch(30% 0.05 25), oklch(12% 0.02 25) 70%);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7);
 }
+
+/* Reverb (img/reverb.jpg, 347x608): Type covers the printed "HALL / PLATE" (the app has 4 types) */
+.photo-skin[data-pedal-type="reverb"] {
+  --fs-x: calc(49.9% - 28px); --fs-y: calc(87.2% - 28px); --fs-w: 56px; --fs-h: 56px;
+  --led-x: 77.5%; --led-y: 73.8%; --led-d: 20px;
+}
+.photo-skin[data-pedal-type="reverb"] .pedal-select {
+  left: 4%; top: 11.4%; width: 44%;
+  background: oklch(16% 0.04 310); color: oklch(96% 0.01 310); border: 1px solid oklch(8% 0.02 310);
+}
+.photo-skin[data-pedal-type="reverb"] .knob-row { --kx: 148.8px; --ky: 88.3px; --kd: 60px; }
+.photo-skin[data-pedal-type="reverb"] .knob-row > label { left: 74.6%; top: 44%; }
+
+/* DS-1 (img/ds1.webp, 400x718): params are Dist, Tone, Level (rows 1-3). Bypass is the whole
+   rubber treadle, as on the real Boss compact enclosure. */
+.photo-skin[data-pedal-type="ds1"] {
+  --fs-x: 4.5%; --fs-y: 63.6%; --fs-w: 91.8%; --fs-h: 33.1%; --fs-r: 5px;
+  --led-x: 50.2%; --led-y: 6%; --led-d: 11px;
+  --grip-y: 42.5%; --plate-y: 42%; /* blank band between INPUT/OUTPUT and the model name */
+}
+.photo-skin[data-pedal-type="ds1"] .knob-row:nth-child(1) { --kx: 147px; --ky: 42px; --kd: 56px; }
+.photo-skin[data-pedal-type="ds1"] .knob-row:nth-child(2) { --kx: 52px; --ky: 42px; --kd: 56px; }
+.photo-skin[data-pedal-type="ds1"] .knob-row:nth-child(3) { --kx: 100px; --ky: 78px; --kd: 42px; }
+.photo-skin[data-pedal-type="ds1"] .knob-row:nth-child(1) > label { left: 73.5%; top: 28.6%; }
+.photo-skin[data-pedal-type="ds1"] .knob-row:nth-child(2) > label { left: 26%; top: 28.6%; }
+.photo-skin[data-pedal-type="ds1"] .knob-row:nth-child(3) > label { left: 50%; top: 28.6%; }
+.photo-skin[data-pedal-type="ds1"] .knob-row .knob-value { color: oklch(15% 0.02 50); border-bottom-color: oklch(15% 0.02 50 / 0.5); }
 
 /* Quick Stomp scene slots */
 .scene-slots { display: flex; gap: 6px; }
