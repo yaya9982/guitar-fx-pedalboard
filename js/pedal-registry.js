@@ -597,7 +597,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'flanger', label: 'Flanger', category: 'modulation', color: 'oklch(60% 0.19 335)',
-    skin: { src: 'img/flanger.webp', aspect: '400 / 712' },
+    skin: { src: 'img/flanger-body.webp', aspect: '400 / 711', knob: 'img/flanger-knob.webp' },
     blurb: 'Swooshy, jet-plane-like sweeping — more intense and metallic than chorus.',
     about: 'Flanger mixes your signal with a very short, modulated delayed copy plus feedback, creating a sweeping, metallic, "jet engine" comb-filtering sound. More aggressive and resonant than chorus — a signature of psychedelic and 80s rock.',
     createNodes(ctx) {
