@@ -993,7 +993,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'tapedelay', label: 'Tape Delay', category: 'time', color: 'oklch(52% 0.12 50)',
-    skin: { src: 'img/tapedelay.webp', aspect: '400 / 712' },
+    skin: { src: 'img/tapedelay-body.webp', aspect: '400 / 713', knob: 'img/tapedelay-knob.webp' },
     blurb: 'Warm, saturated repeats with a subtle pitch wobble — the "Tape" mode of a Boss DD-8.',
     about: 'The DD-8\'s internal delay algorithms are proprietary, but its "Tape" mode\'s real, documented character is buildable directly: saturation plus a tiny modulated (wow/flutter) delay time, unlike the clean digital Delay pedal.',
     createNodes(ctx) {
