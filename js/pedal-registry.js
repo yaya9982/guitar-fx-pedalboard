@@ -469,6 +469,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'bitcrusher', label: 'Bit Crusher', category: 'drive', color: 'oklch(64% 0.18 230)',
+    skin: { src: 'img/bitcrusher-body.webp', aspect: '400 / 695', knob: 'img/bitcrusher-knob.webp' },
     blurb: 'Lo-fi, digital, crunchy degradation — like an old sampler or broken speaker.',
     about: 'Bit Crusher reduces the resolution and effective sample rate of your signal, adding gritty, aliased, digital-sounding artifacts rather than analog warmth. Great for lo-fi, glitchy, or industrial textures that sound deliberately broken/degraded.',
     createNodes(ctx) {
