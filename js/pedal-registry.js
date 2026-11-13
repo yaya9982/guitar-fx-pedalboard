@@ -612,7 +612,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'phaser', label: 'Phaser', category: 'modulation', color: 'oklch(52% 0.18 295)',
-    skin: { src: 'img/phaser.webp', aspect: '400 / 738' },
+    skin: { src: 'img/phaser-body.webp', aspect: '400 / 731', knob: 'img/phaser-knob.webp' },
     blurb: 'Swirly, sweeping notches — a smoother, less metallic cousin of flanger.',
     about: 'Phaser sweeps a series of notch filters through the frequency spectrum using all-pass stages, producing a smooth, swirling modulation without the metallic comb-filtering of a flanger. Iconic on funk rhythm parts and classic rock leads.',
     createNodes(ctx) {
