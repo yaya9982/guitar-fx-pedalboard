@@ -484,6 +484,7 @@ export const PEDAL_TYPES = [
   // ----- FILTER / WAH -----
   {
     id: 'wah', label: 'Wah', category: 'filter', color: 'oklch(55% 0.22 25)',
+    skin: { src: 'img/wah.webp', aspect: '400 / 1081' },
     blurb: 'A vocal "wah-wah" sweep you control manually with the Treadle knob.',
     about: 'Wah sweeps a narrow resonant filter across the frequency spectrum, creating the classic vocal-like "wah" sound. Here the Treadle knob stands in for the pedal\'s rocking motion — sweep it while playing for the classic funk/rock wah effect, or park it at a fixed spot for a fixed tonal color.',
     createNodes(ctx) {

@@ -1,5 +1,5 @@
 import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js?v=4';
-import { driveCurve } from './pedal-registry.js?v=36';
+import { driveCurve } from './pedal-registry.js?v=39';
 
 function makeBand(ctx, band) {
   const f = ctx.createBiquadFilter();
