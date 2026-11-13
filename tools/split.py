@@ -50,7 +50,7 @@ body = body.resize((400, round(body.height * 400 / body.width)), Image.LANCZOS)
 O = np.array(Image.open(old_src).convert('RGBA').resize(body.size, Image.LANCZOS)).astype(float); Bb = np.array(body).astype(float)
 both = (O[..., 3] > 200) & (Bb[..., 3] > 200)
 drift = np.abs(np.median(O[..., :3][both], 0) - np.median(Bb[..., :3][both], 0)).max()
-if drift > 10:                                  # only when the paint clearly changed; median-based so dark parts stay neutral
+if drift > 6:                                  # only when the paint clearly changed; median-based so dark parts stay neutral
     for ch in range(3):
         mo, mb = np.median(O[..., ch][both]), np.median(Bb[..., ch][both])
         g = min(1.25, max(.8, mo / max(mb, 1))); Bb[..., ch] = np.clip(Bb[..., ch] * g, 0, 255)
