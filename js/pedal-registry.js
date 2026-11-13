@@ -764,6 +764,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'rotary', label: 'Rotary / Leslie', category: 'modulation', color: 'oklch(58% 0.09 60)',
+    skin: { src: 'img/rotary-body.webp', aspect: '400 / 642', knob: 'img/rotary-knob.webp' },
     blurb: 'Swirling, spinning speaker-cabinet sound — the classic rotating organ-speaker effect.',
     about: 'Rotary/Leslie emulates a rotating speaker cabinet\'s combination of pitch, volume, and stereo-panning modulation, creating a rich, swirling, organ-like motion. Classic on clean/lightly-driven tones for a vintage, hypnotic swirl.',
     createNodes(ctx) {
