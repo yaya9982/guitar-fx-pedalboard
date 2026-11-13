@@ -742,6 +742,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'ringmod', label: 'Ring Modulator', category: 'modulation', color: 'oklch(75% 0.19 130)',
+    skin: { src: 'img/ringmod-body.webp', aspect: '400 / 750', knob: 'img/ringmod-knob.webp' },
     blurb: 'Harsh, metallic, bell-like tones — sounds robotic and inharmonic, not "musical" in the usual sense.',
     about: 'Ring Modulator multiplies your signal by a separate carrier tone, generating new, often dissonant sum-and-difference frequencies that don\'t follow your original note\'s harmonics. The result is clangy, robotic, bell-like, and deliberately inharmonic — a sound-design/experimental effect more than a traditional tone pedal.',
     createNodes(ctx) {
