@@ -174,6 +174,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'limiter', label: 'Limiter', category: 'dynamics', color: 'oklch(56% 0.02 250)',
+    skin: { src: 'img/limiter-body.webp', aspect: '400 / 739', knob: 'img/limiter-knob.webp' },
     blurb: 'A safety net that caps sudden loud peaks so nothing spikes or clips.',
     about: 'A limiter is a hard-ratio compressor that puts a ceiling on peak level — anything above the Ceiling knob gets clamped down fast. It\'s mostly transparent at moderate settings and mainly there to catch surprise volume spikes rather than shape your tone.',
     createNodes(ctx) {
