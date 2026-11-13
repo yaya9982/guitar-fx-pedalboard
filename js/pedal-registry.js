@@ -926,6 +926,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'shimmerreverb', label: 'Shimmer Reverb', category: 'time', color: 'oklch(55% 0.18 300)',
+    skin: { src: 'img/shimmerreverb-body.webp', aspect: '400 / 790', knob: 'img/shimmerreverb-knob.webp' },
     blurb: 'A reverb tail that climbs an octave with each repeat — a Boss RV-6 Shimmer mode.',
     about: 'The RV-6\'s exact internal DSP is proprietary and undisclosed, but its Shimmer mode\'s real effect — a reverb tail that climbs in pitch with each repeat — is buildable directly: feeding the existing pitch-shifter worklet back into a feedback delay loop, so each pass through the loop shifts up another octave.',
     createNodes(ctx) {
