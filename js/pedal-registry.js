@@ -254,6 +254,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'distortion', label: 'Distortion', category: 'drive', color: 'oklch(66% 0.19 45)',
+    skin: { src: 'img/distortion.webp', aspect: '400 / 720' },
     blurb: 'Harder, more compressed clipping for a heavier, sustained rock/metal crunch.',
     about: 'Distortion clips your signal harder and more consistently than an overdrive, producing a thicker, more compressed, more sustained tone that doesn\'t clean up much no matter how softly you play. Good for rock rhythm and lead tones that need more aggression and sustain.',
     createNodes(ctx) {
