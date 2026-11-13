@@ -723,6 +723,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'vibrato', label: 'Vibrato', category: 'modulation', color: 'oklch(68% 0.13 200)',
+    skin: { src: 'img/vibrato-body.webp', aspect: '400 / 801', knob: 'img/vibrato-knob.webp' },
     blurb: 'Pitch wobble instead of volume wobble — a warbling, seasick pitch shimmer.',
     about: 'Vibrato modulates pitch rather than volume, creating a warbling, wavering pitch effect (unlike tremolo, which it\'s often confused with). Used sparingly for a subtle wobble, or pushed hard for a woozy, seasick character.',
     createNodes(ctx) {
