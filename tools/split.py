@@ -42,9 +42,12 @@ body = body.resize((400, round(body.height * 400 / body.width)), Image.LANCZOS)
 # Gemini sometimes drifts the paint colour: match each channel's mean/spread to the old photo
 O = np.array(Image.open(old_src).convert('RGBA').resize(body.size, Image.LANCZOS)).astype(float); Bb = np.array(body).astype(float)
 both = (O[..., 3] > 200) & (Bb[..., 3] > 200)
-for ch in range(3):
-    mo, so, mb, sb = O[..., ch][both].mean(), O[..., ch][both].std(), Bb[..., ch][both].mean(), Bb[..., ch][both].std()
-    Bb[..., ch] = np.clip((Bb[..., ch] - mb) * min(1.4, max(.7, so / max(sb, 1))) + mo, 0, 255)
+drift = np.abs(np.median(O[..., :3][both], 0) - np.median(Bb[..., :3][both], 0)).max()
+if drift > 10:                                  # only when the paint clearly changed; median-based so dark parts stay neutral
+    for ch in range(3):
+        mo, mb = np.median(O[..., ch][both]), np.median(Bb[..., ch][both])
+        g = min(1.25, max(.8, mo / max(mb, 1))); Bb[..., ch] = np.clip(Bb[..., ch] * g, 0, 255)
+print('colour drift', round(float(drift), 1))
 body = Image.fromarray(Bb.astype('uint8')); body.save('img/%s-body.webp' % pid, quality=92)
 Kn = key(Image.open(knobf)); km = Kn[..., 3] > 128; ys, xs = np.where(km); cx0, cy0 = xs.mean(), ys.mean(); H, W = km.shape
 px, py = [], []

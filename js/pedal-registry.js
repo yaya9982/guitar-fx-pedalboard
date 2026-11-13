@@ -387,7 +387,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'bd2', label: 'BD-2', category: 'drive', color: 'oklch(42% 0.18 260)', accent: 'oklch(78% 0.13 85)', trim: 'oklch(78% 0.13 85)', brand: 'boss', brandLabel: 'BOSS',
-    skin: { src: 'img/bd2.webp', aspect: '400 / 726' },
+    skin: { src: 'img/bd2-body.webp', aspect: '400 / 766', knob: 'img/bd2-knob.webp' },
     blurb: 'Two cascaded soft-then-hard clipping stages — the Boss Blues Driver.',
     about: 'Modeled on the Boss Blues Driver: two cascaded FET/op-amp clipping stages in series (confirmed via a direct circuit-analysis article), rather than the single shaper stage every other generic drive pedal here uses.',
     createNodes(ctx) {

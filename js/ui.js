@@ -1,5 +1,5 @@
-import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=73';
-import { AMP_TYPES } from './amp-registry.js?v=77';
+import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=75';
+import { AMP_TYPES } from './amp-registry.js?v=79';
 
 function stepFor(param) {
   if (param.step !== undefined) return param.step;
