@@ -1673,9 +1673,9 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   --led-x: 50.5%; --led-y: 4.7%; --led-d: 11px;
   --grip-y: 42%; --plate-y: 41.5%;
 }
-.photo-skin[data-pedal-type="ds1"] .knob-row:nth-child(1) { --kx: 145.0px; --ky: 45.3px; --kd: 49.8px; --col: 76%; }
-.photo-skin[data-pedal-type="ds1"] .knob-row:nth-child(2) { --kx: 50.0px; --ky: 45.3px; --kd: 49.8px; --col: 24%; }
-.photo-skin[data-pedal-type="ds1"] .knob-row:nth-child(3) { --kx: 101.1px; --ky: 82.7px; --kd: 34.0px; --col: 50%; }
+.photo-skin[data-pedal-type="ds1"] .knob-row:nth-child(1) { --kx: 145.0px; --ky: 45.3px; --kd: 47.3px; --col: 76%; }
+.photo-skin[data-pedal-type="ds1"] .knob-row:nth-child(2) { --kx: 50.0px; --ky: 45.3px; --kd: 48.3px; --col: 24%; }
+.photo-skin[data-pedal-type="ds1"] .knob-row:nth-child(3) { --kx: 101.1px; --ky: 82.7px; --kd: 32.2px; --col: 50%; }
 .photo-skin[data-pedal-type="ds1"] .knob-row > label { left: var(--col); top: 30.5%; }
 .photo-skin[data-pedal-type="ds1"] .knob-row > input[type="range"] { left: calc(var(--col) - 10%); top: calc(30.5% + 24px); width: 20%; }
 .photo-skin[data-pedal-type="ds1"] .knob-row .knob-value { color: oklch(15% 0.02 50); border-bottom-color: oklch(15% 0.02 50 / 0.5); }

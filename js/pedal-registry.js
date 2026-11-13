@@ -276,7 +276,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'ds1', label: 'DS-1', category: 'drive', color: 'oklch(70% 0.18 50)', brand: 'boss', brandLabel: 'BOSS',
-    skin: { src: 'img/ds1.webp?v=3', aspect: '400 / 935' },
+    skin: { src: 'img/ds1-body.webp', aspect: '400 / 932', knob: 'img/ds1-knob.webp' },
     blurb: 'A hard, asymmetric shunt-clip with an asymmetric booster feeding it — the Boss DS-1.',
     about: 'Modeled on the Boss DS-1: diodes shunt the signal to AC ground for a hard-clipping character, fed by an asymmetric booster stage. Only 3 knobs (Dist/Tone/Level), matching the real pedal — no separate Mid control.',
     createNodes(ctx) {
