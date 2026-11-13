@@ -697,7 +697,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'tr2', label: 'TR-2', category: 'modulation', color: 'oklch(52% 0.09 175)', accent: 'oklch(78% 0.13 85)', brand: 'boss', brandLabel: 'BOSS',
-    skin: { src: 'img/tr2.webp', aspect: '400 / 744' },
+    skin: { src: 'img/tr2-body.webp', aspect: '400 / 745', knob: 'img/tr2-knob.webp' },
     blurb: 'The Boss TR-2\'s VCA tremolo with a Wave knob morphing between square, sine, and triangle.',
     about: 'Modeled on the Boss TR-2: confirmed from its own schematic to be VCA-based with a dedicated waveshaping stage between the LFO and the audio path, not a plain sine-on-gain tremolo. The Wave knob crossfades the modulation shape from a soft-edged (trapezoidal, not hard) square, through sine, to triangle.',
     createNodes(ctx) {
