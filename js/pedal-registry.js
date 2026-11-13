@@ -157,7 +157,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'boost', label: 'Clean Boost', category: 'dynamics', color: 'oklch(90% 0.04 95)',
-    skin: { src: 'img/boost.webp', aspect: '400 / 737' },
+    skin: { src: 'img/boost-body.webp', aspect: '400 / 769', knob: 'img/boost-knob.webp' },
     blurb: 'A simple volume push with a hint of brightness — no distortion, just louder and clearer.',
     about: 'Clean Boost is a transparent gain stage that raises your signal level (and optionally brightens the top end) without adding distortion of its own. Use it to push a following amp/drive pedal harder, or as a solo-boost to cut through the mix without changing your tone\'s character.',
     createNodes(ctx) {
