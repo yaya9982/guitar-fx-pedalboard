@@ -6,9 +6,13 @@
 import re, sys, os, numpy as np
 from PIL import Image
 
-def key(im):  # green screen -> alpha, green spill removed
-    a = np.array(im.convert('RGB')).astype(float); r, g, b = a[..., 0], a[..., 1], a[..., 2]
-    al = np.clip(1 - (g - np.maximum(r, b) - 25) / 45, 0, 1); a[..., 1] = np.minimum(g, np.maximum(r, b) + 8)
+def key(im):  # flat screen colour (green or magenta, read from the border) -> alpha, with spill removed
+    a = np.array(im.convert('RGB')).astype(float); h, w = a.shape[:2]
+    bd = np.concatenate([a[:8].reshape(-1, 3), a[-8:].reshape(-1, 3), a[:, :8].reshape(-1, 3), a[:, -8:].reshape(-1, 3)])
+    bg = np.median(bd, 0); dist = np.abs(a - bg).sum(-1)
+    al = np.clip((dist - 60) / 70, 0, 1)
+    if bg[1] > bg[0] and bg[1] > bg[2]: a[..., 1] = np.minimum(a[..., 1], np.maximum(a[..., 0], a[..., 2]) + 8)   # green spill
+    else: m = np.minimum(a[..., 0], a[..., 2]); a[..., 0] = np.minimum(a[..., 0], a[..., 1] + (m - a[..., 1]).clip(0) * .3 + 8); a[..., 2] = np.minimum(a[..., 2], a[..., 1] + (m - a[..., 1]).clip(0) * .3 + 8)  # magenta spill
     return np.dstack([a, al * 255])
 
 def circ(x, y):
