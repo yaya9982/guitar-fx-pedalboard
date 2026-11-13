@@ -816,6 +816,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'pitchshift', label: 'Pitch Shifter', category: 'pitch', color: 'oklch(55% 0.16 300)',
+    skin: { src: 'img/pitchshift.webp', aspect: '400 / 1008' },
     blurb: 'Shifts your note up or down in pitch — from subtle detuning to full harmony intervals.',
     about: 'Pitch Shifter transposes your signal by a set number of semitones, from a slight detune-like thickening at small intervals up to full harmony or octave intervals at larger settings. Use it for harmonized leads, octave-up sparkle, or otherworldly pitch effects.',
     createNodes(ctx) {
