@@ -969,7 +969,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'analogdelay', label: 'Analog Delay', category: 'time', color: 'oklch(58% 0.13 65)',
-    skin: { src: 'img/analogdelay.webp', aspect: '400 / 695' },
+    skin: { src: 'img/analogdelay-body.webp', aspect: '400 / 697', knob: 'img/analogdelay-knob.webp' },
     blurb: 'Repeats that darken and saturate as they build — the "Analog" mode of a Boss DD-8.',
     about: 'The DD-8\'s internal delay algorithms are proprietary, but its "Analog" mode\'s real, documented character is buildable directly: extra feedback-loop saturation plus a heavier lowpass on each repeat, unlike the clean digital Delay pedal.',
     createNodes(ctx) {
