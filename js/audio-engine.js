@@ -1,5 +1,5 @@
-import { getPedalType } from './pedal-registry.js?v=27';
-import { getAmpType } from './amp-registry.js?v=31';
+import { getPedalType } from './pedal-registry.js?v=28';
+import { getAmpType } from './amp-registry.js?v=32';
 
 // Keep in sync with WORKLET_MODULES in wave-preview.js (same URLs, so both share one HTTP cache entry).
 const WORKLET_URLS = [
