@@ -517,6 +517,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'autowah', label: 'Auto-Wah', category: 'filter', color: 'oklch(55% 0.16 305)',
+    skin: { src: 'img/autowah-body.webp', aspect: '400 / 796', knob: 'img/autowah-knob.webp' },
     blurb: 'The same wah sweep, but automatic — a steady rhythmic filter cycle instead of manual control.',
     about: 'Auto-Wah applies the same vocal filter sweep as a manual wah, but driven by a built-in LFO instead of your foot, so it cycles automatically and rhythmically. Great for funk rhythm parts where you want a wah texture without having to work a treadle.',
     createNodes(ctx) {
