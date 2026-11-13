@@ -438,7 +438,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'klon', label: 'Klon', category: 'drive', color: 'oklch(70% 0.09 80)', accent: 'oklch(28% 0.08 30)', trim: 'oklch(20% 0.02 60)', shape: 'lowbox',
-    skin: { src: 'img/klon.webp', aspect: '400 / 502' },
+    skin: { src: 'img/klon-body.webp', aspect: '400 / 541', knob: 'img/klon-knob.webp' },
     blurb: 'A mostly-clean parallel blend around a mild germanium-style shaper — the Klon Centaur.',
     about: 'Modeled on the Klon Centaur: a dry/wet parallel blend (a simplification of the real 3-path circuit down to 2 paths) around a mild germanium-diode-style shaper. The single Gain knob drives the dirty path up and the clean path down together in one linked motion, mirroring the real Klon\'s dual-gang Gain potentiometer rather than two independent wet/dry knobs.',
     createNodes(ctx) {

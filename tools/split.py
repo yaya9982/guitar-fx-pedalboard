@@ -12,7 +12,14 @@ def key(im):  # flat screen colour (green or magenta, read from the border) -> a
     bg = np.median(bd, 0); dist = np.abs(a - bg).sum(-1)
     al = np.clip((dist - 60) / 70, 0, 1)
     if bg[1] > bg[0] and bg[1] > bg[2]: a[..., 1] = np.minimum(a[..., 1], np.maximum(a[..., 0], a[..., 2]) + 8)   # green spill
-    else: m = np.minimum(a[..., 0], a[..., 2]); a[..., 0] = np.minimum(a[..., 0], a[..., 1] + (m - a[..., 1]).clip(0) * .3 + 8); a[..., 2] = np.minimum(a[..., 2], a[..., 1] + (m - a[..., 1]).clip(0) * .3 + 8)  # magenta spill
+    else:  # magenta spill: pull red/blue down to green, only on the soft edge, so red/purple knobs keep their colour
+        e = ((al > 0) & (al < .98))[..., None]; m = np.minimum(a[..., 0], a[..., 2])
+        fix = a.copy(); fix[..., 0] = np.minimum(a[..., 0], a[..., 1] + 8); fix[..., 2] = np.minimum(a[..., 2], a[..., 1] + 8); a = np.where(e, fix, a)
+    if not (bg[1] > bg[0] and bg[1] > bg[2]):   # magenta: trim the tinted rim a few px
+        r, g, b = a[..., 0], a[..., 1], a[..., 2]; mag = (r - g > 35) & (b - g > 35) & (np.abs(r - b) < 70)   # reflected magenta
+        for ch in (0, 2): a[..., ch] = np.where(mag, g + (a[..., ch] - g) * .35, a[..., ch])
+        from PIL import ImageFilter
+        al = np.array(Image.fromarray((al * 255).astype('uint8')).filter(ImageFilter.MinFilter(9)).filter(ImageFilter.GaussianBlur(1.5))).astype(float) / 255
     return np.dstack([a, al * 255])
 
 def circ(x, y):
@@ -55,8 +62,11 @@ for t in np.linspace(np.radians(-200), np.radians(20), 120):  # upper outline: n
     rr = np.arange(20, max(H, W)); x = np.clip((cx0 + rr * np.cos(t)).astype(int), 0, W - 1); y = np.clip((cy0 + rr * np.sin(t)).astype(int), 0, H - 1)
     hit = np.where(km[y, x])[0]
     if len(hit): px.append(cx0 + rr[hit.max()] * np.cos(t)); py.append(cy0 + rr[hit.max()] * np.sin(t))
-cx, cy, R = circ(np.array(px), np.array(py)); R -= 3
-yy, xx = np.mgrid[0:H, 0:W]; Kn[..., 3] = np.minimum(Kn[..., 3], np.clip(R - np.hypot(xx - cx, yy - cy), 0, 1) * 255)
+cx, cy, Rb = circ(np.array(px), np.array(py)); Rb -= 3
+yy, xx = np.mgrid[0:H, 0:W]; dist = np.hypot(xx - cx, yy - cy)
+R = max(Rb, np.percentile(dist[km], 99.9) + 2)   # include a pointer tip that sticks out past the round body
+tipk = R / Rb                                     # sprite is this much wider than the knob body
+Kn[..., 3] = np.minimum(Kn[..., 3], np.clip(R - dist, 0, 1) * 255)
 Image.fromarray(Kn.astype('uint8')).crop((round(cx - R), round(cy - R), round(cx + R), round(cy + R))).resize((176, 176), Image.LANCZOS).save('img/%s-knob.webp' % pid, quality=94)
 reg = reg.replace(m.group(0), re.sub(r"skin: \{[^}]*\}", "skin: { src: 'img/%s-body.webp', aspect: '400 / %d', knob: 'img/%s-knob.webp' }" % (pid, body.height, pid), m.group(0)))
 open('js/pedal-registry.js', 'w', encoding='utf8', newline='').write(reg)
@@ -66,9 +76,9 @@ css = open('style.css', encoding='utf8').read()
 PAT = r'(\.photo-skin\[data-pedal-type="%s"\][^{]*\{ )--kx: ([\d.]+)px; --ky: ([\d.]+)px; --kd: ([\d.]+)px;' % pid
 ks = [tuple(float(mm.group(i)) for i in (2, 3, 4)) for mm in re.finditer(PAT, css)]
 def size(kx, ky, k):
-    d = 2 * outer(K, kx * f, ky * f, k / 2 * f) / f * scale
+    d = 2 * outer(K, kx * f, ky * f, k / 2 * f) / f * scale * tipk
     near = [np.hypot(kx - x, ky - y) for x, y, _ in ks if (x, y) != (kx, ky)]
-    return min(d, .82 * min(near)) if near else d          # keep a comfortable gap between neighbours
+    return min(d, .82 * min(near) * tipk) if near else d          # keep a comfortable gap between neighbours
 out = []
 def kd(mm):
     kx, ky, k = (float(mm.group(i)) for i in (2, 3, 4)); d = size(kx, ky, k); out.append(round(d, 1))
@@ -76,4 +86,4 @@ def kd(mm):
     return '%s--kx: %.1fpx; --ky: %.1fpx; --kd: %.1fpx;' % (mm.group(1), kx, ky2, d)
 css = re.sub(PAT, kd, css)
 open('style.css', 'w', encoding='utf8', newline='').write(css)
-print(pid, 'body', body.size, 'knob R', round(R), 'kd', out)
+print(pid, 'body', body.size, 'knob R', round(R), 'tip x%.2f' % tipk, 'kd', out)
