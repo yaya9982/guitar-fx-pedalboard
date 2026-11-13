@@ -16,10 +16,10 @@ def key(im):  # flat screen colour (green or magenta, read from the border) -> a
         e = ((al > 0) & (al < .98))[..., None]; m = np.minimum(a[..., 0], a[..., 2])
         fix = a.copy(); fix[..., 0] = np.minimum(a[..., 0], a[..., 1] + 8); fix[..., 2] = np.minimum(a[..., 2], a[..., 1] + 8); a = np.where(e, fix, a)
     if not (bg[1] > bg[0] and bg[1] > bg[2]):   # magenta: trim the tinted rim a few px
-        r, g, b = a[..., 0], a[..., 1], a[..., 2]; mag = (r - g > 35) & (b - g > 35) & (np.abs(r - b) < 70)   # reflected magenta
+        r, g, b = a[..., 0], a[..., 1], a[..., 2]; mag = ((r - g > 35) & (b - g > 35) & (np.abs(r - b) < 70)) | ((r - g > 20) & (b - g > 10) & (b > r - 60) & (al < .999))   # reflected magenta
         for ch in (0, 2): a[..., ch] = np.where(mag, g + (a[..., ch] - g) * .35, a[..., ch])
         from PIL import ImageFilter
-        al = np.array(Image.fromarray((al * 255).astype('uint8')).filter(ImageFilter.MinFilter(9)).filter(ImageFilter.GaussianBlur(1.5))).astype(float) / 255
+        al = np.array(Image.fromarray((al * 255).astype('uint8')).filter(ImageFilter.MinFilter(15)).filter(ImageFilter.GaussianBlur(2))).astype(float) / 255
     return np.dstack([a, al * 255])
 
 def circ(x, y):
