@@ -1,5 +1,5 @@
-import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=58';
-import { AMP_TYPES } from './amp-registry.js?v=62';
+import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=59';
+import { AMP_TYPES } from './amp-registry.js?v=63';
 
 function stepFor(param) {
   if (param.step !== undefined) return param.step;
@@ -352,6 +352,11 @@ export function renderChain(engine, container, template, callbacks) {
       card.classList.add('photo-skin');
       card.style.setProperty('--skin-img', `url("${inst.typeDef.skin.src}")`);
       card.style.setProperty('--skin-aspect', inst.typeDef.skin.aspect);
+      // Optional separate knob image: the body photo has no knobs and this sprite turns on top of it.
+      if (inst.typeDef.skin.knob) {
+        card.classList.add('knob-sprite');
+        card.style.setProperty('--knob-img', `url("${inst.typeDef.skin.knob}")`);
+      }
     }
     if (inst.kind === 'amp') {
       card.classList.add('amp-card');
