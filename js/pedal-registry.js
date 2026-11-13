@@ -131,6 +131,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'cs3', label: 'CS-3', category: 'dynamics', color: 'oklch(62% 0.14 230)', brand: 'boss', brandLabel: 'BOSS',
+    skin: { src: 'img/cs3.webp', aspect: '400 / 750' },
     blurb: 'A hard-knee compressor whose Attack and Release move in opposite directions on one knob — the Boss CS-3.',
     about: 'Modeled on the Boss Compression Sustainer CS-3: a fixed hard knee and high ratio, plus its documented Attack/Release coupling — the two aren\'t independent, turning one lengthens it while shortening the other, unlike the generic Compressor\'s separate knobs.',
     createNodes(ctx) {
