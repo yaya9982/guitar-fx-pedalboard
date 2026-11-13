@@ -35,7 +35,8 @@ reg = open('js/pedal-registry.js', encoding='utf8').read()
 m = re.search(r"id: '%s',.*?skin: \{ src: '(img/[^']+)'[^}]*\}" % pid, reg, re.S); old_src = m.group(1).split('?')[0]
 if '-body' in old_src: old_src = old_src.replace('-body', '')
 B = key(Image.open(bodyf)); al = B[..., 3] > 128
-rows = np.where(al.sum(1) > .3 * al.sum(1).max())[0]; cols = np.where(al.sum(0) > .3 * al.sum(0).max())[0]
+th = .03 if 'round' in reg[m.start():m.end()] or pid == 'fuzzface' else .3   # round enclosures: keep the whole circle
+rows = np.where(al.sum(1) > th * al.sum(1).max())[0]; cols = np.where(al.sum(0) > th * al.sum(0).max())[0]
 body = Image.fromarray(B.astype('uint8')).crop((cols[0], rows[0], cols[-1] + 1, rows[-1] + 1))
 body = body.resize((400, round(body.height * 400 / body.width)), Image.LANCZOS)
 # Gemini sometimes drifts the paint colour: match each channel's mean/spread to the old photo
