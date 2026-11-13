@@ -802,7 +802,7 @@ export const PEDAL_TYPES = [
   // ----- PITCH -----
   {
     id: 'octaver', label: 'Octaver', category: 'pitch', color: 'oklch(45% 0.13 260)',
-    skin: { src: 'img/octaver.webp', aspect: '400 / 853' },
+    skin: { src: 'img/octaver-body.webp', aspect: '400 / 854', knob: 'img/octaver-knob.webp' },
     blurb: 'Adds a deep sub-octave layer underneath your notes for a huge, bass-like low end.',
     about: 'Octaver tracks your note and adds a synthesized copy pitched an octave down, thickening your sound with a deep, bass-like low layer. Great for heavy riffs (think classic doom/stoner tones) or making a single guitar sound twice as big.',
     createNodes(ctx) {
