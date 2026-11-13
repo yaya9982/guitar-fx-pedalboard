@@ -573,6 +573,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'ce2', label: 'CE-2', category: 'modulation', color: 'oklch(35% 0.13 260)', brand: 'boss', brandLabel: 'BOSS',
+    skin: { src: 'img/ce2.webp', aspect: '400 / 775' },
     blurb: 'The Boss CE-2\'s triangle-LFO sweep and BBD-style band-limited wet signal.',
     about: 'Modeled on the Boss CE-2/CE-2W: a triangle (not sine) LFO drives the modulation, and its BBD chip\'s anti-aliasing filter band-limits the wet signal to roughly 6.6-6.9kHz — both confirmed from a direct circuit teardown and Roland\'s own spec sheet.',
     createNodes(ctx) {
