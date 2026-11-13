@@ -1,5 +1,5 @@
-import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=57';
-import { AMP_TYPES } from './amp-registry.js?v=61';
+import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=55';
+import { AMP_TYPES } from './amp-registry.js?v=59';
 
 function stepFor(param) {
   if (param.step !== undefined) return param.step;
@@ -352,10 +352,6 @@ export function renderChain(engine, container, template, callbacks) {
       card.classList.add('photo-skin');
       card.style.setProperty('--skin-img', `url("${inst.typeDef.skin.src}")`);
       card.style.setProperty('--skin-aspect', inst.typeDef.skin.aspect);
-      // Knob split into a turning cap + static lighting (img/knobs/, made by knobsplit.py).
-      const base = inst.typeDef.skin.src.replace(/^img\/([^./?]+)\.\w+.*$/, 'img/knobs/$1');
-      card.style.setProperty('--knob-cap', `url("${base}-cap.webp?v=2")`);
-      card.style.setProperty('--knob-light', `url("${base}-light.webp?v=2")`);
     }
     if (inst.kind === 'amp') {
       card.classList.add('amp-card');
