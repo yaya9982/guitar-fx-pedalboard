@@ -838,6 +838,7 @@ export const PEDAL_TYPES = [
 
   {
     id: 'twelvestring', label: '12-String Sim', category: 'pitch', color: 'oklch(72% 0.12 70)',
+    skin: { src: 'img/twelvestring-body.webp', aspect: '400 / 658', knob: 'img/twelvestring-knob.webp' },
     blurb: 'Plays your 6-string like a 12-string: octave notes on the low strings, shimmer on all.',
     about: 'A real 12-string pairs each of the four low strings (E, A, D, G) with a thinner string an octave higher, while the two top strings (B, E) are doubled in unison, so they shimmer from slight detuning. This pedal copies that: a steep low-pass at the Split frequency feeds a full-wave rectifier (the classic analog octave-up trick) so only the low notes gain an octave, and a copy of the whole signal detuned about 7 cents adds the unison shimmer. It splits by pitch, not by string, so fretted notes above the split get no octave.',
     createNodes(ctx) {
