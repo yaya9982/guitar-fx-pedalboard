@@ -952,6 +952,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'dynamicreverb', label: 'Dynamic Reverb', category: 'time', color: 'oklch(48% 0.14 340)',
+    skin: { src: 'img/dynamicreverb-body.webp', aspect: '400 / 573', knob: 'img/dynamicreverb-knob.webp' },
     blurb: 'Reverb that ducks under your playing and swells back in as notes decay — a Boss RV-6 Dynamic mode.',
     about: 'The RV-6\'s exact internal DSP is proprietary, but its Dynamic mode\'s behavior — reverb wet level tracking your playing dynamics — reuses the same envelope-follower technique already in this app\'s Envelope Filter pedal, applied to the reverb wet mix instead of a filter sweep.',
     async createNodes(ctx) {
