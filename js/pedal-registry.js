@@ -1064,6 +1064,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'ge7', label: 'GE-7', category: 'eq', color: 'oklch(88% 0.03 85)', brand: 'boss', brandLabel: 'BOSS',
+    skin: { src: 'img/ge7.webp', aspect: '400 / 775' },
     blurb: 'The Boss GE-7\'s exact 7-band layout, boost/cut range, and frequencies.',
     about: 'Modeled directly on Boss\'s own published spec for the GE-7 Graphic Equalizer: seven bands at 100Hz, 200Hz, 400Hz, 800Hz, 1.6kHz, 3.2kHz, and 6.4kHz, each with plus/minus 15dB of boost or cut.',
     createNodes(ctx) {
