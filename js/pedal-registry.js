@@ -1047,7 +1047,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'graphiceq', label: 'Graphic EQ', category: 'eq', color: 'oklch(60% 0.15 145)',
-    skin: { src: 'img/graphiceq.webp', aspect: '400 / 708' },
+    skin: { src: 'img/graphiceq-body.webp', aspect: '400 / 709', knob: 'img/graphiceq-knob.webp' },
     blurb: 'Shapes your tone by boosting or cutting specific frequency bands.',
     about: 'Graphic EQ gives you six frequency bands to boost or cut independently, letting you sculpt your tone precisely — tighten up boomy lows, scoop out boxy mids, or add sizzle on top. Less about a signature sound and more a shaping/correction tool for whatever\'s ahead of it in the chain.',
     createNodes(ctx) {
