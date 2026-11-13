@@ -1661,7 +1661,7 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   left: 7%; top: calc(24% - 9px); width: 41%;
   background: oklch(16% 0.04 310); color: oklch(96% 0.01 310); border: 1px solid oklch(8% 0.02 310);
 }
-.photo-skin[data-pedal-type="reverb"] .knob-row { --kx: 149.3px; --ky: 84.7px; --kd: 60.0px; }
+.photo-skin[data-pedal-type="reverb"] .knob-row { --kx: 149.3px; --ky: 85.1px; --kd: 60px; }
 .photo-skin[data-pedal-type="reverb"] .knob-row > label { left: 74.6%; top: 44.5%; }
 .photo-skin[data-pedal-type="reverb"] input[type="range"] { left: 56%; top: calc(44.5% + 24px); width: 34%; }
 

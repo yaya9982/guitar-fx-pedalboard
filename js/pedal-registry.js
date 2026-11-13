@@ -898,7 +898,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'reverb', label: 'Reverb', category: 'time', color: 'oklch(45% 0.13 320)',
-    skin: { src: 'img/reverb.jpg?v=3', aspect: '347 / 612' },
+    skin: { src: 'img/reverb-body.webp', aspect: '400 / 709', knob: 'img/reverb-knob.webp' },
     blurb: 'Simulates the natural echo of a room, hall, or spring tank — adds space and depth.',
     about: 'Reverb simulates the reflections of a physical space, from a tight practice room to a huge hall to a classic spring tank. It doesn\'t repeat like delay — instead it blurs into a smooth wash that gives your tone a sense of size and depth.',
     async createNodes(ctx) {
