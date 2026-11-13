@@ -1581,8 +1581,14 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 }
 .pedal-stompbox.photo-skin .knob-dial {
   width: 100%; height: 100%; box-shadow: none;
-  background: var(--skin-img) calc(var(--kd) / 2 - var(--kx)) calc(var(--kd) / 2 - var(--ky)) / var(--skin-w) var(--skin-h) no-repeat;
+  background: var(--knob-cap, var(--skin-img)) calc(var(--kd) / 2 - var(--kx)) calc(var(--kd) / 2 - var(--ky)) / var(--skin-w) var(--skin-h) no-repeat;
   transform: rotate(var(--knob-angle));
+}
+/* Static lighting over the turning cap (img/knobs/*-light.webp, from knobsplit.py): the photo's
+   highlight and drop shadow stay put while the pointer turns, like a real knob under one light. */
+.pedal-stompbox.photo-skin .knob-dial-wrap::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply;
+  background: var(--knob-light, none) calc(var(--kd) / 2 - var(--kx)) calc(var(--kd) / 2 - var(--ky)) / var(--skin-w) var(--skin-h) no-repeat;
 }
 .pedal-stompbox.photo-skin .knob-dial::after,
 .photo-skin .knob-pointer { display: none; }
