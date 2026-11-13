@@ -305,7 +305,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'fuzz', label: 'Fuzz', category: 'drive', color: 'oklch(38% 0.17 18)',
-    skin: { src: 'img/fuzz.webp', aspect: '400 / 711' },
+    skin: { src: 'img/fuzz-body.webp', aspect: '400 / 711', knob: 'img/fuzz-knob.webp' },
     blurb: 'Thick, buzzy, almost synth-like saturation — the most extreme of the drive pedals.',
     about: 'Fuzz clips the waveform far harder and more asymmetrically than distortion, turning your signal into something closer to a buzzy square wave. It\'s the fuzziest, most saturated, most harmonically dense of the drive family — think 60s/70s psychedelic and stoner rock leads.',
     createNodes(ctx) {
