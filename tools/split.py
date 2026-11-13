@@ -61,6 +61,7 @@ Image.fromarray(Kn.astype('uint8')).crop((round(cx - R), round(cy - R), round(cx
 reg = reg.replace(m.group(0), re.sub(r"skin: \{[^}]*\}", "skin: { src: 'img/%s-body.webp', aspect: '400 / %d', knob: 'img/%s-knob.webp' }" % (pid, body.height, pid), m.group(0)))
 open('js/pedal-registry.js', 'w', encoding='utf8', newline='').write(reg)
 K = np.array(Image.open(old_src).convert('RGB')).astype(float); f = K.shape[1] / 200
+vs = (body.height / body.width) / (K.shape[0] / K.shape[1]); print('vertical scale', round(vs, 3))
 css = open('style.css', encoding='utf8').read()
 PAT = r'(\.photo-skin\[data-pedal-type="%s"\][^{]*\{ )--kx: ([\d.]+)px; --ky: ([\d.]+)px; --kd: ([\d.]+)px;' % pid
 ks = [tuple(float(mm.group(i)) for i in (2, 3, 4)) for mm in re.finditer(PAT, css)]
@@ -71,7 +72,8 @@ def size(kx, ky, k):
 out = []
 def kd(mm):
     kx, ky, k = (float(mm.group(i)) for i in (2, 3, 4)); d = size(kx, ky, k); out.append(round(d, 1))
-    return '%s--kx: %.1fpx; --ky: %.1fpx; --kd: %.1fpx;' % (mm.group(1), kx, ky, d)
+    ky2 = ky * vs                                     # body came back taller/shorter: keep the knob's relative height
+    return '%s--kx: %.1fpx; --ky: %.1fpx; --kd: %.1fpx;' % (mm.group(1), kx, ky2, d)
 css = re.sub(PAT, kd, css)
 open('style.css', 'w', encoding='utf8', newline='').write(css)
 print(pid, 'body', body.size, 'knob R', round(R), 'kd', out)
