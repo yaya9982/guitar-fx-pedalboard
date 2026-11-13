@@ -1033,6 +1033,7 @@ export const PEDAL_TYPES = [
   // ----- EQ -----
   {
     id: 'exciter', label: 'Exciter', category: 'eq', color: 'oklch(82% 0.07 90)',
+    skin: { src: 'img/exciter-body.webp', aspect: '400 / 746', knob: 'img/exciter-knob.webp' },
     blurb: 'Adds subtle high-frequency harmonics to cut through the mix — clearer and more present without just cranking the treble.',
     about: 'A harmonic exciter (the classic "Aphex Aural Exciter" technique) isolates the high end, adds a touch of harmonic saturation to just that band, then blends it back in. Unlike a plain EQ boost — which raises everything up there including hiss and noise — this generates new, musically related overtones, so you get more clarity and cut without harshness. A real mastering-engineer trick, applied straight to your guitar tone.',
     createNodes(ctx) {
