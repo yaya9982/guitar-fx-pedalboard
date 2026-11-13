@@ -37,7 +37,14 @@ if '-body' in old_src: old_src = old_src.replace('-body', '')
 B = key(Image.open(bodyf)); al = B[..., 3] > 128
 rows = np.where(al.sum(1) > .3 * al.sum(1).max())[0]; cols = np.where(al.sum(0) > .3 * al.sum(0).max())[0]
 body = Image.fromarray(B.astype('uint8')).crop((cols[0], rows[0], cols[-1] + 1, rows[-1] + 1))
-body = body.resize((400, round(body.height * 400 / body.width)), Image.LANCZOS); body.save('img/%s-body.webp' % pid, quality=92)
+body = body.resize((400, round(body.height * 400 / body.width)), Image.LANCZOS)
+# Gemini sometimes drifts the paint colour: match each channel's mean/spread to the old photo
+O = np.array(Image.open(old_src).convert('RGBA').resize(body.size, Image.LANCZOS)).astype(float); Bb = np.array(body).astype(float)
+both = (O[..., 3] > 200) & (Bb[..., 3] > 200)
+for ch in range(3):
+    mo, so, mb, sb = O[..., ch][both].mean(), O[..., ch][both].std(), Bb[..., ch][both].mean(), Bb[..., ch][both].std()
+    Bb[..., ch] = np.clip((Bb[..., ch] - mb) * min(1.4, max(.7, so / max(sb, 1))) + mo, 0, 255)
+body = Image.fromarray(Bb.astype('uint8')); body.save('img/%s-body.webp' % pid, quality=92)
 Kn = key(Image.open(knobf)); km = Kn[..., 3] > 128; ys, xs = np.where(km); cx0, cy0 = xs.mean(), ys.mean(); H, W = km.shape
 px, py = [], []
 for t in np.linspace(np.radians(-200), np.radians(20), 120):  # upper outline: no perspective there

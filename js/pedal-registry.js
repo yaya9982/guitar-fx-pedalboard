@@ -219,7 +219,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'ts9', label: 'TS9', category: 'drive', color: 'oklch(78% 0.18 145)', brand: 'ibanez', brandLabel: 'Ibanez',
-    skin: { src: 'img/ts9.webp?v=3', aspect: '400 / 731' },
+    skin: { src: 'img/ts9-body.webp', aspect: '400 / 726', knob: 'img/ts9-knob.webp' },
     blurb: 'The Ibanez Tube Screamer\'s gentler, longer clipping shoulder — smoother breakup than a generic overdrive.',
     about: 'Modeled on the Ibanez TS9/TS808: two diodes clip symmetrically in an op-amp feedback loop, which follows an asinh-family curve rather than tanh — a much more gradual onset into saturation that never fully hard-saturates. The result breaks up more gently and smoothly than the generic Overdrive.',
     createNodes(ctx) {
