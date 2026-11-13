@@ -540,6 +540,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'envfilter', label: 'Envelope Filter', category: 'filter', color: 'oklch(58% 0.18 320)',
+    skin: { src: 'img/envfilter.webp', aspect: '400 / 709' },
     blurb: 'A "touch wah" that opens up the harder you play, and closes as notes decay.',
     about: 'Envelope Filter (like a classic Mu-Tron) tracks your playing dynamics and opens its filter sweep in response — dig in and it snaps open, let a note decay and it closes back down. It\'s the funkiest of the filter pedals since the sweep responds directly to your picking touch rather than a fixed rate.',
     createNodes(ctx) {
