@@ -2007,6 +2007,7 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 /* Sliders: centred between the knob labels and the bottom edge of each photo's control panel. */
 .amp-photo .knob-row > input[type="range"] { translate: 0 var(--slider-dy, 0px); }
 .amp-photo[data-amp-type="ac30"] { --slider-dy: -22px; }
+.amp-photo[data-amp-type="ac30"] .knob-dial-wrap { translate: 0 -8px; }
 .amp-photo[data-amp-type="blackface"] { --slider-dy: -10px; }
 .amp-photo[data-amp-type="plexi"] { --slider-dy: -9px; }
 .amp-photo[data-amp-type="brit800"] { --slider-dy: -3px; }
