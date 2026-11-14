@@ -1,5 +1,5 @@
 import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js?v=4';
-import { driveCurve } from './pedal-registry.js?v=147';
+import { driveCurve } from './pedal-registry.js?v=148';
 
 function makeBand(ctx, band) {
   const f = ctx.createBiquadFilter();
@@ -219,6 +219,7 @@ export const AMP_TYPES = [
   },
   {
     id: 'dr103', label: 'DR103', group: 'standard', color: 'oklch(25% 0.005 250)',
+    skin: { src: 'img/dr103-body.webp', knob: 'img/dr103-knob.webp', label: 'oklch(90% 0.01 260)' },
     blurb: 'Huge British clean headroom with full mids: a loud, firm platform for fuzz and delay.',
     about: 'A 100-watt British head in the Hiwatt DR103 mould, built for headroom rather than distortion: big, punchy cleans, a full low end and present mids, with only a light edge at the top of the Gain range.',
     createNodes: (ctx) => createAmpNodes(ctx, {

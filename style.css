@@ -1987,4 +1987,11 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 .amp-photo[data-amp-type="blackface"] .knob-row:nth-child(4) { translate: -12.0px 15.0px; }
 .amp-photo[data-amp-type="blackface"] .knob-row:nth-child(5) { translate: -27.0px 15.0px; }
 .amp-photo[data-amp-type="blackface"] .knob-row:nth-child(6) { translate: -40.0px 16.0px; }
+.amp-photo[data-amp-type="dr103"] .knob-dial-wrap { scale: 1.198; }
+.amp-photo[data-amp-type="dr103"] .knob-row:nth-child(1) { translate: 7.9px 9.6px; }
+.amp-photo[data-amp-type="dr103"] .knob-row:nth-child(2) { translate: 1.0px 9.6px; }
+.amp-photo[data-amp-type="dr103"] .knob-row:nth-child(3) { translate: -5.1px 9.6px; }
+.amp-photo[data-amp-type="dr103"] .knob-row:nth-child(4) { translate: -10.6px 9.6px; }
+.amp-photo[data-amp-type="dr103"] .knob-row:nth-child(5) { translate: -16.7px 9.6px; }
+.amp-photo[data-amp-type="dr103"] .knob-row:nth-child(6) { translate: -22.9px 9.6px; }
 /* ampskin:end */

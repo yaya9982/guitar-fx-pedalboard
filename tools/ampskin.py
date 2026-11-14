@@ -52,9 +52,9 @@ if __name__ == '__main__':
     pid, fullf, bodyf, knobf = sys.argv[1:5]; label = sys.argv[5] if len(sys.argv) > 5 else None
     B = key(Image.open(bodyf)); al = B[..., 3] > 128
     rows = np.where(al.sum(1) > .3 * al.sum(1).max())[0]; cols = np.where(al.sum(0) > .3 * al.sum(0).max())[0]
-    box = (cols[0], rows[0], cols[-1] + 1, rows[-1] + 1)
-    body = Image.fromarray(B.astype('uint8')).crop(box).resize((W, H), Image.LANCZOS)
-    full = Image.fromarray(key(Image.open(fullf)).astype('uint8')).resize(Image.open(bodyf).size).crop(box).resize((W, H), Image.LANCZOS)
+    crop = (cols[0], rows[0], cols[-1] + 1, rows[-1] + 1)
+    body = Image.fromarray(B.astype('uint8')).crop(crop).resize((W, H), Image.LANCZOS)
+    full = Image.fromarray(key(Image.open(fullf)).astype('uint8')).resize(Image.open(bodyf).size).crop(crop).resize((W, H), Image.LANCZOS)
     body.save('img/%s-body.webp' % pid, quality=90)
     K = key(Image.open(knobf)); m = K[..., 3] > 128; ys, xs = np.where(m)
     cx, cy = (xs.min() + xs.max()) / 2, (ys.min() + ys.max()) / 2; r = max(xs.max() - xs.min(), ys.max() - ys.min()) / 2 + 2
@@ -62,6 +62,10 @@ if __name__ == '__main__':
     K[..., 3] = np.minimum(K[..., 3], np.clip(r - np.hypot(xx - cx, yy - cy), 0, 1) * 255)
     Image.fromarray(K.astype('uint8')).crop((round(cx - r), round(cy - r), round(cx + r), round(cy + r))).resize((176, 176), Image.LANCZOS).save('img/%s-knob.webp' % pid, quality=94)
     F = np.array(full).astype(float); ks = knobs_diff(F, np.array(body).astype(float))
+    import os
+    if os.environ.get('KNOBS'):   # manual fallback: "x,y,d;..." measured in the full image's own pixels
+        sx = W / (crop[2] - crop[0]); sy = H / (crop[3] - crop[1])
+        ks = [((x - crop[0]) * sx, (y - crop[1]) * sy, d * sx) for x, y, d in (map(float, k.split(',')) for k in os.environ['KNOBS'].split(';'))]
     if len(ks) != 6 or max(k[2] for k in ks) > 120:   # Gemini repainted the whole panel: match the sprite instead
         ks = knobs(F, Image.open('img/%s-knob.webp' % pid))
         D = np.abs(F[..., :3] - np.array(body).astype(float)[..., :3]).sum(-1)   # size: where the knob/body difference fades out
