@@ -7,6 +7,36 @@
 */
 
 @font-face {
+  font-family: "Ultra";
+  src: url("fonts/Ultra-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Syncopate";
+  src: url("fonts/Syncopate-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Poppins";
+  src: url("fonts/Poppins-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Yellowtail";
+  src: url("fonts/Yellowtail-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Mr Dafoe";
+  src: url("fonts/MrDafoe-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Fraunces";
+  src: url("fonts/Fraunces-VF.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
   font-family: "Rufina";
   src: url("fonts/Rufina-Regular.ttf") format("truetype");
   font-weight: 400;
@@ -1950,7 +1980,30 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 .amp-photo .knob-dial::after { display: none; }
 .amp-photo .amp-control-panel,
 .amp-photo .amp-grille { background: none; border: 0; box-shadow: none; }
-.amp-photo .amp-plate { visibility: hidden; }
+/* Nameplate: the photo's plate is blank (tools/ampplate.py); the live label sits on it in
+   each amp's own font, placed in % of the unit below. */
+.amp-photo .amp-grille { position: static; }
+.amp-photo .amp-plate {
+  position: absolute; left: var(--plate-x); top: var(--plate-y); width: var(--plate-w); height: var(--plate-h);
+  min-width: 0; min-height: 0; padding: 0; background: none; border: 0; box-shadow: none;
+}
+.amp-photo .amp-plate::before, .amp-photo .amp-plate::after { display: none; }
+.amp-photo .amp-plate .pedal-label {
+  text-transform: none; letter-spacing: 0; white-space: nowrap; line-height: 1;
+  color: oklch(25% 0.01 80); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);   /* engraved into metal */
+}
+.amp-photo[data-amp-type="ac30"] { --plate-x: 42.77%; --plate-y: 58.46%; --plate-w: 14.46%; --plate-h: 11.69%; }
+.amp-photo[data-amp-type="ac30"] .amp-plate .pedal-label { font-family: "Ultra", serif; font-size: 50px; text-transform: uppercase; }
+.amp-photo[data-amp-type="blackface"] { --plate-x: 40.15%; --plate-y: 60.31%; --plate-w: 19.69%; --plate-h: 8.62%; }
+.amp-photo[data-amp-type="blackface"] .amp-plate .pedal-label { font-family: "Yellowtail", cursive; font-size: 50px; }
+.amp-photo[data-amp-type="plexi"] { --plate-x: 36.15%; --plate-y: 57.23%; --plate-w: 27.85%; --plate-h: 15.38%; }
+.amp-photo[data-amp-type="plexi"] .amp-plate .pedal-label { font-family: "Mr Dafoe", cursive; font-size: 92px; }
+.amp-photo[data-amp-type="brit800"] { --plate-x: 36.15%; --plate-y: 56.62%; --plate-w: 27.85%; --plate-h: 15.08%; }
+.amp-photo[data-amp-type="brit800"] .amp-plate .pedal-label { font-family: "Poppins", sans-serif; font-size: 66px; transform: skewX(-12deg); }   /* the JCM 800 badge is oblique */
+.amp-photo[data-amp-type="dr103"] { --plate-x: 35.77%; --plate-y: 58.77%; --plate-w: 28.23%; --plate-h: 13.85%; }
+.amp-photo[data-amp-type="dr103"] .amp-plate .pedal-label { font-family: "Syncopate", sans-serif; font-size: 58px; color: oklch(94% 0 0); text-shadow: none; }
+.amp-photo[data-amp-type="markiic"] { --plate-x: 35.54%; --plate-y: 57.23%; --plate-w: 28.77%; --plate-h: 15.38%; }
+.amp-photo[data-amp-type="markiic"] .amp-plate .pedal-label { font-family: "Fraunces", serif; font-weight: 900; font-variation-settings: "SOFT" 100, "opsz" 72; font-size: 70px; }
 .amp-photo .knob-dial {
   width: 100%; height: 100%; border: 0; border-radius: 50%; box-shadow: none;
   background: var(--amp-knob) center / 100% 100% no-repeat;

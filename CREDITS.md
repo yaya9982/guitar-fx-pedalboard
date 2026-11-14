@@ -25,3 +25,16 @@ truth if the license needs re-checking before any further redistribution of this
 
 None of these files are covered by any band/album/logo trademark or copyright discussion
 elsewhere in this project — they are unrelated one-shot percussion recordings.
+
+## Amp nameplate fonts (`fonts/`)
+
+From Google Fonts, bundled locally so the app stays offline:
+Ultra, Syncopate, Yellowtail (Apache License 2.0); Poppins, Mr Dafoe, Fraunces (SIL Open Font License 1.1).
+
+## Amp reference photos
+
+The photo-skinned amps were generated with Gemini using real-amp photos from Wikimedia Commons
+as visual references (kept outside the repo in `../sources/photos/amps/`, not shipped):
+"AC30 front.jpg" (CC BY-SA 4.0), "Fender1965DeluxeRev.jpg" (CC BY-SA 3.0 DE),
+"Marshall 1959 Super Lead 100 Reissue Front.jpg" (CC BY-SA 2.0), "Marshall JCM800 amplifier.jpg"
+(CC BY-SA 4.0), "Hiwatt Model DR103 100W Guitar Amplifier.jpg" (CC BY-SA 4.0), "MarkIV.jpg" (public domain).
