@@ -37,7 +37,7 @@ def knobs(full, sprite):
     (grey levels, a few sizes); returns (x, y, diameter) left to right."""
     g = full[: int(H * .45), :, :3].mean(-1)
     best = None
-    for d in range(50, 131, 6):
+    for d in range(34, 131, 4):
         t = np.array(sprite.convert('L').resize((d, d), Image.LANCZOS)).astype(float)
         c = ncc(g, t); peaks = []; cc = c.copy()
         for _ in range(6):
@@ -62,8 +62,16 @@ if __name__ == '__main__':
     K[..., 3] = np.minimum(K[..., 3], np.clip(r - np.hypot(xx - cx, yy - cy), 0, 1) * 255)
     Image.fromarray(K.astype('uint8')).crop((round(cx - r), round(cy - r), round(cx + r), round(cy + r))).resize((176, 176), Image.LANCZOS).save('img/%s-knob.webp' % pid, quality=94)
     F = np.array(full).astype(float); ks = knobs_diff(F, np.array(body).astype(float))
-    if len(ks) != 6 or max(k[2] for k in ks) > 160:   # Gemini repainted the whole panel: match the sprite instead
+    if len(ks) != 6 or max(k[2] for k in ks) > 120:   # Gemini repainted the whole panel: match the sprite instead
         ks = knobs(F, Image.open('img/%s-knob.webp' % pid))
+        D = np.abs(F[..., :3] - np.array(body).astype(float)[..., :3]).sum(-1)   # size: where the knob/body difference fades out
+        def run(v, c):  # length of the run of big differences through the centre
+            m = v > 80; lo = hi = c
+            while lo > 0 and m[lo - 1:lo + 2].any(): lo -= 1
+            while hi < len(v) - 1 and m[hi - 1:hi + 2].any(): hi += 1
+            return hi - lo
+        sizes = [max(run(D[int(y)], int(x)), run(D[:, int(x)], int(y))) for x, y, _ in ks]
+        ks = [(x, y, d) for (x, y, _), d in zip(ks, sizes)]
     kd = np.median([k[2] for k in ks])
     sel = '.amp-photo[data-amp-type="%s"]' % pid
     css = ['%s .knob-dial-wrap { scale: %.3f; }' % (sel, kd / 62)]   # scale, not zoom: keeps the label/slider layout put

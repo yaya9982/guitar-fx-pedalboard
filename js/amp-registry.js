@@ -1,5 +1,5 @@
 import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js?v=4';
-import { driveCurve } from './pedal-registry.js?v=145';
+import { driveCurve } from './pedal-registry.js?v=147';
 
 function makeBand(ctx, band) {
   const f = ctx.createBiquadFilter();
@@ -165,6 +165,7 @@ export const AMP_TYPES = [
   },
   {
     id: 'plexi', label: 'Plexi', group: 'standard', color: 'oklch(28% 0.02 60)',
+    skin: { src: 'img/plexi-body.webp', knob: 'img/plexi-knob.webp' },
     blurb: 'Loud, mid-forward British stack: clean at low Gain, roaring when turned up.',
     about: 'A non-master-volume British 100-watt head in the Super Lead mould. A simple preamp with two gain stages, so it is not a high-gain amp: low Gain is nearly clean, and the crunch arrives as you turn it up, with an upper-mid bite and a 4x12 that rolls off above 5 kHz.',
     createNodes: (ctx) => createAmpNodes(ctx, {
@@ -182,6 +183,7 @@ export const AMP_TYPES = [
   },
   {
     id: 'brit800', label: 'Brit 800', group: 'standard', color: 'oklch(22% 0.01 60)',
+    skin: { src: 'img/brit800-body.webp', knob: 'img/brit800-knob.webp' },
     blurb: 'Master-volume British head: tighter and hotter than the Plexi, short of full metal.',
     about: 'A master-volume British head in the JCM800 2203 mould. An extra preamp gain stage gives it more gain and a harder edge than the Plexi, with snarling upper mids. It sits between Crunch and Lead.',
     createNodes: (ctx) => createAmpNodes(ctx, {
