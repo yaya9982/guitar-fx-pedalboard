@@ -38,3 +38,7 @@ as visual references (kept outside the repo in `../sources/photos/amps/`, not sh
 "AC30 front.jpg" (CC BY-SA 4.0), "Fender1965DeluxeRev.jpg" (CC BY-SA 3.0 DE),
 "Marshall 1959 Super Lead 100 Reissue Front.jpg" (CC BY-SA 2.0), "Marshall JCM800 amplifier.jpg"
 (CC BY-SA 4.0), "Hiwatt Model DR103 100W Guitar Amplifier.jpg" (CC BY-SA 4.0), "MarkIV.jpg" (public domain).
+
+## App shell font (`fonts/Archivo-VF.ttf`)
+
+Archivo (variable), from Google Fonts, SIL Open Font License 1.1.
