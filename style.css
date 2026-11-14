@@ -1959,6 +1959,13 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 .amp-photo .knob-row > label { color: var(--amp-label, oklch(24% 0.04 40)); font-weight: 700; }
 .amp-photo .knob-row .knob-value { background: rgba(0, 0, 0, 0.55); border-radius: 3px; padding: 0 4px; border-bottom: 0; text-shadow: none; color: #fff; }
 /* ampskin:begin */
+.amp-photo[data-amp-type="blackface"] .knob-dial-wrap { scale: 1.194; }
+.amp-photo[data-amp-type="blackface"] .knob-row:nth-child(1) { translate: 29.0px 8.0px; }
+.amp-photo[data-amp-type="blackface"] .knob-row:nth-child(2) { translate: 16.0px 8.0px; }
+.amp-photo[data-amp-type="blackface"] .knob-row:nth-child(3) { translate: 3.0px 9.0px; }
+.amp-photo[data-amp-type="blackface"] .knob-row:nth-child(4) { translate: -11.0px 9.0px; }
+.amp-photo[data-amp-type="blackface"] .knob-row:nth-child(5) { translate: -25.0px 8.0px; }
+.amp-photo[data-amp-type="blackface"] .knob-row:nth-child(6) { translate: -39.0px 8.0px; }
 .amp-photo[data-amp-type="ac30"] .knob-dial-wrap { scale: 1.508; }
 .amp-photo[data-amp-type="ac30"] .knob-row:nth-child(1) { translate: 17.5px 28.0px; }
 .amp-photo[data-amp-type="ac30"] .knob-row:nth-child(2) { translate: 11.0px 26.0px; }

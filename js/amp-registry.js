@@ -1,5 +1,5 @@
 import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js?v=4';
-import { driveCurve } from './pedal-registry.js?v=143';
+import { driveCurve } from './pedal-registry.js?v=145';
 
 function makeBand(ctx, band) {
   const f = ctx.createBiquadFilter();
@@ -147,6 +147,7 @@ export const AMP_TYPES = [
   // ---------------------------------------------------------------------
   {
     id: 'blackface', label: 'Blackface', group: 'standard', color: 'oklch(30% 0.01 250)',
+    skin: { src: 'img/blackface-body.webp', knob: 'img/blackface-knob.webp', label: 'oklch(90% 0.01 260)' },
     blurb: 'Scooped, sparkling American clean that only breaks up when you crank it.',
     about: 'A small American combo in the Princeton/Deluxe Reverb mould: a tone stack that dips the mids around 500 Hz, a bright top, and a soft, nearly symmetric clip that stays clean through most of the Gain range and turns to a sweet breakup near the top.',
     createNodes: (ctx) => createAmpNodes(ctx, {
