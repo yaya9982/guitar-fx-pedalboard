@@ -1,5 +1,5 @@
-import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=142';
-import { AMP_TYPES } from './amp-registry.js?v=146';
+import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=143';
+import { AMP_TYPES } from './amp-registry.js?v=147';
 
 function stepFor(param) {
   if (param.step !== undefined) return param.step;
@@ -446,6 +446,13 @@ export function renderAmp(engine, container, template, callbacks, ampLogos = {})
   if (inst.typeDef.accent) unit.style.setProperty('--pedal-accent', inst.typeDef.accent);
   if (inst.typeDef.trim) unit.style.setProperty('--pedal-trim', inst.typeDef.trim);
   if (!inst.enabled) unit.classList.add('disabled-pedal');
+  const skin = inst.typeDef.skin; // photo amp (see "Amp photo skins" in style.css)
+  if (skin && !isGuitar) {
+    unit.classList.add('amp-photo');
+    unit.style.setProperty('--amp-body', `url("${skin.src}")`);
+    unit.style.setProperty('--amp-knob', `url("${skin.knob}")`);
+    if (skin.label) unit.style.setProperty('--amp-label', skin.label);
+  }
 
   const labelEl = unit.querySelector('.pedal-label');
   labelEl.textContent = inst.typeDef.label;

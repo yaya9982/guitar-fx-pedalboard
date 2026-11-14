@@ -1926,40 +1926,44 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 /* HUD bar (board toolbar): every text in Arial. Kept last so it wins over earlier single-class font rules. */
 .board-toolbar, .board-toolbar * { font-family: Arial, Helvetica, sans-serif; }
 
-/* ---------- AC30 photo skin ----------
-   Gemini photo of a generic British 2x12 combo (no brand badge), knobless body + one knob
-   sprite turned by --knob-angle. Rows are nudged onto the photo's knob positions. */
-.amp-unit[data-amp-type="ac30"] {
-  background: url("img/ac30-body.webp") 0 0 / 100% 100% no-repeat;
+/* ---------- Amp photo skins ----------
+   An amp with `skin: { src, knob, label }` in amp-registry.js gets .amp-photo (renderAmp):
+   Gemini photo of a generic combo (no brand badge) as a knobless body + one knob sprite
+   turned by --knob-angle. tools/ampskin.py writes each amp's knob nudges below. */
+.amp-unit.amp-photo {
+  background: var(--amp-body) 0 0 / 100% 100% no-repeat;
   border: 0; border-radius: 0; box-shadow: none;
   filter: drop-shadow(0 12px 14px rgba(0, 0, 0, 0.6));
 }
-.amp-unit[data-amp-type="ac30"]::before,
-.amp-unit[data-amp-type="ac30"]::after,
-.amp-unit[data-amp-type="ac30"] .amp-corner,
-.amp-unit[data-amp-type="ac30"] .amp-handle,
-.amp-unit[data-amp-type="ac30"] .amp-power-switch,
-.amp-unit[data-amp-type="ac30"] .amp-control-panel::before,
-.amp-unit[data-amp-type="ac30"] .amp-control-panel::after,
-.amp-unit[data-amp-type="ac30"] .amp-grille::before,
-.amp-unit[data-amp-type="ac30"] .amp-grille::after,
-.amp-unit[data-amp-type="ac30"] .knob-ticks,
-.amp-unit[data-amp-type="ac30"] .knob-pointer,
-.amp-unit[data-amp-type="ac30"] .knob-dial::before,
-.amp-unit[data-amp-type="ac30"] .knob-dial::after { display: none; }
-.amp-unit[data-amp-type="ac30"] .amp-control-panel,
-.amp-unit[data-amp-type="ac30"] .amp-grille { background: none; border: 0; box-shadow: none; }
-.amp-unit[data-amp-type="ac30"] .amp-plate { visibility: hidden; }
-.amp-unit[data-amp-type="ac30"] .knob-dial-wrap { translate: 0 4px; }
-.amp-unit[data-amp-type="ac30"] .knob-dial {
+.amp-unit.amp-photo::before,
+.amp-unit.amp-photo::after,
+.amp-photo .amp-corner,
+.amp-photo .amp-handle,
+.amp-photo .amp-power-switch,
+.amp-photo .amp-control-panel::before,
+.amp-photo .amp-control-panel::after,
+.amp-photo .amp-grille::before,
+.amp-photo .amp-grille::after,
+.amp-photo .knob-ticks,
+.amp-photo .knob-pointer,
+.amp-photo .knob-dial::before,
+.amp-photo .knob-dial::after { display: none; }
+.amp-photo .amp-control-panel,
+.amp-photo .amp-grille { background: none; border: 0; box-shadow: none; }
+.amp-photo .amp-plate { visibility: hidden; }
+.amp-photo .knob-dial {
   width: 100%; height: 100%; border: 0; border-radius: 50%; box-shadow: none;
-  background: url("img/ac30-knob.webp") center / 100% 100% no-repeat;
+  background: var(--amp-knob) center / 100% 100% no-repeat;
   transform: rotate(var(--knob-angle));
 }
-.amp-unit[data-amp-type="ac30"] .knob-row > label { color: oklch(24% 0.04 40); font-weight: 700; text-shadow: 0 1px 0 rgba(255, 220, 180, 0.35); }
-.amp-unit[data-amp-type="ac30"] .knob-row .knob-value { background: rgba(0, 0, 0, 0.55); border-radius: 3px; padding: 0 4px; border-bottom: 0; text-shadow: none; }
-.amp-unit[data-amp-type="ac30"] .knob-row:nth-child(1) { translate: 11.5px 0; }
-.amp-unit[data-amp-type="ac30"] .knob-row:nth-child(2) { translate: 6.5px 0; }
-.amp-unit[data-amp-type="ac30"] .knob-row:nth-child(4) { translate: -6.5px 0; }
-.amp-unit[data-amp-type="ac30"] .knob-row:nth-child(5) { translate: -13px 0; }
-.amp-unit[data-amp-type="ac30"] .knob-row:nth-child(6) { translate: -18px 0; }
+.amp-photo .knob-row > label { color: var(--amp-label, oklch(24% 0.04 40)); font-weight: 700; }
+.amp-photo .knob-row .knob-value { background: rgba(0, 0, 0, 0.55); border-radius: 3px; padding: 0 4px; border-bottom: 0; text-shadow: none; color: #fff; }
+/* ampskin:begin */
+.amp-photo[data-amp-type="ac30"] .knob-dial-wrap { scale: 1.508; }
+.amp-photo[data-amp-type="ac30"] .knob-row:nth-child(1) { translate: 17.5px 28.0px; }
+.amp-photo[data-amp-type="ac30"] .knob-row:nth-child(2) { translate: 11.0px 26.0px; }
+.amp-photo[data-amp-type="ac30"] .knob-row:nth-child(3) { translate: 2.0px 29.0px; }
+.amp-photo[data-amp-type="ac30"] .knob-row:nth-child(4) { translate: -6.5px 28.5px; }
+.amp-photo[data-amp-type="ac30"] .knob-row:nth-child(5) { translate: -13.0px 25.5px; }
+.amp-photo[data-amp-type="ac30"] .knob-row:nth-child(6) { translate: -20.0px 26.0px; }
+/* ampskin:end */

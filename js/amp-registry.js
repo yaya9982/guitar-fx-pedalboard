@@ -1,5 +1,5 @@
 import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js?v=4';
-import { driveCurve } from './pedal-registry.js?v=142';
+import { driveCurve } from './pedal-registry.js?v=143';
 
 function makeBand(ctx, band) {
   const f = ctx.createBiquadFilter();
@@ -198,6 +198,7 @@ export const AMP_TYPES = [
   },
   {
     id: 'ac30', label: 'AC30', group: 'standard', color: 'oklch(35% 0.04 40)',
+    skin: { src: 'img/ac30-body.webp', knob: 'img/ac30-knob.webp' },
     blurb: 'Chimey British combo: jangly cleans that slide smoothly into a gritty breakup.',
     about: 'A British combo in the AC30 Top Boost mould: no mid control, no negative feedback, and a cathode-biased class AB output stage, so it chimes in the upper mids, runs light in the lows, and breaks up early and gradually with a slightly asymmetric clip.',
     createNodes: (ctx) => createAmpNodes(ctx, {
