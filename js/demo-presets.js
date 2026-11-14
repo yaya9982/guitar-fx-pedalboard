@@ -86,13 +86,12 @@ export const DEMO_PRESETS = [
   {
     name: "AC/DC: Thunderstruck",
     artist: true,
-    blurb: 'Angus rig from the video: a nearly clean Klon-style boost into a mid-forward Plexi, a light plate reverb',
+    blurb: 'Angus rig from the video: a nearly clean Klon-style boost into a mid-forward Plexi',
     state: {
       inputGainPct: 100, masterVolumePct: 100,
       noiseGate: { enabled: false, threshold: -48, holdMs: 60, release: 150 },
       chain: [
         { kind: 'pedal', typeId: 'klon', enabled: true, params: { gain: 8, treble: -3.4, level: 152 } },
-        { kind: 'pedal', typeId: 'reverb', enabled: true, params: { type: 'plate', mix: 12 } },
         { kind: 'amp', typeId: 'plexi', enabled: true, params: { gain: 70, bass: 35, mid: 76, treble: 50, presence: 63, level: 78 } },
       ],
     },

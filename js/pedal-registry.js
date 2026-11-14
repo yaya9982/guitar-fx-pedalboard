@@ -131,7 +131,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'cs3', label: 'CS-3', category: 'dynamics', color: 'oklch(62% 0.14 230)', brand: 'boss', brandLabel: 'BOSS',
-    skin: { src: 'img/cs3-body.webp', aspect: '400 / 718', knob: 'img/cs3-knob.webp' },
+    skin: { src: 'img/cs3-body.webp', aspect: '400 / 748', knob: 'img/cs3-knob.webp' },
     blurb: 'A hard-knee compressor whose Attack and Release move in opposite directions on one knob — the Boss CS-3.',
     about: 'Modeled on the Boss Compression Sustainer CS-3: a fixed hard knee and high ratio, plus its documented Attack/Release coupling — the two aren\'t independent, turning one lengthens it while shortening the other, unlike the generic Compressor\'s separate knobs.',
     createNodes(ctx) {
@@ -410,7 +410,7 @@ export const PEDAL_TYPES = [
   },
   {
     id: 'bigmuff', label: 'Big Muff Pi', category: 'drive', color: 'oklch(80% 0.01 260)', brand: 'ehx', brandLabel: 'electro-harmonix',
-    skin: { src: 'img/bigmuff-body.webp', aspect: '400 / 634', knob: 'img/bigmuff-knob.webp' },
+    skin: { src: 'img/bigmuff-body.webp', aspect: '400 / 658', knob: 'img/bigmuff-knob.webp' },
     blurb: 'Two clipping stages (soft, then hard) feeding a scooped-mid tone crossfade — the Electro-Harmonix Big Muff Pi.',
     about: 'Modeled on the Electro-Harmonix Big Muff Pi: 2 cascaded clipping stages (the first "softly clips," the second "repeats the operation... creating the hard clip," confirmed via a direct circuit teardown), feeding a real passive-style Tone control that crossfades between a lowpass and a highpass branch rather than one simple filter — which is what produces its ~13.5dB scooped-mid dip at center.',
     createNodes(ctx) {
