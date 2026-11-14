@@ -1,5 +1,5 @@
 import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js?v=4';
-import { driveCurve } from './pedal-registry.js?v=148';
+import { driveCurve } from './pedal-registry.js?v=149';
 
 function makeBand(ctx, band) {
   const f = ctx.createBiquadFilter();
@@ -237,6 +237,7 @@ export const AMP_TYPES = [
   },
   {
     id: 'markiic', label: 'Mark IIC+', group: 'standard', color: 'oklch(20% 0.01 280)',
+    skin: { src: 'img/markiic-body.webp', knob: 'img/markiic-knob.webp', label: 'oklch(90% 0.01 260)' },
     blurb: 'Tight, saturated California lead with the graphic-EQ V: the thrash rhythm sound.',
     about: 'A cascaded-gain California head in the Mark IIC+ mould. Bass is cut before the gain stages so palm mutes stay tight, the lead channel is saturated throughout, and a post-gain five-band graphic EQ (80, 240, 750, 2200, 6600 Hz) is set to the classic thrash curve: lows lifted, a deep 750 Hz scoop, slight cuts at 240 and 2200 Hz, a small lift at 6600 Hz.',
     createNodes: (ctx) => createAmpNodes(ctx, {
