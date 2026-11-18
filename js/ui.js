@@ -1,5 +1,5 @@
-import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=165';
-import { AMP_TYPES } from './amp-registry.js?v=169';
+import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=166';
+import { AMP_TYPES } from './amp-registry.js?v=170';
 
 function stepFor(param) {
   if (param.step !== undefined) return param.step;
@@ -220,6 +220,51 @@ function wirePathBetween({ x1, y1, x2, y2, sameRow, aBottom, bTop }) {
   return `M ${x1} ${y1} L ${sx} ${y1} L ${sx} ${yh - r} Q ${sx} ${yh}, ${sx + hx * r} ${yh} L ${dx - hx * r} ${yh} Q ${dx} ${yh}, ${dx} ${yh + r} L ${dx} ${y2} L ${x2} ${y2}`;
 }
 
+// Photo cable textures (tools/cabletex.py + tools/cableplug.py): a seamless straight run of
+// braided cable and a 1/4" plug, both lying along +x. Every cable is drawn by sweeping
+// the run along its path one thin slice at a time, each slice turned to the path's
+// direction, so straight runs, sags and bends all come from the same photo with no joins.
+// Until both images load, the drawn SVG cable below is used instead.
+const CABLE_D = 9.6;          // drawn width of the tile's full height (cable ~8.6px + fibre fuzz)
+const PLUG_SHOW = 7;          // px of plug collar left visible outside the pedal's edge
+const cableTex = { tile: new Image(), plug: new Image(), ready: false };
+let cableTile2 = null;        // the tile twice side by side, so a slice never wraps mid-read
+cableTex.tile.src = 'img/cable-tile.webp';
+cableTex.plug.src = 'img/cable-plug.webp';
+Promise.all([cableTex.tile.decode(), cableTex.plug.decode()]).then(() => {
+  const t = cableTex.tile;
+  cableTile2 = document.createElement('canvas');
+  cableTile2.width = t.naturalWidth * 2; cableTile2.height = t.naturalHeight;
+  const g = cableTile2.getContext('2d'); g.drawImage(t, 0, 0); g.drawImage(t, t.naturalWidth, 0);
+  cableTex.ready = true;
+  if (lastWireContainer && lastWireContainer.isConnected) updateChainWires(lastWireContainer);
+}).catch(() => {}); // missing images: keep the SVG cable
+
+// Sweep the cable photo along an SVG path element (layout px), then plug each listed end.
+function paintCable(ctx, pathEl, plugEnds) {
+  const len = pathEl.getTotalLength();
+  if (len < 1) return;
+  const tw = cableTex.tile.naturalWidth, th = cableTex.tile.naturalHeight;
+  const texPerPx = th / CABLE_D, step = 1, slice = 1.6;     // slices overlap so curves leave no gaps
+  const at = (s) => pathEl.getPointAtLength(Math.max(0, Math.min(len, s)));
+  for (let s = 0; s <= len; s += step) {
+    const p = at(s), a = at(s - 1), b = at(s + 1);
+    ctx.save();
+    ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(b.y - a.y, b.x - a.x));
+    ctx.drawImage(cableTile2, (s * texPerPx) % tw, 0, slice * texPerPx, th, -slice / 2, -CABLE_D / 2, slice, CABLE_D);
+    ctx.restore();
+  }
+  const pw = cableTex.plug.naturalWidth / texPerPx, ph = cableTex.plug.naturalHeight / texPerPx;
+  for (const end of plugEnds) {
+    const p = at(end === 'start' ? 0 : len), q = at(end === 'start' ? 3 : len - 3);
+    ctx.save();
+    ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(p.y - q.y, p.x - q.x)); // tip points into the jack
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)'; ctx.shadowBlur = 3; ctx.shadowOffsetY = 2;
+    ctx.drawImage(cableTex.plug, -PLUG_SHOW, -ph / 2, pw, ph);              // the rest hides under the pedal
+    ctx.restore();
+  }
+}
+
 export function updateChainWires(container) {
   let svg = container.querySelector(':scope > svg.chain-wires');
   if (!svg) {
@@ -235,6 +280,20 @@ export function updateChainWires(container) {
   svg.setAttribute('width', cRect.width / k);
   svg.setAttribute('height', cRect.height / k);
   svg.innerHTML = '';
+  // Photo cables paint on a canvas just above the SVG (which keeps only their shadows).
+  let canvas = container.querySelector(':scope > canvas.chain-cables');
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    canvas.className = 'chain-cables';
+  }
+  svg.after(canvas);
+  const px = (window.devicePixelRatio || 1) * k;   // backing pixels per layout px
+  canvas.width = Math.ceil(cRect.width / k * px); canvas.height = Math.ceil(cRect.height / k * px);
+  canvas.style.width = `${cRect.width / k}px`; canvas.style.height = `${cRect.height / k}px`;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(px, 0, 0, px, 0, 0);
+  ctx.imageSmoothingQuality = 'high';
+  const photo = cableTex.ready;
 
   // Braided nylon jacket, referenced from sources/photos/cable.jpg and cable2.jpg:
   // a diagonal weave with three interleaved tones (not a flat cord, and not a
@@ -285,15 +344,21 @@ export function updateChainWires(container) {
   // a dark rim so the woven jacket reads as a rounded cord, the braided body
   // itself, an under-shade, and a specular highlight — then a gold-plated 1/4"
   // plug tip (see sources/photos/cable.jpg/cable2.jpg) at each given point.
-  function drawWire(d, tipPoints) {
+  // `plugEnds`: which path ends ('start'/'end') sit in a pedal's jack and get a plug
+  // (photo mode only; the drawn cable marks `tipPoints` with brass dots instead).
+  function drawWire(d, tipPoints, plugEnds) {
     const group = document.createElementNS(SVG_NS, 'g');
     group.setAttribute('class', 'chain-wire');
-    for (const cls of ['chain-wire-shadow-far', 'chain-wire-shadow-near', 'chain-wire-fuzz', 'chain-wire-rim', 'chain-wire-body', 'chain-wire-undershade', 'chain-wire-highlight']) {
+    const layers = photo ? ['chain-wire-shadow-far', 'chain-wire-shadow-near']
+      : ['chain-wire-shadow-far', 'chain-wire-shadow-near', 'chain-wire-fuzz', 'chain-wire-rim', 'chain-wire-body', 'chain-wire-undershade', 'chain-wire-highlight'];
+    for (const cls of layers) {
       const path = document.createElementNS(SVG_NS, 'path');
       path.setAttribute('class', cls);
       path.setAttribute('d', d);
       group.appendChild(path);
     }
+    svg.appendChild(group);
+    if (photo) { paintCable(ctx, group.lastChild, plugEnds); return; }
     for (const [x, y] of tipPoints) {
       const tip = document.createElementNS(SVG_NS, 'circle');
       tip.setAttribute('class', 'chain-wire-tip');
@@ -307,7 +372,7 @@ export function updateChainWires(container) {
 
   for (let i = 0; i < cards.length - 1; i++) {
     const ends = wireEndpoints(cards[i], cards[i + 1], container);
-    drawWire(wirePathBetween(ends), [[ends.x1, ends.y1], [ends.x2, ends.y2]]);
+    drawWire(wirePathBetween(ends), [[ends.x1, ends.y1], [ends.x2, ends.y2]], ['start', 'end']);
   }
 
   // Input/output stubs: a short run of cable heading off the first and last
@@ -319,10 +384,10 @@ export function updateChainWires(container) {
     const last = cards[cards.length - 1].getBoundingClientRect();
     const y1 = (first.top - cRect.top + first.height * 0.64) / k;
     const x1 = (first.left - cRect.left) / k;
-    drawWire(`M ${Math.max(0, x1 - stub)} ${y1} L ${x1} ${y1}`, [[Math.max(0, x1 - stub), y1]]);
+    drawWire(`M ${Math.max(0, x1 - stub)} ${y1} L ${x1} ${y1}`, [[Math.max(0, x1 - stub), y1]], ['end']);
     const y2 = (last.top - cRect.top + last.height * 0.64) / k;
     const x2 = (last.right - cRect.left) / k;
-    drawWire(`M ${x2} ${y2} L ${x2 + stub} ${y2}`, [[x2 + stub, y2]]);
+    drawWire(`M ${x2} ${y2} L ${x2 + stub} ${y2}`, [[x2 + stub, y2]], ['start']);
   }
 }
 
