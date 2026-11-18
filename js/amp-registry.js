@@ -1,5 +1,5 @@
 import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js?v=4';
-import { driveCurve } from './pedal-registry.js?v=162';
+import { driveCurve } from './pedal-registry.js?v=163';
 
 function makeBand(ctx, band) {
   const f = ctx.createBiquadFilter();
@@ -126,6 +126,7 @@ export const AMP_TYPES = [
   },
   {
     id: 'lead', label: 'Lead / High-Gain', group: 'standard', color: 'oklch(50% 0.20 25)',
+    skin: { src: 'img/lead-body.webp', knob: 'img/lead-knob.webp', label: 'oklch(92% 0.01 260)' },
     blurb: 'Thick, saturated, modern high-gain lead tone with scooped mids and lots of sustain.',
     about: 'Signal is driven hard into an aggressive clipping curve, generating dense high-order harmonics for sustain, while a scooped-mid, boosted-presence EQ curve carves out space so the saturation doesn\'t turn to mud on chords. Lead/High-Gain is a hot, heavily-saturated modern amp voicing with scooped mids and boosted presence, built for singing sustain on solos and heavier riffing. It\'s the least "vintage" and most aggressive of the standard amps.',
     createNodes: (ctx) => createAmpNodes(ctx, {
