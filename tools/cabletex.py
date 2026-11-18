@@ -1,10 +1,9 @@
-# Turn Gemini's cable photos into the two textures the patch cables are drawn from.
-# usage: python -I tools/cabletex.py <section.png> <plug.png>
+# Turn Gemini's straight-cable photo into the texture the patch cables are drawn from.
+# usage: python -I tools/cabletex.py <section.png>
 #   section: one straight horizontal cable running off both edges, on chroma green
 #            -> img/cable-tile.webp: straightened, cropped to the cable, seamless left/right.
-#   plug:    one horizontal 1/4" plug, tip pointing right, cable leaving left
-#            -> img/cable-plug.webp: cropped to the plug (cable trimmed), same height scale as the tile.
-# ui.js (updateChainWires) sweeps the tile along every cable path and draws the plug at each jack.
+# ui.js (updateChainWires) sweeps the tile along every cable path; the plug at each jack is
+# img/cable-plug.webp from tools/cableplug.py.
 import sys, numpy as np
 from PIL import Image
 src = open('tools/split.py', encoding='utf8').read()
@@ -20,6 +19,7 @@ def centre_rows(alpha):
 
 def section(path):
     A = key(Image.open(path)).astype(float)
+    A[..., 1] = np.minimum(A[..., 1], np.maximum(A[..., 0], A[..., 2]))   # neutral braid: no green spill on the edges
     c, half, ok = centre_rows(A[..., 3])
     cols = np.where(ok & (half > np.median(half[ok]) * .8))[0]
     x0, x1 = cols[0] + 8, cols[-1] - 8                         # drop the frame-edge columns
@@ -45,22 +45,8 @@ def section(path):
     im = Image.fromarray(np.clip(out, 0, 255).astype('uint8'))
     return im.resize((round(im.width * TILE_H / H), TILE_H), Image.LANCZOS), H
 
-def plug(path, cable_h):
-    A = key(Image.open(path)).astype(float); al = A[..., 3] > 128
-    c, half, ok = centre_rows(A[..., 3])
-    cols = np.where(ok)[0]
-    tipx = cols[-1]
-    cable = np.median(half[cols[0]:cols[0] + 40]) * 2           # cable thickness at the left edge
-    wide = np.where(half[cols] * 2 > cable * 1.25)[0]            # strain relief / barrel start
-    x0 = max(cols[0], cols[wide[0]] - int(cable * 1.5)) if len(wide) else cols[0]
-    rows = np.where(al[:, x0:tipx + 1].any(1))[0]
-    im = Image.fromarray(A.astype('uint8')).crop((x0, rows[0], tipx + 1, rows[-1] + 1))
-    s = TILE_H / cable                                           # same cable scale as the tile
-    return im.resize((round(im.width * s), round(im.height * s)), Image.LANCZOS)
 
 if __name__ == '__main__':
     tile, h = section(sys.argv[1])
     tile.save('img/cable-tile.webp', quality=90)
-    p = plug(sys.argv[2], h)
-    p.save('img/cable-plug.webp', quality=90)
-    print('tile', tile.size, 'plug', p.size)
+    print('tile', tile.size)
