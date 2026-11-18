@@ -1567,6 +1567,15 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
   background: rgba(14, 8, 4, 0.78);
 }
 .guitar-corner-knobs .knob-row input[type="range"] { width: 100%; }
+/* Photo top (skin.src): an image fitted to the same 750x500 body rect as the SVG, so every
+   control above keeps its place; the SVG is only hidden. */
+.guitar-photo .guitar-svg { visibility: hidden; }
+.guitar-photo .guitar-stage::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: var(--guitar-body) 0 0 / 100% 100% no-repeat;
+  filter: drop-shadow(0 14px 12px rgba(0, 0, 0, 0.7)) drop-shadow(0 3px 4px rgba(0, 0, 0, 0.55));
+}
+.guitar-photo .guitar-name { color: oklch(22% 0.05 40); text-shadow: 0 1px 0 rgba(255, 220, 160, 0.3); }
 
 /* ---------- Photo skins (real-looking pedals, branch "real") ----------
    A pedal definition with `skin: { src, aspect }` gets .photo-skin plus --skin-img /

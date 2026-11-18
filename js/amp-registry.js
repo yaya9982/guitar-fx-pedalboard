@@ -1,5 +1,5 @@
 import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js?v=4';
-import { driveCurve } from './pedal-registry.js?v=164';
+import { driveCurve } from './pedal-registry.js?v=165';
 
 function makeBand(ctx, band) {
   const f = ctx.createBiquadFilter();
@@ -267,6 +267,7 @@ export const AMP_TYPES = [
   // ---------------------------------------------------------------------
   {
     id: 'acoustic', label: 'Acoustic', group: 'acoustic', layout: 'guitar', color: 'oklch(62% 0.11 65)',
+    skin: { src: 'img/acoustic-body.webp' }, // photo of the whole top, fitted to the SVG's 750x500 body rect
     blurb: 'Your pickup signal reshaped to sound like a miked acoustic guitar body.',
     about: 'Acoustic replaces the amp with a model of an acoustic guitar\'s wooden body. A corrective EQ trims the boxy, nasal and quacky bands a pickup exaggerates and adds a touch of air, then a synthesized body response adds the resonances a pickup misses: the air resonance near 110 Hz and the top-plate resonance near 220 Hz, each with a realistic ring time. Body sets how much of that resonance is added, Softness how deeply the nasal and quacky upper mids are cut, and Air how much top-end sparkle is restored; the middle position of each is the base voicing. It is an EQ and resonance approximation based on published guitar measurements, not a recording of a real guitar, and there is no gain stage, so it stays clean. It takes the amp slot, so it replaces any other amp.',
     createNodes: createAcousticNodes,

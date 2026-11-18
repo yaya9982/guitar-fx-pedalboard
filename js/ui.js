@@ -1,5 +1,5 @@
-import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=164';
-import { AMP_TYPES } from './amp-registry.js?v=168';
+import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=165';
+import { AMP_TYPES } from './amp-registry.js?v=169';
 
 function stepFor(param) {
   if (param.step !== undefined) return param.step;
@@ -452,6 +452,9 @@ export function renderAmp(engine, container, template, callbacks, ampLogos = {})
     unit.style.setProperty('--amp-body', `url("${skin.src}")`);
     unit.style.setProperty('--amp-knob', `url("${skin.knob}")`);
     if (skin.label) unit.style.setProperty('--amp-label', skin.label);
+  } else if (skin) {
+    unit.classList.add('guitar-photo'); // photo replaces the drawn SVG top; controls stay put
+    unit.style.setProperty('--guitar-body', `url("${skin.src}")`);
   }
 
   const labelEl = unit.querySelector('.pedal-label');
