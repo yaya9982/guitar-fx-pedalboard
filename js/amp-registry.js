@@ -1,5 +1,5 @@
 import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js?v=4';
-import { driveCurve } from './pedal-registry.js?v=161';
+import { driveCurve } from './pedal-registry.js?v=162';
 
 function makeBand(ctx, band) {
   const f = ctx.createBiquadFilter();
@@ -90,6 +90,7 @@ function ampParams() {
 export const AMP_TYPES = [
   {
     id: 'clean', label: 'Clean', group: 'standard', color: 'oklch(85% 0.02 90)',
+    skin: { src: 'img/clean-body.webp', knob: 'img/clean-knob.webp', label: 'oklch(22% 0.01 260)' },
     blurb: 'Bright, transparent headroom with no breakup — a blank canvas for pedals.',
     about: 'Signal passes through a wide-headroom gain stage that stays under the clipping threshold at any setting, so no distortion harmonics get added — only a flat-ish EQ curve and the cabinet\'s own frequency response shape the tone. Clean is a headroom-y, mostly transparent amp voicing with very light natural compression and no real breakup, even when pushed. It\'s a blank canvas — ideal for building your tone entirely from pedals in front of it, or for genuinely clean rhythm/jazz tones.',
     createNodes: (ctx) => createAmpNodes(ctx, {
@@ -107,6 +108,7 @@ export const AMP_TYPES = [
   },
   {
     id: 'crunch', label: 'Crunch', group: 'standard', color: 'oklch(45% 0.08 75)',
+    skin: { src: 'img/crunch-body.webp', knob: 'img/crunch-knob.webp', label: 'oklch(22% 0.02 60)' },
     blurb: 'Classic edge-of-breakup rock rhythm tone — not fully distorted, just gritty.',
     about: 'Signal is pushed just past the clipping threshold, so pick-attack transients round off into mild saturation while quieter passages ride under the threshold and stay fairly clean, with a broad midrange bump shaping the breakup. Crunch sits right at the edge of breakup — clean-ish when you play softly, growling and gritty when you dig in. This is the bread-and-butter classic-rock rhythm tone that most drive pedals are designed to be stacked in front of.',
     createNodes: (ctx) => createAmpNodes(ctx, {
