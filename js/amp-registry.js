@@ -1,5 +1,5 @@
 import { generateCabIR, generateAcousticBodyIR } from './ir-synth.js?v=4';
-import { driveCurve } from './pedal-registry.js?v=163';
+import { driveCurve } from './pedal-registry.js?v=164';
 
 function makeBand(ctx, band) {
   const f = ctx.createBiquadFilter();
@@ -108,7 +108,7 @@ export const AMP_TYPES = [
   },
   {
     id: 'crunch', label: 'Crunch', group: 'standard', color: 'oklch(45% 0.08 75)',
-    skin: { src: 'img/crunch-body.webp', knob: 'img/crunch-knob.webp', label: 'oklch(22% 0.02 60)' },
+    skin: { src: 'img/crunch-body.webp', knob: 'img/crunch-knob.webp', label: 'oklch(97% 0.02 90)' },
     blurb: 'Classic edge-of-breakup rock rhythm tone — not fully distorted, just gritty.',
     about: 'Signal is pushed just past the clipping threshold, so pick-attack transients round off into mild saturation while quieter passages ride under the threshold and stay fairly clean, with a broad midrange bump shaping the breakup. Crunch sits right at the edge of breakup — clean-ish when you play softly, growling and gritty when you dig in. This is the bread-and-butter classic-rock rhythm tone that most drive pedals are designed to be stacked in front of.',
     createNodes: (ctx) => createAmpNodes(ctx, {
