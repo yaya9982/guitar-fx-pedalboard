@@ -38,9 +38,10 @@ as visual references (kept outside the repo in `../sources/photos/amps/`, not sh
 "AC30 front.jpg" (CC BY-SA 4.0), "Fender1965DeluxeRev.jpg" (CC BY-SA 3.0 DE),
 "Marshall 1959 Super Lead 100 Reissue Front.jpg" (CC BY-SA 2.0), "Marshall JCM800 amplifier.jpg"
 (CC BY-SA 4.0), "Hiwatt Model DR103 100W Guitar Amplifier.jpg" (CC BY-SA 4.0), "MarkIV.jpg" (public domain).
-The Acoustic photo top was generated the same way, using "2005 Gibson Hummingbird - pickguard details with
-soundhole, bridge (2011-01-07 18.02.41 by John Tuggle).jpg" (John Tuggle, CC BY 2.0) as the style reference
-(kept outside the repo in `../sources/photos/acoustic/`, not shipped).
+The Acoustic photo top was generated the same way: the layout and pickguard from "2005 Gibson Hummingbird -
+pickguard details with soundhole, bridge (2011-01-07 18.02.41 by John Tuggle).jpg" (John Tuggle, CC BY 2.0), and the
+natural spruce wood from "Martin D-28 body upper (2011-01-02 by irish10567).jpg" (irish10567, CC BY 2.0)
+(both kept outside the repo in `../sources/photos/acoustic/`, not shipped).
 
 ## App shell font (`fonts/Archivo-VF.ttf`)
 

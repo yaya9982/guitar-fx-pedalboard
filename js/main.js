@@ -1,5 +1,5 @@
-import { AudioEngine } from './audio-engine.js?v=183';
-import { renderChain, renderAmp, showAddMenu, showDemoMenu, showSavePresetPopover, showPresetMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=173';
+import { AudioEngine } from './audio-engine.js?v=185';
+import { renderChain, renderAmp, renderOrderList, showAddMenu, showDemoMenu, showSavePresetPopover, showPresetMenu, showInfoPopover, drawScope, drawWaveform, drawStaticWave } from './ui.js?v=175';
 import { renderPreviewWaveform } from './wave-preview.js';
 import { DEMO_PRESETS } from './demo-presets.js?v=2';
 import { Tuner, GUITAR_STRINGS, centsFromTarget } from './tuner.js?v=3';
@@ -42,6 +42,7 @@ const clearSetupBtn = $('clearSetupBtn');
 const pedalChain = $('pedalChain');
 const pedalCardTemplate = $('pedalCardTemplate');
 const ampSlot = $('ampSlot');
+const orderCtrl = $('orderCtrl');
 const ampCardTemplate = $('ampCardTemplate');
 let ampLogos = loadAmpLogos();
 
@@ -612,7 +613,7 @@ function refreshChainUI() {
     onParamChange: async (instanceId, key, value) => { await engine.setParam(instanceId, key, value); autosave(); scheduleWavePreview(); },
     onToggle: (instanceId) => { engine.toggleEnabled(instanceId); refreshChainUI(); autosave(); },
     onRemove: (instanceId) => { engine.removeFromChain(instanceId); refreshChainUI(); autosave(); },
-    onReorder: (newOrder) => { engine.reorderChain(newOrder); autosave(); scheduleWavePreview(); },
+    onReorder: (newOrder) => { engine.reorderChain(newOrder); refreshOrderList(); autosave(); scheduleWavePreview(); },
     onLogoChange: (typeId, dataUrl) => {
       if (dataUrl) ampLogos[typeId] = dataUrl; else delete ampLogos[typeId];
       saveAmpLogos(ampLogos);
@@ -621,8 +622,30 @@ function refreshChainUI() {
   };
   renderChain(engine, pedalChain, pedalCardTemplate, chainCallbacks);
   renderAmp(engine, ampSlot, ampCardTemplate, chainCallbacks, ampLogos);
+  refreshOrderList();
   scheduleWavePreview();
 }
+
+// HUD "Pedal Order" list: the same reorder as dragging a card, via up/down arrows. A move
+// reorders the engine and re-renders the board straight away (refreshChainUI also redraws
+// this list). Show all / Show less toggles the full dropdown; a click elsewhere or Escape closes it.
+function refreshOrderList() {
+  renderOrderList(orderCtrl, engine.chain, (newOrder) => { engine.reorderChain(newOrder); refreshChainUI(); autosave(); });
+}
+function setOrderExpanded(open) {
+  orderCtrl.classList.toggle('expanded', open);
+  refreshOrderList();
+}
+orderCtrl.querySelector('.order-more').addEventListener('click', () => setOrderExpanded(!orderCtrl.classList.contains('expanded')));
+document.addEventListener('pointerdown', (e) => {
+  if (orderCtrl.classList.contains('expanded') && !orderCtrl.contains(e.target)) setOrderExpanded(false);
+});
+orderCtrl.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || !orderCtrl.classList.contains('expanded')) return;
+  setOrderExpanded(false);
+  orderCtrl.querySelector('.order-more').focus();
+});
+refreshOrderList(); // empty-board placeholder until the first chain render
 
 // ---------------------------------------------------------------------------
 // Toolbar signal preview: a plain sine rendered offline through the current

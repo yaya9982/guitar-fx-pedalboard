@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Guitar FX Pedalboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="style.css?v=207">
+<link rel="stylesheet" href="style.css?v=209">
 <script>
   (function () {
     var root = document.documentElement;
@@ -109,6 +109,13 @@
           <button type="button" id="youtubePlayBtn" class="mute-btn" disabled title="Play/Pause">&#9654; Play</button>
           <button type="button" id="youtubeForwardBtn" class="mute-btn" disabled title="Forward 5 seconds">5s &#8635;</button>
           <input type="range" id="youtubeVolRange" class="youtube-vol" min="0" max="100" value="100" disabled title="Volume">
+        </div>
+      </div>
+      <div class="control order-ctrl" id="orderCtrl">
+        <label id="orderLabel" title="Reorder pedals with the arrows, an alternative to dragging them on the board">Pedal Order</label>
+        <div class="order-panel">
+          <ol class="order-list" id="orderList" aria-labelledby="orderLabel"></ol>
+          <button type="button" class="order-more mute-btn" hidden aria-expanded="false" aria-controls="orderList"></button>
         </div>
       </div>
       <div class="toolbar-right">
@@ -550,6 +557,6 @@
   </div>
 </template>
 
-<script type="module" src="js/main.js?v=209"></script>
+<script type="module" src="js/main.js?v=211"></script>
 </body>
 </html>

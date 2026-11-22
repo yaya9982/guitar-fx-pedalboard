@@ -1,5 +1,5 @@
-import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=167';
-import { AMP_TYPES } from './amp-registry.js?v=171';
+import { PEDAL_TYPES, CATEGORIES } from './pedal-registry.js?v=169';
+import { AMP_TYPES } from './amp-registry.js?v=173';
 
 function stepFor(param) {
   if (param.step !== undefined) return param.step;
@@ -465,6 +465,72 @@ export function renderChain(engine, container, template, callbacks) {
     container.appendChild(frag);
   });
   updateChainWires(container);
+}
+
+// Chain-order list in the HUD bar: an arrow-button alternative to dragging pedal cards.
+// Shows the first ORDER_PREVIEW pedals; "Show all" (host gets .expanded) opens the full
+// list as a dropdown. Each row's arrows swap it with its neighbour and hand the new
+// instanceId order to onMove, which reorders the engine and re-renders the board at once.
+const ORDER_PREVIEW = 5;
+export function renderOrderList(host, chain, onMove) {
+  const list = host.querySelector('.order-list');
+  const more = host.querySelector('.order-more');
+  const expanded = host.classList.contains('expanded');
+  const refocus = host.dataset.refocus; // "instanceId:dir" of the arrow just pressed
+  delete host.dataset.refocus;
+
+  const rows = (expanded ? chain : chain.slice(0, ORDER_PREVIEW)).map((inst, i) => {
+    const li = document.createElement('li');
+    li.className = 'order-row';
+    if (!inst.enabled) li.classList.add('bypassed');
+    const rank = document.createElement('span');
+    rank.className = 'order-rank';
+    rank.textContent = i + 1;
+    const name = document.createElement('span');
+    name.className = 'order-name';
+    name.textContent = inst.typeDef.label;
+    name.title = inst.typeDef.label + (inst.enabled ? '' : ' (bypassed)');
+    li.append(rank, name);
+    for (const [dir, glyph, word] of [[-1, '▲', 'up'], [1, '▼', 'down']]) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'order-move';
+      btn.textContent = glyph;
+      btn.dataset.id = inst.instanceId;
+      btn.dataset.dir = dir;
+      btn.setAttribute('aria-label', `Move ${inst.typeDef.label} ${word}`);
+      btn.disabled = i + dir < 0 || i + dir >= chain.length;
+      btn.addEventListener('click', () => {
+        const ids = chain.map((c) => c.instanceId);
+        [ids[i], ids[i + dir]] = [ids[i + dir], ids[i]];
+        host.dataset.refocus = `${inst.instanceId}:${dir}`;
+        onMove(ids);
+      });
+      li.appendChild(btn);
+    }
+    return li;
+  });
+  if (!chain.length) {
+    const li = document.createElement('li');
+    li.className = 'order-empty';
+    li.textContent = 'No pedals yet';
+    rows.push(li);
+  }
+  list.replaceChildren(...rows);
+
+  more.hidden = chain.length <= ORDER_PREVIEW;
+  more.textContent = expanded ? 'Show less' : `Show all (${chain.length})`;
+  more.setAttribute('aria-expanded', String(expanded));
+  if (more.hidden) host.classList.remove('expanded');
+
+  // Keep keyboard focus on the pedal that just moved (re-rendering replaced its button);
+  // if it hit the end of the list or scrolled out of the 5-row preview, fall back sensibly.
+  if (refocus) {
+    const [id, dir] = refocus.split(':');
+    const btns = [...list.querySelectorAll(`.order-move[data-id="${CSS.escape(id)}"]`)];
+    const target = btns.find((b) => b.dataset.dir === dir && !b.disabled) || btns.find((b) => !b.disabled) || (more.hidden ? null : more);
+    target?.focus();
+  }
 }
 
 // Custom amp logo badges — archived for now (not removed): the feature works, but is

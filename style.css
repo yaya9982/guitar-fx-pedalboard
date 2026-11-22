@@ -1970,6 +1970,37 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brass); outline-off
 .scene-slot.active > button:first-child { outline: 2px solid var(--brass); outline-offset: 1px; }
 .scene-slots .scene-all { align-self: flex-start; white-space: nowrap; }
 
+/* Pedal Order (HUD): arrow-button reorder list (renderOrderList in ui.js), an alternative to
+   dragging pedal cards. Shows the first 5 pedals; .expanded turns the panel into a dropdown
+   over the board with every pedal, so the toolbar itself never changes height. */
+.control.order-ctrl { width: 210px; margin-left: auto; align-self: flex-start; }
+.order-panel { display: flex; flex-direction: column; gap: 4px; }
+.order-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.order-row {
+  display: grid; grid-template-columns: 18px 1fr 24px 24px; align-items: center; gap: 4px;
+  height: 21px; padding: 0 3px 0 4px; border-radius: 4px;
+  background: var(--st-well); border: 1px solid var(--st-edge); font-size: 12px; color: var(--st-text);
+}
+.order-row.bypassed .order-name { color: var(--st-dim); }
+.order-rank { color: var(--st-accent); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.order-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.order-move {
+  width: 24px; height: 17px; padding: 0; line-height: 1; font-size: 9px; cursor: pointer;
+  border: 1px solid var(--st-edge); border-radius: 3px; background: var(--st-surface); color: var(--st-text);
+}
+.order-move:hover:not(:disabled) { color: var(--st-accent); border-color: var(--st-accent); }
+.order-move:focus-visible { outline: 2px solid var(--st-accent); outline-offset: 1px; }
+.order-move:disabled { opacity: 0.3; cursor: default; }
+.order-empty { font-size: 12px; color: var(--st-dim); }
+.order-more { align-self: flex-start; }
+.order-more[hidden] { display: none; }
+.order-ctrl.expanded .order-panel {
+  position: absolute; top: 20px; left: -6px; right: -6px; z-index: 60; padding: 6px;
+  background: oklch(25% 0.004 260); border: 1px solid oklch(42% 0.004 260 / 0.7); border-radius: 8px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 22px 44px -14px rgba(0, 0, 0, 0.8);
+}
+.order-ctrl.expanded .order-list { max-height: 460px; overflow-y: auto; }
+
 /* HUD bar (board toolbar): every text in Arial. Kept last so it wins over earlier single-class font rules. */
 .board-toolbar, .board-toolbar * { font-family: Arial, Helvetica, sans-serif; }
 
